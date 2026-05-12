@@ -117,13 +117,13 @@ export async function getMessages(complaintId) {
 }
 
 /**
- * Send a message from the reporter.
+ * Send a message. sender = 'reporter' | 'manager'
  * Returns { error }
  */
-export async function sendMessage(complaintId, content) {
+export async function sendMessage(complaintId, content, sender = 'reporter') {
   const { error } = await supabase
     .from('messages')
-    .insert({ complaint_id: complaintId, sender: 'reporter', content });
+    .insert({ complaint_id: complaintId, sender, content });
 
   return { error };
 }
@@ -146,6 +146,35 @@ export async function updateComplaintStatus(id, status, adminNote = null) {
   }
 
   return { error };
+}
+
+/**
+ * Fetch a single complaint by ID (admin).
+ */
+export async function getComplaintById(id) {
+  const { data, error } = await supabase
+    .from('complaints')
+    .select('*, attachments(*)')
+    .eq('id', id)
+    .single();
+
+  return { complaint: data, error };
+}
+
+// ── Auth (admin) ───────────────────────────────────────────────────────
+
+export async function signInAdmin(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  return { session: data?.session, error };
+}
+
+export async function signOutAdmin() {
+  return supabase.auth.signOut();
+}
+
+export async function getAdminSession() {
+  const { data } = await supabase.auth.getSession();
+  return data?.session ?? null;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
