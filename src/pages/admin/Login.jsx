@@ -66,7 +66,10 @@ export default function AdminLogin() {
           </button>
         </form>
 
-        <a href="/" className="admin-login-back">← Tornar al canal públic</a>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
+          <a href="/admin/forgot-password" className="admin-login-back" style={{ margin: 0 }}>He oblidat la contrasenya</a>
+          <a href="/" className="admin-login-back" style={{ margin: 0 }}>← Canal públic</a>
+        </div>
       </div>
     </div>
   );

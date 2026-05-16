@@ -3,11 +3,15 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './global.css';
 import { translations } from './translations.js';
 import { getAdminSession } from './lib/supabase.js';
+import { AdminAuthProvider } from './contexts/AdminAuth.jsx';
 import ComplaintForm from './pages/ComplaintForm.jsx';
 import TrackingPortal from './pages/TrackingPortal.jsx';
 import AdminLogin from './pages/admin/Login.jsx';
 import AdminDashboard from './pages/admin/Dashboard.jsx';
 import ComplaintDetail from './pages/admin/ComplaintDetail.jsx';
+import ForgotPassword from './pages/admin/ForgotPassword.jsx';
+import ResetPassword from './pages/admin/ResetPassword.jsx';
+import Users from './pages/admin/Users.jsx';
 
 const LANGS = ['ca', 'es', 'en'];
 
@@ -78,13 +82,18 @@ function AdminGuard({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<PublicApp />} />
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
-        <Route path="/admin/complaints/:id" element={<AdminGuard><ComplaintDetail /></AdminGuard>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <AdminAuthProvider>
+        <Routes>
+          <Route path="/" element={<PublicApp />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/forgot-password" element={<ForgotPassword />} />
+          <Route path="/admin/reset-password" element={<ResetPassword />} />
+          <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
+          <Route path="/admin/complaints/:id" element={<AdminGuard><ComplaintDetail /></AdminGuard>} />
+          <Route path="/admin/users" element={<AdminGuard><Users /></AdminGuard>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AdminAuthProvider>
     </BrowserRouter>
   );
 }

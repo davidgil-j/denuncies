@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-Content \"c:\\\\Users\\\\liind\\\\Desktop\\\\scrapping\\\\cercador.log\" -Tail 50)"
+    ]
+  }
+}

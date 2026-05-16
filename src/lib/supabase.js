@@ -177,6 +177,89 @@ export async function getAdminSession() {
   return data?.session ?? null;
 }
 
+export async function sendPasswordReset(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/admin/reset-password`,
+  });
+  return { error };
+}
+
+export async function updatePassword(newPassword) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  return { error };
+}
+
+// ── Profiles & permissions ─────────────────────────────────────────────
+
+export async function getProfile(userId) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  return { profile: data, error };
+}
+
+export async function getAllProfiles() {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, role, full_name, created_at')
+    .order('created_at', { ascending: true });
+
+  if (error) return { profiles: [], error };
+
+  // Enrich with email from auth (via a join-like approach)
+  const { data: users } = await supabase.auth.admin?.listUsers?.() ?? { data: null };
+
+  const profiles = data.map(p => {
+    const authUser = users?.users?.find(u => u.id === p.id);
+    return { ...p, email: authUser?.email ?? '' };
+  });
+
+  return { profiles, error: null };
+}
+
+export async function getManagerPermissions(managerId) {
+  const { data, error } = await supabase
+    .from('manager_permissions')
+    .select('*')
+    .eq('manager_id', managerId);
+  return { permissions: data ?? [], error };
+}
+
+export async function setManagerPermissions(managerId, permissionsArray) {
+  // permissionsArray: [{ category, can_view, can_edit, can_reply, can_delete }]
+  const rows = permissionsArray.map(p => ({ ...p, manager_id: managerId }));
+
+  // Delete existing and re-insert
+  await supabase.from('manager_permissions').delete().eq('manager_id', managerId);
+
+  if (rows.length === 0) return { error: null };
+
+  const { error } = await supabase.from('manager_permissions').insert(rows);
+  return { error };
+}
+
+export async function inviteManager(email, fullName) {
+  // Uses the Edge Function to send invite email securely
+  const { data: { session } } = await supabase.auth.getSession();
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/invite-manager`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ email, full_name: fullName }),
+  });
+  const result = await res.json();
+  return { userId: result.user?.id, error: result.error ? new Error(result.error) : null };
+}
+
+export async function updateProfile(userId, updates) {
+  const { error } = await supabase.from('profiles').update(updates).eq('id', userId);
+  return { error };
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function generateTrackingCode() {

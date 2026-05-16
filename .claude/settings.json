@@ -1,0 +1,24 @@
+{
+  "defaultMode": "acceptEdits",
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev)",
+      "Bash(npm run build)",
+      "Bash(npm run lint)",
+      "Bash(npm run test)",
+      "Bash(npm run preview)",
+      "Bash(npm install *)",
+      "Bash(npm ci)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git fetch *)",
+      "Bash(git checkout *)",
+      "Bash(git stash *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force *)",
+      "Bash(sudo *)"
+    ]
+  }
+}
