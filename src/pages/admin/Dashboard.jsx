@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAllComplaints, signOutAdmin } from '../../lib/supabase.js';
+import { supabase, signOutAdmin } from '../../lib/supabase.js';
 import { useAdminAuth } from '../../contexts/AdminAuth.jsx';
 import { exportToExcel, exportSummaryToPDF } from '../../lib/export.js';
 
@@ -46,7 +46,7 @@ export default function AdminDashboard() {
   async function load() {
     setLoading(true);
 
-    let query = (await import('../../lib/supabase.js')).supabase
+    let query = supabase
       .from('complaints')
       .select('*', { count: 'exact' })
       .order(sortCol, { ascending: sortDir === 'asc' })

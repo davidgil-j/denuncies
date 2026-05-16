@@ -9,6 +9,8 @@ if (!SUPABASE_URL || !SUPABASE_ANON || SUPABASE_ANON === 'PENDING_REPLACE_WITH_A
 
 export const supabase = createClient(SUPABASE_URL ?? '', SUPABASE_ANON ?? '');
 
+export { SUPABASE_URL };
+
 // ── Complaints ─────────────────────────────────────────────────────────
 
 /**
