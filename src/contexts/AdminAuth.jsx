@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getAdminSession, getProfile, getManagerPermissions } from '../lib/supabase.js';
+import { supabase, getProfile, getManagerPermissions } from '../lib/supabase.js';
 
 const AdminAuthContext = createContext(null);
 
@@ -10,24 +10,37 @@ export function AdminAuthProvider({ children }) {
   const [loading, setLoading]         = useState(true);
 
   useEffect(() => {
-    loadAuth();
+    // Load initial session
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      setSession(s);
+      if (s) loadProfile(s.user.id);
+      else setLoading(false);
+    });
+
+    // Listen for login/logout events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+      if (s) loadProfile(s.user.id);
+      else { setProfile(null); setPermissions([]); setLoading(false); }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  async function loadAuth() {
-    const s = await getAdminSession();
-    setSession(s);
-    if (s) {
-      const { profile: p } = await getProfile(s.user.id);
-      setProfile(p);
-      if (p?.role === 'manager') {
-        const { permissions: perms } = await getManagerPermissions(s.user.id);
-        setPermissions(perms);
-      }
+  async function loadProfile(userId) {
+    setLoading(true);
+    const { profile: p } = await getProfile(userId);
+    setProfile(p);
+    if (p?.role === 'manager') {
+      const { permissions: perms } = await getManagerPermissions(userId);
+      setPermissions(perms);
+    } else {
+      setPermissions([]);
     }
     setLoading(false);
   }
 
-  function refresh() { loadAuth(); }
+  function refresh() { if (session) loadProfile(session.user.id); }
 
   const isSuperadmin = profile?.role === 'superadmin';
 
