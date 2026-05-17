@@ -24,7 +24,7 @@ function SortIcon({ col, sortCol, sortDir }) {
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { isSuperadmin, allowedCategories, profile } = useAdminAuth();
+  const { isSuperadmin, allowedCategories, profile, loading: authLoading } = useAdminAuth();
 
   const [complaints, setComplaints] = useState([]);
   const [total, setTotal]           = useState(0);
@@ -41,7 +41,9 @@ export default function AdminDashboard() {
   const [sortCol, setSortCol] = useState('created_at');
   const [sortDir, setSortDir] = useState('desc');
 
-  useEffect(() => { load(); }, [filters, sortCol, sortDir, page]);
+  useEffect(() => {
+    if (!authLoading) load();
+  }, [filters, sortCol, sortDir, page, isSuperadmin, authLoading]);
 
   async function load() {
     setLoading(true);
