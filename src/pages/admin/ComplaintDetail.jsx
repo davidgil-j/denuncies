@@ -29,7 +29,8 @@ export default function ComplaintDetail() {
   const [loading, setLoading]     = useState(true);
   const [draft, setDraft]         = useState('');
   const [sending, setSending]     = useState(false);
-  const [statusDraft, setStatusDraft] = useState('');
+  const [statusDraft, setStatusDraft]   = useState('');
+  const [priorityDraft, setPriorityDraft] = useState('');
   const [statusSaving, setStatusSaving] = useState(false);
   const [statusNote, setStatusNote]     = useState('');
   const [feedback, setFeedback] = useState(null);
@@ -46,6 +47,7 @@ export default function ComplaintDetail() {
     ]);
     setComplaint(c);
     setStatusDraft(c?.status ?? '');
+    setPriorityDraft(c?.priority ?? 'normal');
     setMessages(msgs);
     setLoading(false);
   }
@@ -65,14 +67,17 @@ export default function ComplaintDetail() {
   }
 
   async function handleStatusSave() {
-    if (!statusDraft || statusDraft === complaint.status) return;
+    const statusChanged   = statusDraft && statusDraft !== complaint.status;
+    const priorityChanged = priorityDraft && priorityDraft !== complaint.priority;
+    if (!statusChanged && !priorityChanged) return;
+
     setStatusSaving(true);
-    await updateComplaintStatus(id, statusDraft, statusNote || null);
+    await updateComplaintStatus(id, statusDraft, statusNote || null, priorityDraft);
     setStatusSaving(false);
     setStatusNote('');
-    setFeedback('Estat actualitzat correctament.');
+    setFeedback('Canvis guardats correctament.');
     setTimeout(() => setFeedback(null), 3000);
-    setComplaint(c => ({ ...c, status: statusDraft }));
+    setComplaint(c => ({ ...c, status: statusDraft, priority: priorityDraft }));
   }
 
   async function handleLogout() {
@@ -220,16 +225,35 @@ export default function ComplaintDetail() {
 
             {/* Status change */}
             <div className="admin-section">
-              <div className="admin-section-title">Canviar estat</div>
-              <select
-                className="admin-filter-select"
-                value={statusDraft}
-                onChange={e => setStatusDraft(e.target.value)}
-              >
-                {Object.entries(STATUS_LABELS).map(([v, l]) => (
-                  <option key={v} value={v}>{l}</option>
-                ))}
-              </select>
+              <div className="admin-section-title">Canviar estat i prioritat</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                <div>
+                  <label className="field-label" style={{ fontSize: 10, marginBottom: 4, display: 'block' }}>Estat</label>
+                  <select
+                    className="admin-filter-select"
+                    style={{ width: '100%' }}
+                    value={statusDraft}
+                    onChange={e => setStatusDraft(e.target.value)}
+                  >
+                    {Object.entries(STATUS_LABELS).map(([v, l]) => (
+                      <option key={v} value={v}>{l}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="field-label" style={{ fontSize: 10, marginBottom: 4, display: 'block' }}>Prioritat</label>
+                  <select
+                    className="admin-filter-select"
+                    style={{ width: '100%' }}
+                    value={priorityDraft}
+                    onChange={e => setPriorityDraft(e.target.value)}
+                  >
+                    {Object.entries(PRIORITY_LABELS).map(([v, l]) => (
+                      <option key={v} value={v}>{l}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <textarea
                 className="msg-input"
                 placeholder="Nota interna (opcional)..."

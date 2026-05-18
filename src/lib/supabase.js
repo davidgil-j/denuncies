@@ -133,10 +133,13 @@ export async function sendMessage(complaintId, content, sender = 'reporter') {
 /**
  * Update complaint status (admin action).
  */
-export async function updateComplaintStatus(id, status, adminNote = null) {
+export async function updateComplaintStatus(id, status, adminNote = null, priority = null) {
+  const updates = { status, updated_at: new Date().toISOString() };
+  if (priority) updates.priority = priority;
+
   const { error } = await supabase
     .from('complaints')
-    .update({ status, updated_at: new Date().toISOString() })
+    .update(updates)
     .eq('id', id);
 
   if (!error && adminNote) {
