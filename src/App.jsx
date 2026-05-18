@@ -62,7 +62,7 @@ function PublicApp() {
             🔍 {t.trackStatus}
           </button>
           <span style={{ color: 'rgba(255,255,255,.2)', margin: '0 8px' }}>·</span>
-          <a href="/privacitat" style={{ color: 'rgba(255,255,255,.4)', fontSize: '11px', textDecoration: 'underline' }}>
+          <a href={`/privacitat?lang=${lang}`} style={{ color: 'rgba(255,255,255,.4)', fontSize: '11px', textDecoration: 'underline' }}>
             {t.privacyLink}
           </a>
         </div>
