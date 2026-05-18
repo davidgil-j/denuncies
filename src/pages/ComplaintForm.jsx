@@ -171,6 +171,7 @@ export default function ComplaintForm({ lang, onTrack }) {
     if (!validateStep(4)) return;
     if (form._hp) return; // honeypot
 
+    if (submitting) return; // protecció doble clic
     setSubmitting(true);
     try {
       const { trackingCode: code, error } = await saveComplaint({

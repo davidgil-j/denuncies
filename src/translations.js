@@ -99,6 +99,7 @@ export const translations = {
     messageEmpty: 'Encara no hi ha missatges en aquest cas.',
     messageSentOk: 'Missatge enviat correctament.',
     messageSentError: 'Error en enviar el missatge. Torna-ho a provar.',
+    privacyLink: 'Política de privacitat',
     // Validation
     required: 'Aquest camp és obligatori',
     invalidEmail: 'Format de correu no vàlid',
@@ -194,6 +195,7 @@ export const translations = {
     messageEmpty: 'Todavía no hay mensajes en este caso.',
     messageSentOk: 'Mensaje enviado correctamente.',
     messageSentError: 'Error al enviar el mensaje. Inténtalo de nuevo.',
+    privacyLink: 'Política de privacidad',
     required: 'Este campo es obligatorio',
     invalidEmail: 'Formato de correo no válido',
     privacyRequired: 'Debes aceptar la política de privacidad para continuar',
@@ -288,6 +290,7 @@ export const translations = {
     messageEmpty: 'No messages yet for this case.',
     messageSentOk: 'Message sent successfully.',
     messageSentError: 'Error sending message. Please try again.',
+    privacyLink: 'Privacy policy',
     required: 'This field is required',
     invalidEmail: 'Invalid email format',
     privacyRequired: 'You must accept the privacy policy to continue',

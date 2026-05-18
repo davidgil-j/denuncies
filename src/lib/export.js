@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -18,28 +18,49 @@ function formatDate(iso) {
 }
 
 // ── Excel export ──────────────────────────────────────────────────
-export function exportToExcel(complaints, filename = 'denuncies') {
-  const rows = complaints.map(c => ({
-    'Codi':        c.tracking_code,
-    'Categoria':   CATEGORY_LABELS[c.category] ?? c.category,
-    'Estat':       STATUS_LABELS[c.status] ?? c.status,
-    'Prioritat':   PRIORITY_LABELS[c.priority] ?? c.priority,
-    'Modalitat':   c.is_anonymous ? 'Anònim' : 'Identificat',
-    'Departament': c.department ?? '—',
-    'Data incident': formatDate(c.incident_date),
-    'Data recepció': formatDate(c.created_at),
-    'Idioma':      c.language?.toUpperCase() ?? '—',
+export async function exportToExcel(complaints, filename = 'denuncies') {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Reportia Canal Ètic';
+  const ws = wb.addWorksheet('Denúncies');
+
+  ws.columns = [
+    { header: 'Codi',          key: 'codi',       width: 14 },
+    { header: 'Categoria',     key: 'categoria',  width: 24 },
+    { header: 'Estat',         key: 'estat',      width: 18 },
+    { header: 'Prioritat',     key: 'prioritat',  width: 12 },
+    { header: 'Modalitat',     key: 'modalitat',  width: 20 },
+    { header: 'Departament',   key: 'dept',       width: 22 },
+    { header: 'Data incident', key: 'data_inc',   width: 16 },
+    { header: 'Data recepció', key: 'data_rec',   width: 16 },
+    { header: 'Idioma',        key: 'idioma',     width: 10 },
+  ];
+
+  // Header styling
+  ws.getRow(1).eachCell(cell => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF294E59' } };
+  });
+
+  complaints.forEach(c => ws.addRow({
+    codi:      c.tracking_code,
+    categoria: CATEGORY_LABELS[c.category] ?? c.category,
+    estat:     STATUS_LABELS[c.status] ?? c.status,
+    prioritat: PRIORITY_LABELS[c.priority] ?? c.priority,
+    modalitat: c.is_anonymous ? 'Anònim' : 'Identificat',
+    dept:      c.department ?? '—',
+    data_inc:  formatDate(c.incident_date),
+    data_rec:  formatDate(c.created_at),
+    idioma:    c.language?.toUpperCase() ?? '—',
   }));
 
-  const ws = XLSX.utils.json_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Denúncies');
-
-  // Auto column widths
-  const cols = Object.keys(rows[0] ?? {}).map(k => ({ wch: Math.max(k.length, 14) }));
-  ws['!cols'] = cols;
-
-  XLSX.writeFile(wb, `${filename}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${filename}_${new Date().toISOString().slice(0,10)}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── PDF summary (list) ────────────────────────────────────────────

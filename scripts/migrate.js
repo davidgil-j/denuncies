@@ -8,14 +8,21 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Load .env manually (no dotenv dependency needed)
-const envPath = path.join(__dirname, '..', '.env');
-const env = Object.fromEntries(
-  fs.readFileSync(envPath, 'utf8')
-    .split('\n')
-    .filter(l => l && !l.startsWith('#') && l.includes('='))
-    .map(l => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim()]; })
-);
+// Load .env + .env.local (local overrides, not committed to git)
+function parseEnv(filePath) {
+  try {
+    return Object.fromEntries(
+      fs.readFileSync(filePath, 'utf8')
+        .split('\n')
+        .filter(l => l && !l.startsWith('#') && l.includes('='))
+        .map(l => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim()]; })
+    );
+  } catch { return {}; }
+}
+const env = {
+  ...parseEnv(path.join(__dirname, '..', '.env')),
+  ...parseEnv(path.join(__dirname, '..', '.env.local')),
+};
 
 const PAT     = env.SUPABASE_PAT;
 const PROJECT = env.VITE_SUPABASE_URL?.match(/https:\/\/([^.]+)/)?.[1];

@@ -12,6 +12,7 @@ import ComplaintDetail from './pages/admin/ComplaintDetail.jsx';
 import ForgotPassword from './pages/admin/ForgotPassword.jsx';
 import ResetPassword from './pages/admin/ResetPassword.jsx';
 import Users from './pages/admin/Users.jsx';
+import PrivacyPolicy from './pages/PrivacyPolicy.jsx';
 
 const LANGS = ['ca', 'es', 'en'];
 
@@ -59,6 +60,10 @@ function PublicApp() {
           >
             🔍 {t.trackStatus}
           </button>
+          <span style={{ color: 'rgba(255,255,255,.2)', margin: '0 8px' }}>·</span>
+          <a href="/privacitat" style={{ color: 'rgba(255,255,255,.4)', fontSize: '11px', textDecoration: 'underline' }}>
+            {t.privacyLink}
+          </a>
         </div>
       )}
     </div>
@@ -91,6 +96,7 @@ export default function App() {
           <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
           <Route path="/admin/complaints/:id" element={<AdminGuard><ComplaintDetail /></AdminGuard>} />
           <Route path="/admin/users" element={<AdminGuard><Users /></AdminGuard>} />
+          <Route path="/privacitat" element={<PrivacyPolicy />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AdminAuthProvider>
