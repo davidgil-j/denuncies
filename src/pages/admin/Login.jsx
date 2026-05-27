@@ -89,7 +89,7 @@ export default function AdminLogin() {
           <Link to="/admin/forgot-password" className="admin-login-back" style={{ margin: 0 }}>
             He oblidat la contrasenya
           </Link>
-          <a href="/" className="admin-login-back" style={{ margin: 0 }}>← Canal públic</a>
+          <a href="/canal" className="admin-login-back" style={{ margin: 0 }}>← Canal públic</a>
         </div>
       </div>
     </div>

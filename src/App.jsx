@@ -6,6 +6,7 @@ import { getAdminSession } from './lib/supabase.js';
 import { AdminAuthProvider } from './contexts/AdminAuth.jsx';
 import ComplaintForm from './pages/ComplaintForm.jsx';
 import TrackingPortal from './pages/TrackingPortal.jsx';
+import LandingPage from './pages/LandingPage.jsx';
 import AdminLogin from './pages/admin/Login.jsx';
 import AdminDashboard from './pages/admin/Dashboard.jsx';
 import ComplaintDetail from './pages/admin/ComplaintDetail.jsx';
@@ -89,7 +90,8 @@ export default function App() {
     <BrowserRouter>
       <AdminAuthProvider>
         <Routes>
-          <Route path="/" element={<PublicApp />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/canal" element={<PublicApp />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/forgot-password" element={<ForgotPassword />} />
           <Route path="/admin/reset-password" element={<ResetPassword />} />
