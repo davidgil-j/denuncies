@@ -11,8 +11,20 @@ export default function ResetPassword() {
   const [error, setError]         = useState('');
   const [ready, setReady]         = useState(false);
 
+  const isInvite = new URLSearchParams(window.location.hash.slice(1)).get('type') === 'invite';
+
   useEffect(() => {
-    // Supabase sets the session from the URL hash automatically
+    // Detect whether this is an invitation link (type=invite) or a password reset (type=recovery)
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const urlType = hashParams.get('type');
+
+    if (urlType === 'invite') {
+      // Supabase already processed the session — show the form immediately
+      setReady(true);
+      return;
+    }
+
+    // For password reset links, wait for the PASSWORD_RECOVERY auth event
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') setReady(true);
     });
@@ -46,8 +58,8 @@ export default function ResetPassword() {
     <div className="admin-login-page">
       <div className="admin-login-card">
         <img src="/logo.png" alt="Reportia" className="admin-login-logo" />
-        <h1 className="admin-login-title">Nova contrasenya</h1>
-        <p className="admin-login-sub">Introdueix la teva nova contrasenya.</p>
+        <h1 className="admin-login-title">{isInvite ? 'Benvingut/da' : 'Nova contrasenya'}</h1>
+        <p className="admin-login-sub">{isInvite ? 'Estableix la teva contrasenya per accedir al panell.' : 'Introdueix la teva nova contrasenya.'}</p>
 
         <form onSubmit={handleSubmit} className="admin-login-form">
           <div className="field">
