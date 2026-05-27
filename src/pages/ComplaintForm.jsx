@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { translations } from '../translations.js';
 import { saveComplaint } from '../lib/supabase.js';
 
@@ -125,6 +126,7 @@ export default function ComplaintForm({ lang, onTrack }) {
   const [trackingCode, setTrackingCode] = useState(null);
   const [copied, setCopied] = useState(false);
   const [errors, setErrors] = useState({});
+  const [turnstileToken, setTurnstileToken] = useState(null);
 
   const [form, setForm] = useState({
     isAnonymous: true,
@@ -138,8 +140,6 @@ export default function ComplaintForm({ lang, onTrack }) {
     involvedPeople: '',
     files: [],
     privacy: false,
-    // honeypot
-    _hp: '',
   });
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
@@ -169,7 +169,7 @@ export default function ComplaintForm({ lang, onTrack }) {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!validateStep(4)) return;
-    if (form._hp) return; // honeypot
+    if (!turnstileToken) return;
 
     if (submitting) return; // protecció doble clic
     setSubmitting(true);
@@ -205,11 +205,12 @@ export default function ComplaintForm({ lang, onTrack }) {
     setForm({
       isAnonymous: true, name: '', email: '', phone: '',
       category: '', department: '', description: '',
-      incidentDate: '', involvedPeople: '', files: [], privacy: false, _hp: '',
+      incidentDate: '', involvedPeople: '', files: [], privacy: false,
     });
     setStep(1);
     setTrackingCode(null);
     setErrors({});
+    setTurnstileToken(null);
   }
 
   // ── Success screen ────────────────────────────────────────────
@@ -322,16 +323,6 @@ export default function ComplaintForm({ lang, onTrack }) {
               </>
             )}
 
-            {/* Honeypot (invisible anti-spam) */}
-            <input
-              type="text"
-              name="_hp"
-              value={form._hp}
-              onChange={e => set('_hp', e.target.value)}
-              style={{ display: 'none' }}
-              tabIndex={-1}
-              autoComplete="off"
-            />
           </>
         )}
 
@@ -469,10 +460,19 @@ export default function ComplaintForm({ lang, onTrack }) {
             </div>
             {errors.privacy && <div className="field-error" style={{ marginBottom: 16 }}>⚠ {errors.privacy}</div>}
 
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0' }}>
+              <Turnstile
+                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                onSuccess={token => setTurnstileToken(token)}
+                onError={() => setTurnstileToken(null)}
+                onExpire={() => setTurnstileToken(null)}
+              />
+            </div>
+
             <button
               type="submit"
               className="btn btn-submit"
-              disabled={submitting}
+              disabled={submitting || !turnstileToken}
             >
               {submitting ? (
                 <>⏳ {t.submitting}</>

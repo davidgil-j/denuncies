@@ -122,9 +122,6 @@ export default function AdminDashboard() {
               👥 Usuaris
             </div>
           )}
-          <div className="admin-nav-item" onClick={() => navigate('/admin/mfa')} style={{ cursor: 'pointer' }}>
-            🔐 Seguretat
-          </div>
         </nav>
         <div className="admin-sidebar-user">
           <div className="admin-sidebar-role">{isSuperadmin ? '⭐ Superadmin' : '👤 Gestor'}</div>

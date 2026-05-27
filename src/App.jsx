@@ -12,7 +12,6 @@ import ComplaintDetail from './pages/admin/ComplaintDetail.jsx';
 import ForgotPassword from './pages/admin/ForgotPassword.jsx';
 import ResetPassword from './pages/admin/ResetPassword.jsx';
 import Users from './pages/admin/Users.jsx';
-import MFASetup from './pages/admin/MFASetup.jsx';
 import PrivacyPolicy from './pages/PrivacyPolicy.jsx';
 
 const LANGS = ['ca', 'es', 'en'];
@@ -97,7 +96,6 @@ export default function App() {
           <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
           <Route path="/admin/complaints/:id" element={<AdminGuard><ComplaintDetail /></AdminGuard>} />
           <Route path="/admin/users" element={<AdminGuard><Users /></AdminGuard>} />
-          <Route path="/admin/mfa" element={<AdminGuard><MFASetup /></AdminGuard>} />
           <Route path="/privacitat" element={<PrivacyPolicy />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

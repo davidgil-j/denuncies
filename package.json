@@ -8,6 +8,7 @@
     },
     "dependencies": {
         "@emailjs/browser": "^4.4.1",
+        "@marsidev/react-turnstile": "^1.5.2",
         "@sentry/react": "^10.53.1",
         "@supabase/supabase-js": "^2.105.4",
         "exceljs": "^4.4.0",
