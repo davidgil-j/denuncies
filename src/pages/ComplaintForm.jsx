@@ -11,13 +11,8 @@ function formatBytes(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
-function getFileIcon(type) {
-  if (!type) return '📎';
-  if (type.startsWith('image/')) return '🖼️';
-  if (type.startsWith('video/')) return '🎬';
-  if (type.startsWith('audio/')) return '🎵';
-  if (type === 'application/pdf') return '📄';
-  return '📎';
+function getFileIcon() {
+  return '';
 }
 
 const MAX_FILES = 5;
@@ -89,7 +84,6 @@ function FileUpload({ files, onChange, t }) {
           onChange={(e) => addFiles(Array.from(e.target.files))}
           style={{ display: 'none' }}
         />
-        <span className="upload-icon">📂</span>
         <div className="upload-main">{t.dragOrClick}</div>
         <div className="upload-sub">{t.allowedFormats}</div>
       </div>
@@ -234,12 +228,12 @@ export default function ComplaintForm({ lang, onTrack }) {
         </div>
 
         {!form.isAnonymous && form.email && (
-          <p className="success-note">📧 {t.successNote}</p>
+          <p className="success-note">{t.successNote}</p>
         )}
 
         <div className="success-actions">
           <button type="button" className="btn-outline" onClick={() => onTrack(trackingCode)}>
-            🔍 {t.trackStatus}
+            {t.trackStatus}
           </button>
           <button type="button" className="btn-link" onClick={handleReset}>
             {t.newComplaint}
@@ -269,7 +263,6 @@ export default function ComplaintForm({ lang, onTrack }) {
                 className={`mode-card ${form.isAnonymous ? 'selected' : ''}`}
                 onClick={() => set('isAnonymous', true)}
               >
-                <span className="mode-icon">🕵️</span>
                 <div className="mode-name">{t.anonymous}</div>
                 <div className="mode-desc">{t.anonymousDesc}</div>
               </div>
@@ -277,7 +270,6 @@ export default function ComplaintForm({ lang, onTrack }) {
                 className={`mode-card ${!form.isAnonymous ? 'selected' : ''}`}
                 onClick={() => set('isAnonymous', false)}
               >
-                <span className="mode-icon">👤</span>
                 <div className="mode-name">{t.identified}</div>
                 <div className="mode-desc">{t.identifiedDesc}</div>
               </div>
@@ -474,11 +466,7 @@ export default function ComplaintForm({ lang, onTrack }) {
               className="btn btn-submit"
               disabled={submitting || !turnstileToken}
             >
-              {submitting ? (
-                <>⏳ {t.submitting}</>
-              ) : (
-                <>🔒 {t.submit}</>
-              )}
+              {submitting ? t.submitting : t.submit}
             </button>
           </>
         )}

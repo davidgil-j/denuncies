@@ -44,7 +44,7 @@ function PublicApp() {
           </span>
           <h1>{t.title}</h1>
           <p className="subtitle">{t.subtitle}</p>
-          <span className="legal-badge">⚖️ {t.legalBadge}</span>
+          <span className="legal-badge">{t.legalBadge}</span>
         </div>
 
         {view === 'form'  && <ComplaintForm lang={lang} onTrack={goToTrack} />}
@@ -58,7 +58,7 @@ function PublicApp() {
             onClick={() => goToTrack('')}
             style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline', fontFamily: 'inherit' }}
           >
-            🔍 {t.trackStatus}
+            {t.trackStatus}
           </button>
           <span style={{ color: 'rgba(255,255,255,.2)', margin: '0 8px' }}>·</span>
           <a href={`/privacitat?lang=${lang}`} style={{ color: 'rgba(255,255,255,.4)', fontSize: '11px', textDecoration: 'underline' }}>

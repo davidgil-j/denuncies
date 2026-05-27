@@ -116,18 +116,18 @@ export default function AdminDashboard() {
       <aside className="admin-sidebar">
         <div className="admin-sidebar-logo"><img src="/logo.png" alt="Reportia" /></div>
         <nav className="admin-nav">
-          <div className="admin-nav-item active">🗂 Denúncies</div>
+          <div className="admin-nav-item active">Denúncies</div>
           {isSuperadmin && (
             <div className="admin-nav-item" onClick={() => navigate('/admin/users')} style={{ cursor: 'pointer' }}>
-              👥 Usuaris
+              Usuaris
             </div>
           )}
         </nav>
         <div className="admin-sidebar-user">
-          <div className="admin-sidebar-role">{isSuperadmin ? '⭐ Superadmin' : '👤 Gestor'}</div>
+          <div className="admin-sidebar-role">{isSuperadmin ? 'Superadmin' : 'Gestor'}</div>
           <div className="admin-sidebar-email">{profile?.full_name || ''}</div>
         </div>
-        <button className="admin-logout-btn" onClick={handleLogout}>↩ Tancar sessió</button>
+        <button className="admin-logout-btn" onClick={handleLogout}>Tancar sessió</button>
       </aside>
 
       <main className="admin-main">
@@ -135,10 +135,10 @@ export default function AdminDashboard() {
           <h1 className="admin-page-title">Denúncies</h1>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
             <button className="admin-export-btn" onClick={() => exportToExcel(complaints)}>
-              📊 Excel
+              Excel
             </button>
             <button className="admin-export-btn" onClick={() => exportSummaryToPDF(complaints, filters)}>
-              📄 PDF
+              PDF
             </button>
           </div>
         </div>
@@ -194,7 +194,7 @@ export default function AdminDashboard() {
         {/* Table */}
         <div className="admin-table-wrap">
           {loading ? (
-            <div className="admin-loading">⏳ Carregant...</div>
+            <div className="admin-loading">Carregant...</div>
           ) : complaints.length === 0 ? (
             <div className="admin-empty">Cap denúncia trobada.</div>
           ) : (

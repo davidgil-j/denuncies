@@ -27,7 +27,7 @@ export default function ForgotPassword() {
         {sent ? (
           <>
             <p style={{ fontSize: 14, color: 'var(--success)', marginBottom: 24, lineHeight: 1.6 }}>
-              ✅ T'hem enviat un correu a <strong>{email}</strong> amb les instruccions per restablir la contrasenya.
+              T'hem enviat un correu a <strong>{email}</strong> amb les instruccions per restablir la contrasenya.
             </p>
             <Link to="/admin/login" className="admin-login-back">← Tornar al login</Link>
           </>
@@ -46,9 +46,9 @@ export default function ForgotPassword() {
                   required
                 />
               </div>
-              {error && <div className="admin-login-error">⚠️ {error}</div>}
+              {error && <div className="admin-login-error">{error}</div>}
               <button type="submit" className="btn btn-submit" disabled={loading}>
-                {loading ? '⏳ Enviant...' : '✉️ Enviar enllaç'}
+                {loading ? 'Enviant...' : 'Enviar enllaç'}
               </button>
             </form>
             <Link to="/admin/login" className="admin-login-back">← Tornar al login</Link>

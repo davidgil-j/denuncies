@@ -78,10 +78,10 @@ export default function AdminLogin() {
             />
           </div>
 
-          {error && <div className="admin-login-error">⚠️ {error}</div>}
+          {error && <div className="admin-login-error">{error}</div>}
 
           <button type="submit" className="btn btn-submit" disabled={loading || !turnstileToken}>
-            {loading ? '⏳ Entrant...' : '🔐 Entrar'}
+            {loading ? 'Entrant...' : 'Entrar'}
           </button>
         </form>
 

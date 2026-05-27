@@ -97,9 +97,9 @@ export default function ComplaintDetail() {
     <div className="admin-layout">
       <aside className="admin-sidebar">
         <div className="admin-sidebar-logo"><img src="/logo.png" alt="Reportia" /></div>
-        <button className="admin-logout-btn" onClick={handleLogout}>↩ Tancar sessió</button>
+        <button className="admin-logout-btn" onClick={handleLogout}>Tancar sessió</button>
       </aside>
-      <main className="admin-main"><div className="admin-loading" style={{ margin: 48 }}>⏳ Carregant...</div></main>
+      <main className="admin-main"><div className="admin-loading" style={{ margin: 48 }}>Carregant...</div></main>
     </div>
   );
 
@@ -107,7 +107,7 @@ export default function ComplaintDetail() {
     <div className="admin-layout">
       <aside className="admin-sidebar">
         <div className="admin-sidebar-logo"><img src="/logo.png" alt="Reportia" /></div>
-        <button className="admin-logout-btn" onClick={handleLogout}>↩ Tancar sessió</button>
+        <button className="admin-logout-btn" onClick={handleLogout}>Tancar sessió</button>
       </aside>
       <main className="admin-main"><div className="admin-empty" style={{ margin: 48 }}>Denúncia no trobada.</div></main>
     </div>
@@ -119,9 +119,9 @@ export default function ComplaintDetail() {
       <aside className="admin-sidebar">
         <div className="admin-sidebar-logo"><img src="/logo.png" alt="Reportia" /></div>
         <nav className="admin-nav">
-          <div className="admin-nav-item" onClick={() => navigate('/admin')} style={{ cursor: 'pointer' }}>🗂 Denúncies</div>
+          <div className="admin-nav-item" onClick={() => navigate('/admin')} style={{ cursor: 'pointer' }}>Denúncies</div>
         </nav>
-        <button className="admin-logout-btn" onClick={handleLogout}>↩ Tancar sessió</button>
+        <button className="admin-logout-btn" onClick={handleLogout}>Tancar sessió</button>
       </aside>
 
       {/* Main */}
@@ -150,7 +150,7 @@ export default function ComplaintDetail() {
                 </div>
                 <div className="admin-info-row">
                   <span className="admin-info-key">Modalitat</span>
-                  <span className="admin-info-val">{complaint.is_anonymous ? '🕵️ Anònim' : '👤 Identificat'}</span>
+                  <span className="admin-info-val">{complaint.is_anonymous ? 'Anònim' : 'Identificat'}</span>
                 </div>
                 {!complaint.is_anonymous && complaint.reporter_name && (
                   <div className="admin-info-row">
@@ -212,7 +212,7 @@ export default function ComplaintDetail() {
                 <div className="admin-attachments">
                   {complaint.attachments.map(a => (
                     <div key={a.id} className="admin-attachment">
-                      <span>📎</span>
+                      <span></span>
                       <span>{a.filename}</span>
                       <span className="admin-attachment-size">
                         {a.file_size ? (a.file_size / 1024).toFixed(0) + ' KB' : ''}
@@ -269,7 +269,7 @@ export default function ComplaintDetail() {
                 onClick={handleStatusSave}
                 disabled={statusSaving || statusDraft === complaint.status}
               >
-                {statusSaving ? '⏳ Guardant...' : '💾 Guardar estat'}
+                {statusSaving ? 'Guardant...' : 'Guardar estat'}
               </button>
             </div>
           </div>
@@ -277,7 +277,7 @@ export default function ComplaintDetail() {
           {/* Right: messages */}
           <div className="admin-detail-right">
             <div className="admin-section" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <div className="admin-section-title">💬 Missatges amb el denunciant</div>
+              <div className="admin-section-title">Missatges amb el denunciant</div>
 
               <div className="msg-thread" style={{ flex: 1 }}>
                 {messages.length === 0 ? (
@@ -311,7 +311,7 @@ export default function ComplaintDetail() {
                   className="btn btn-primary msg-send-btn"
                   disabled={sending || !draft.trim()}
                 >
-                  {sending ? '⏳ Enviant...' : '✉️ Enviar resposta'}
+                  {sending ? 'Enviant...' : 'Enviar resposta'}
                 </button>
               </form>
             </div>

@@ -83,7 +83,7 @@ export default function ResetPassword() {
           </div>
           {error && <div className="admin-login-error">⚠️ {error}</div>}
           <button type="submit" className="btn btn-submit" disabled={loading}>
-            {loading ? '⏳ Guardant...' : '🔐 Establir contrasenya'}
+            {loading ? 'Guardant...' : 'Establir contrasenya'}
           </button>
         </form>
       </div>

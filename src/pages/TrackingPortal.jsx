@@ -2,15 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { translations } from '../translations.js';
 import { getComplaintByCode, getMessages, sendMessage } from '../lib/supabase.js';
 
-const STATUS_ICONS = {
-  received:      '📬',
-  reviewing:     '🔍',
-  investigating: '⚖️',
-  waiting:       '⏳',
-  resolved:      '✅',
-  closed:        '🔒',
-  archived:      '📦',
-};
 
 // ── Message thread ────────────────────────────────────────────────
 function MessageThread({ complaintId, lang }) {
@@ -70,12 +61,12 @@ function MessageThread({ complaintId, lang }) {
 
   return (
     <div className="msg-section">
-      <div className="msg-section-title">💬 {t.messagesTitle}</div>
+      <div className="msg-section-title">{t.messagesTitle}</div>
       <p className="msg-section-desc">{t.messagesDesc}</p>
 
       <div className="msg-thread">
         {loadingMsgs ? (
-          <div className="msg-loading">⏳</div>
+          <div className="msg-loading">...</div>
         ) : messages.length === 0 ? (
           <div className="msg-empty">{t.messageEmpty}</div>
         ) : (
@@ -116,7 +107,7 @@ function MessageThread({ complaintId, lang }) {
           className="btn btn-primary msg-send-btn"
           disabled={sending || !draft.trim()}
         >
-          {sending ? `⏳ ${t.messageSending}` : `✉️ ${t.messageSend}`}
+          {sending ? t.messageSending : t.messageSend}
         </button>
       </form>
     </div>
@@ -191,13 +182,13 @@ export default function TrackingPortal({ lang, initialCode = '', onBack }) {
           style={{ width: '100%' }}
           disabled={loading || !code.trim()}
         >
-          {loading ? '⏳ ...' : `🔍 ${t.trackButton}`}
+          {loading ? '...' : t.trackButton}
         </button>
       </form>
 
       {notFound && (
         <div className="track-not-found">
-          ⚠️ {t.trackNotFound}
+          {t.trackNotFound}
         </div>
       )}
 
@@ -210,7 +201,7 @@ export default function TrackingPortal({ lang, initialCode = '', onBack }) {
                 #{result.tracking_code}
               </span>
               <span className={`track-status-badge status-${result.status}`}>
-                {STATUS_ICONS[result.status]} {t.status[result.status]}
+                {t.status[result.status]}
               </span>
             </div>
 
@@ -240,7 +231,7 @@ export default function TrackingPortal({ lang, initialCode = '', onBack }) {
 
             {/* Privacy note */}
             <p style={{ marginTop: 16, fontSize: 11, color: 'var(--text-light)', lineHeight: 1.5, textAlign: 'center' }}>
-              🔒 {lang === 'ca'
+              {lang === 'ca'
                 ? 'Per protegir la confidencialitat, no es mostren detalls addicionals en aquesta consulta.'
                 : lang === 'es'
                 ? 'Para proteger la confidencialidad, no se muestran detalles adicionales en esta consulta.'

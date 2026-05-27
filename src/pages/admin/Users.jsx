@@ -140,9 +140,9 @@ export default function Users() {
         <div className="admin-sidebar-logo"><img src="/logo.png" alt="Reportia" /></div>
         <nav className="admin-nav">
           <div className="admin-nav-item" onClick={() => navigate('/admin')} style={{ cursor: 'pointer' }}>🗂 Denúncies</div>
-          <div className="admin-nav-item active">👥 Usuaris</div>
+          <div className="admin-nav-item active">Usuaris</div>
         </nav>
-        <button className="admin-logout-btn" onClick={handleLogout}>↩ Tancar sessió</button>
+        <button className="admin-logout-btn" onClick={handleLogout}>Tancar sessió</button>
       </aside>
 
       <main className="admin-main">
@@ -184,7 +184,7 @@ export default function Users() {
                   disabled={deleting}
                   style={{ flex: 1, padding: 12, background: 'var(--danger, #dc2626)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
                 >
-                  {deleting ? '⏳ Eliminant...' : '🗑 Eliminar'}
+                  {deleting ? 'Eliminant...' : 'Eliminar'}
                 </button>
               </div>
             </div>
@@ -213,7 +213,7 @@ export default function Users() {
                 {invError && <div className="admin-login-error">⚠️ {invError}</div>}
                 <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
                   <button type="submit" className="btn btn-primary" disabled={inviting} style={{ flex: 1, padding: 12 }}>
-                    {inviting ? '⏳ Enviant...' : '✉️ Enviar invitació'}
+                    {inviting ? 'Enviant...' : 'Enviar invitació'}
                   </button>
                   <button type="button" className="btn btn-ghost" onClick={() => setShowInvite(false)} style={{ flex: 1, padding: 12 }}>
                     Cancel·lar
@@ -253,11 +253,11 @@ export default function Users() {
                       <button
                         title="Eliminar gestor"
                         onClick={e => { e.stopPropagation(); setDeleteTarget(p); }}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger, #dc2626)', fontSize: 16, padding: '4px 6px', borderRadius: 6, marginLeft: 4, opacity: 0.7 }}
+                        style={{ background: 'none', border: '1px solid var(--danger, #dc2626)', cursor: 'pointer', color: 'var(--danger, #dc2626)', fontSize: 11, padding: '2px 8px', borderRadius: 4, marginLeft: 4, opacity: 0.7, fontWeight: 600 }}
                         onMouseEnter={e => e.currentTarget.style.opacity = 1}
                         onMouseLeave={e => e.currentTarget.style.opacity = 0.7}
                       >
-                        🗑
+                        Eliminar
                       </button>
                     )}
                   </div>
