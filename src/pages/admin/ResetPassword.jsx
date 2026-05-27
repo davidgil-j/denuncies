@@ -10,23 +10,32 @@ export default function ResetPassword() {
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState('');
   const [ready, setReady]         = useState(false);
-
-  const isInvite = new URLSearchParams(window.location.hash.slice(1)).get('type') === 'invite';
+  const [isInvite, setIsInvite]   = useState(false);
 
   useEffect(() => {
-    // Detect whether this is an invitation link (type=invite) or a password reset (type=recovery)
-    const hashParams = new URLSearchParams(window.location.hash.slice(1));
-    const urlType = hashParams.get('type');
+    // Supabase uses two different flows depending on project config:
+    // · Implicit flow: tokens arrive in the URL hash → #access_token=...&type=invite
+    // · PKCE flow:     a one-time code arrives as query param → ?code=...
+    const hashParams  = new URLSearchParams(window.location.hash.slice(1));
+    const queryParams = new URLSearchParams(window.location.search);
+    const urlType = hashParams.get('type');       // 'invite' | 'recovery' | null
+    const hasCode = Boolean(queryParams.get('code')); // PKCE flow
 
+    // Implicit flow — invitation token directly in hash
     if (urlType === 'invite') {
-      // Supabase already processed the session — show the form immediately
+      setIsInvite(true);
       setReady(true);
       return;
     }
 
-    // For password reset links, wait for the PASSWORD_RECOVERY auth event
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      // Password reset (both flows)
       if (event === 'PASSWORD_RECOVERY') setReady(true);
+      // Invitation via PKCE: SDK exchanges the code and fires SIGNED_IN
+      if (event === 'SIGNED_IN' && hasCode) {
+        setIsInvite(true);
+        setReady(true);
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
