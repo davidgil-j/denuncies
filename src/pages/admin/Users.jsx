@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAllProfiles, getManagerPermissions, setManagerPermissions, inviteManager, signOutAdmin } from '../../lib/supabase.js';
+import { getAllProfiles, getManagerPermissions, setManagerPermissions, inviteManager, deleteManager, signOutAdmin } from '../../lib/supabase.js';
 import { useAdminAuth } from '../../contexts/AdminAuth.jsx';
 
 const CATEGORIES = [
@@ -45,6 +45,10 @@ export default function Users() {
   const [invName, setInvName]       = useState('');
   const [inviting, setInviting]     = useState(false);
   const [invError, setInvError]     = useState('');
+
+  // Delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState(null); // { id, full_name, email }
+  const [deleting, setDeleting]         = useState(false);
 
   useEffect(() => {
     if (!isSuperadmin) { navigate('/admin'); return; }
@@ -108,6 +112,21 @@ export default function Users() {
     }
   }
 
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await deleteManager(deleteTarget.id);
+    setDeleting(false);
+    setDeleteTarget(null);
+    if (error) {
+      setFeedback({ ok: false, text: 'Error en eliminar el gestor: ' + error.message });
+    } else {
+      if (selected?.id === deleteTarget.id) setSelected(null);
+      setFeedback({ ok: true, text: `Gestor eliminat correctament.` });
+      setTimeout(() => { setFeedback(null); loadProfiles(); }, 2000);
+    }
+  }
+
   async function handleLogout() {
     await signOutAdmin();
     navigate('/admin/login', { replace: true });
@@ -138,6 +157,37 @@ export default function Users() {
         {feedback && (
           <div className={`msg-feedback ${feedback.ok ? 'ok' : 'err'}`} style={{ marginBottom: 16 }}>
             {feedback.text}
+          </div>
+        )}
+
+        {/* Delete confirmation modal */}
+        {deleteTarget && (
+          <div className="admin-modal-overlay" onClick={() => !deleting && setDeleteTarget(null)}>
+            <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+              <h2 className="admin-modal-title">Eliminar gestor</h2>
+              <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '12px 0 24px', lineHeight: 1.6 }}>
+                Segur que vols eliminar <strong>{deleteTarget.full_name || deleteTarget.email}</strong>?
+                Aquesta acció no es pot desfer i s'eliminaran tots els seus permisos.
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => setDeleteTarget(null)}
+                  disabled={deleting}
+                  style={{ flex: 1, padding: 12 }}
+                >
+                  Cancel·lar
+                </button>
+                <button
+                  className="btn"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  style={{ flex: 1, padding: 12, background: 'var(--danger, #dc2626)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
+                >
+                  {deleting ? '⏳ Eliminant...' : '🗑 Eliminar'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -199,6 +249,17 @@ export default function Users() {
                     <span className={`admin-role-badge ${p.role}`}>
                       {p.role === 'superadmin' ? '⭐ Superadmin' : '👤 Gestor'}
                     </span>
+                    {p.role === 'manager' && (
+                      <button
+                        title="Eliminar gestor"
+                        onClick={e => { e.stopPropagation(); setDeleteTarget(p); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger, #dc2626)', fontSize: 16, padding: '4px 6px', borderRadius: 6, marginLeft: 4, opacity: 0.7 }}
+                        onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                        onMouseLeave={e => e.currentTarget.style.opacity = 0.7}
+                      >
+                        🗑
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

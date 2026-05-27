@@ -265,6 +265,20 @@ export async function updateProfile(userId, updates) {
   return { error };
 }
 
+export async function deleteManager(userId) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-manager`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ user_id: userId }),
+  });
+  const result = await res.json();
+  return { error: result.error ? new Error(result.error) : null };
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function generateTrackingCode() {
