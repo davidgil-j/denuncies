@@ -76,7 +76,9 @@ function AdminGuard({ children }) {
   const [session, setSession] = useState(undefined);
 
   useEffect(() => {
-    getAdminSession().then(s => setSession(s));
+    getAdminSession()
+      .then(s => setSession(s))
+      .catch(() => setSession(null));
   }, []);
 
   if (session === undefined) return null;

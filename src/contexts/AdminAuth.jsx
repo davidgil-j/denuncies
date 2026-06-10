@@ -15,6 +15,9 @@ export function AdminAuthProvider({ children }) {
       setSession(s);
       if (s) loadProfile(s.user.id);
       else setLoading(false);
+    }).catch(() => {
+      setSession(null);
+      setLoading(false);
     });
 
     // Listen for login/logout events
