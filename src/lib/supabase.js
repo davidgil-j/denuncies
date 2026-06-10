@@ -177,9 +177,27 @@ export async function signOutAdmin() {
   return supabase.auth.signOut();
 }
 
+function clearStaleAuthToken() {
+  try {
+    const ref = new URL(SUPABASE_URL).hostname.split('.')[0];
+    localStorage.removeItem(`sb-${ref}-auth-token`);
+  } catch {
+    // ignore
+  }
+}
+
 export async function getAdminSession() {
-  const { data } = await supabase.auth.getSession();
-  return data?.session ?? null;
+  try {
+    const { data } = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('session-timeout')), 5000)),
+    ]);
+    return data?.session ?? null;
+  } catch {
+    // Stale/corrupted session token stuck refreshing — clear it so login works again
+    clearStaleAuthToken();
+    return null;
+  }
 }
 
 export async function sendPasswordReset(email) {

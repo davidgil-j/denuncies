@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase, getProfile, getManagerPermissions } from '../lib/supabase.js';
+import { supabase, getAdminSession, getProfile, getManagerPermissions } from '../lib/supabase.js';
 
 const AdminAuthContext = createContext(null);
 
@@ -10,14 +10,11 @@ export function AdminAuthProvider({ children }) {
   const [loading, setLoading]         = useState(true);
 
   useEffect(() => {
-    // Load initial session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    // Load initial session (resilient to stale/corrupted tokens)
+    getAdminSession().then(s => {
       setSession(s);
       if (s) loadProfile(s.user.id);
       else setLoading(false);
-    }).catch(() => {
-      setSession(null);
-      setLoading(false);
     });
 
     // Listen for login/logout events
