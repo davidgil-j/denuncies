@@ -5,3 +5,7 @@ dist
 *.local
 
 .vercel
+
+# Prospect finder output
+tools/prospect-finder/output/
+tools/prospect-finder/node_modules/
