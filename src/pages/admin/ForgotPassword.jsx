@@ -14,7 +14,7 @@ export default function ForgotPassword() {
     setLoading(true);
     const { error: err } = await sendPasswordReset(email);
     setLoading(false);
-    if (err) setError('No s\'ha pogut enviar el correu. Verifica l\'adreça.');
+    if (err) setError(err.message || 'No s\'ha pogut enviar el correu. Verifica l\'adreça.');
     else setSent(true);
   }
 
