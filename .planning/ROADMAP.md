@@ -37,10 +37,12 @@ Plans:
   2. En completar el formulari, es crea una nova organització i el nou usuari queda registrat com a `superadmin` d'aquesta organització
   3. El nou usuari pot iniciar sessió a `/admin` i veure un dashboard buit, propi de la seva organització
   4. La nova organització obté un slug únic per al seu canal públic
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: TBD (es definirà a `/gsd:plan-phase 2`)
+- [ ] 02-01-PLAN.md — Migració 006: slugify, generate_unique_org_slug i extensió de handle_new_user() (org + superadmin automàtic), aplicada via supabase db push --linked
+- [ ] 02-02-PLAN.md — signUpOrganization() a supabase.js, traduccions ca/es/en i pàgina pública /crear-compte amb selector d'idioma
+- [ ] 02-03-PLAN.md — Verificació E2E: signup -> organització + superadmin amb slug únic -> login -> dashboard buit
 
 ### Phase 3: Canal públic per organització
 **Goal**: El formulari públic de denúncia i el portal de seguiment funcionen de manera aïllada per organització dins de Plataforma 2.
@@ -89,7 +91,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Entorn separat + fonament multi-tenant | 1/1 | Complete | 2026-06-10 |
-| 2. Autoregistre d'empreses (Crear Compte) | 0/TBD | Not started | - |
+| 2. Autoregistre d'empreses (Crear Compte) | 0/3 | Not started | - |
 | 3. Canal públic per organització | 0/TBD | Not started | - |
 | 4. Panell admin amb context d'organització | 0/TBD | Not started | - |
 | 5. Landing, traduccions i verificació E2E | 0/TBD | Not started | - |
