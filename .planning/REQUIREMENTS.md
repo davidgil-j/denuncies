@@ -7,15 +7,15 @@
 
 ### Entorn separat (Plataforma 2)
 
-- [ ] **ENV-01**: Existeix un nou projecte Supabase (BD pròpia i buida) per a la Plataforma 2, separat del de Plataforma 1 (Reportia)
-- [ ] **ENV-02**: Existeix un nou projecte Vercel amb domini propi per a la Plataforma 2, desplegant una branca pròpia del codi
-- [ ] **ENV-03**: Plataforma 1 (denuncias-neon.vercel.app + el seu projecte Supabase) no es modifica de cap manera
+- [x] **ENV-01**: Existeix un nou projecte Supabase (BD pròpia i buida) per a la Plataforma 2, separat del de Plataforma 1 (Reportia) — `canal-denuncies-saas` (zojrqjmauruishfvgdja)
+- [x] **ENV-02**: Existeix un nou projecte Vercel amb domini propi per a la Plataforma 2, desplegant una branca pròpia del codi — https://canal-denuncies-saas.vercel.app (branca `saas-multitenant`)
+- [x] **ENV-03**: Plataforma 1 (denuncias-neon.vercel.app + el seu projecte Supabase) no es modifica de cap manera
 
 ### Organitzacions (multi-tenant, dins de Plataforma 2)
 
-- [ ] **ORG-01**: Existeix una taula `organizations` (id, name, slug, created_at) a la base de dades de Plataforma 2
-- [ ] **ORG-02**: `profiles`, `complaints`, `manager_permissions` i `audit_logs` tenen una columna `organization_id` amb clau forana
-- [ ] **ORG-03**: Les polítiques RLS de totes les taules limiten l'accés a les dades de l'organització de l'usuari autenticat
+- [x] **ORG-01**: Existeix una taula `organizations` (id, name, slug, created_at) a la base de dades de Plataforma 2
+- [x] **ORG-02**: `profiles`, `complaints`, `manager_permissions` i `audit_logs` tenen una columna `organization_id` amb clau forana
+- [x] **ORG-03**: Les polítiques RLS de totes les taules limiten l'accés a les dades de l'organització de l'usuari autenticat
 - [ ] **ORG-04**: La submissió i el seguiment de denúncies públiques estan associats a una organització concreta
 
 ### Registre d'empreses (Crear Compte)
@@ -67,12 +67,12 @@ Diferit a futurs milestones.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ENV-01 | Phase 1 | Pending |
-| ENV-02 | Phase 1 | Pending |
-| ENV-03 | Phase 1 | Pending |
-| ORG-01 | Phase 1 | Pending |
-| ORG-02 | Phase 1 | Pending |
-| ORG-03 | Phase 1 | Pending |
+| ENV-01 | Phase 1 | Complete |
+| ENV-02 | Phase 1 | Complete |
+| ENV-03 | Phase 1 | Complete |
+| ORG-01 | Phase 1 | Complete |
+| ORG-02 | Phase 1 | Complete |
+| ORG-03 | Phase 1 | Complete |
 | SIGNUP-01 | Phase 2 | Pending |
 | SIGNUP-02 | Phase 2 | Pending |
 | SIGNUP-03 | Phase 2 | Pending |

@@ -6,7 +6,7 @@ Crear una "Plataforma 2" — un desplegament separat (nou domini, nou projecte V
 
 ## Phases
 
-- [ ] **Phase 1: Entorn separat + fonament de base de dades multi-tenant** - Nou projecte Supabase + nou projecte Vercel/domini per a Plataforma 2, amb taula `organizations`, `organization_id` i RLS des de zero
+- [x] **Phase 1: Entorn separat + fonament de base de dades multi-tenant** - Nou projecte Supabase + nou projecte Vercel/domini per a Plataforma 2, amb taula `organizations`, `organization_id` i RLS des de zero
 - [ ] **Phase 2: Autoregistre d'empreses (Crear Compte)** - Pàgina pública de registre que crea organització + superadmin automàtic
 - [ ] **Phase 3: Canal públic per organització** - Formulari de denúncia i seguiment per codi específics per organització dins de Plataforma 2
 - [ ] **Phase 4: Panell admin amb context d'organització** - Dades i enllaç públic propis de cada organització al panell
@@ -23,10 +23,10 @@ Crear una "Plataforma 2" — un desplegament separat (nou domini, nou projecte V
   2. L'esquema de Plataforma 2 inclou `organizations`, i `organization_id` a `profiles`, `complaints`, `manager_permissions` i `audit_logs`
   3. Les polítiques RLS de Plataforma 2 impedeixen que un usuari d'una organització llegeixi o escrigui dades d'una altra
   4. Plataforma 1 (denuncias-neon.vercel.app i el seu projecte Supabase) no ha rebut cap canvi
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 01-01: TBD (es definirà a `/gsd:plan-phase 1`)
+- [x] 01-01: Crear projecte Supabase i Vercel separats, aplicar migració 005 (organizations + organization_id + RLS), desplegar a https://canal-denuncies-saas.vercel.app
 
 ### Phase 2: Autoregistre d'empreses (Crear Compte)
 **Goal**: Una empresa nova es pot registrar ella mateixa i obté el seu propi espai aïllat amb superadmin automàtic, sense intervenció manual.
@@ -88,7 +88,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fonament de base de dades multi-tenant | 0/TBD | Not started | - |
+| 1. Entorn separat + fonament multi-tenant | 1/1 | Complete | 2026-06-10 |
 | 2. Autoregistre d'empreses (Crear Compte) | 0/TBD | Not started | - |
 | 3. Canal públic per organització | 0/TBD | Not started | - |
 | 4. Panell admin amb context d'organització | 0/TBD | Not started | - |
