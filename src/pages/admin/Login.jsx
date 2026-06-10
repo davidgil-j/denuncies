@@ -28,7 +28,14 @@ export default function AdminLogin() {
     setLoading(false);
 
     if (err) {
-      setError('Credencials incorrectes. Torna-ho a provar.');
+      const msg = (err.message || '').toLowerCase();
+      if (msg.includes('email not confirmed')) {
+        setError('El correu electrònic encara no s\'ha confirmat. Revisa la teva safata d\'entrada.');
+      } else if (msg.includes('invalid login credentials')) {
+        setError('Credencials incorrectes. Torna-ho a provar.');
+      } else {
+        setError('Error en iniciar sessió: ' + err.message);
+      }
       setTurnstileToken(null);
       return;
     }
