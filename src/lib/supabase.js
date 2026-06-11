@@ -173,6 +173,28 @@ export async function signInAdmin(email, password) {
   return { session: data?.session, error };
 }
 
+/**
+ * Self-signup for a new organization. Creates the auth.users row with
+ * company_name + full_name in raw_user_meta_data; the database trigger
+ * (migration 006) provisions the organization + superadmin profile.
+ * Returns { user, needsConfirmation, error }.
+ */
+export async function signUpOrganization({ companyName, fullName, email, password }) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { company_name: companyName, full_name: fullName },
+    },
+  });
+
+  return {
+    user: data?.user ?? null,
+    needsConfirmation: !!data?.user && !data?.session,
+    error,
+  };
+}
+
 export async function signOutAdmin() {
   return supabase.auth.signOut();
 }
