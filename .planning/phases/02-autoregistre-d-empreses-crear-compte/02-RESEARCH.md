@@ -177,7 +177,7 @@ create extension if not exists unaccent with schema extensions;
 create or replace function slugify(value text)
 returns text
 language sql
-immutable
+stable
 as $$
   select trim(both '-' from
     regexp_replace(
@@ -312,7 +312,7 @@ create extension if not exists unaccent with schema extensions;
 create or replace function slugify(value text)
 returns text
 language sql
-immutable
+stable
 as $$
   select trim(both '-' from
     regexp_replace(
@@ -424,22 +424,25 @@ export async function signUpOrganization({ companyName, fullName, email, passwor
 
 **If this table is empty:** N/A — see entries above.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Is "Confirm email" enabled for the Platform 2 Supabase project (zojrqjmauruishfvgdja)?**
    - What we know: Platform 1's Login.jsx has explicit handling for "Email not confirmed" errors, suggesting Platform 1 has it enabled. Platform 2 was created fresh in Phase 1 (migration 005 applied to an empty DB) — Auth settings are project-level dashboard config, not part of any SQL migration, so they wouldn't be replicated automatically.
    - What's unclear: Whether Phase 1's setup process copied Auth settings, or left Platform 2 at Supabase defaults (which, as of recent Supabase versions, default "Confirm email" to ON for new projects).
    - Recommendation: The planner should include a task to verify this setting (Supabase Dashboard > Authentication > Sign In / Providers > Email > "Confirm email" toggle) as an early checkpoint, OR build the signup page defensively to handle BOTH outcomes (check `data.session` after `signUp()` and branch UI accordingly) — this is already reflected in the recommended `signUpOrganization()` return shape (`needsConfirmation` flag). Building defensively avoids blocking on dashboard access.
+   - **RESOLVED:** Plan 02-02 builds defensively using the `needsConfirmation` flag returned by `signUpOrganization()`, handling both the confirm-email-on and confirm-email-off cases without requiring a dashboard-setting verification checkpoint.
 
 2. **Should there be a check for duplicate organization names (not just slug collision)?**
    - What we know: `organizations.slug` is `unique not null`; two companies with the same/similar name will get `acme`, `acme-2`, etc. — both succeed.
    - What's unclear: Whether the business wants to prevent two unrelated companies both registering as "Acme S.L." (potential brand confusion on `/canal/acme` vs `/canal/acme-2`), or whether this is acceptable for v1.
    - Recommendation: Out of scope for v1 per REQUIREMENTS.md (no such requirement listed). The collision-suffix approach is sufficient; defer any "name already taken, are you the same company?" UX to v2 if needed.
+   - **RESOLVED:** Out of scope for v1 per REQUIREMENTS.md; the slug-collision-suffix approach (`-2`, `-3`, ...) is sufficient for this phase.
 
 3. **Route naming for the signup page** (`/crear-compte`, `/signup`, `/registre`) and whether it lives inside `PublicApp` (with lang switcher state) or as a standalone top-level route like `LandingPage`.
    - What we know: `LandingPage` is a standalone top-level route (`/`) with no lang switcher; `PublicApp` (`/canal`) has the `lang` state + switcher bar.
    - What's unclear: Phase 5 ("Landing, traduccions i verificació E2E") is explicitly responsible for adding the "Crear Compte" CTA to the landing page — so Phase 2 just needs the page + route to exist and be reachable (e.g., direct link), with its own lang switcher (matching `PublicApp`'s pattern) since it must be ca/es/en per SIGNUP-01.
    - Recommendation: Build `/crear-compte` as a standalone route with its own internal `lang` state + switcher bar (copy the pattern from `PublicApp`'s lang-bar), independent of the landing page integration which Phase 5 will handle.
+   - **RESOLVED:** Built as a standalone route with its own lang switcher (mirrors `PublicApp`'s lang-bar pattern), independent of Phase 5's landing-page CTA integration.
 
 ## Environment Availability
 
