@@ -104,3 +104,11 @@ None.
 ---
 *Phase: 02-autoregistre-d-empreses-crear-compte*
 *Completed: 2026-06-11*
+
+## Self-Check: PASSED
+
+- FOUND: src/pages/Signup.jsx
+- FOUND: .planning/phases/02-autoregistre-d-empreses-crear-compte/02-02-SUMMARY.md
+- FOUND: 3f93f84 (Task 1 commit)
+- FOUND: 6cd725a (Task 2 commit)
+- FOUND: 21d9b16 (SUMMARY commit)
