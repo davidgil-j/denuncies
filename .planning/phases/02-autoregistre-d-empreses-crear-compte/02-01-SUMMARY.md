@@ -116,3 +116,11 @@ None - no external service configuration required. Migration 006 is now live on 
 ---
 *Phase: 02-autoregistre-d-empreses-crear-compte*
 *Completed: 2026-06-11*
+
+## Self-Check: PASSED
+
+- FOUND: supabase/migrations/006_org_signup.sql
+- FOUND: .planning/phases/02-autoregistre-d-empreses-crear-compte/02-01-SUMMARY.md
+- FOUND: 97c5ea8 (Task 1 commit)
+- FOUND: 56fad25 (SUMMARY commit)
+- FOUND: 05befc3 (metadata commit)
