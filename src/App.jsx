@@ -7,6 +7,7 @@ import { AdminAuthProvider } from './contexts/AdminAuth.jsx';
 import ComplaintForm from './pages/ComplaintForm.jsx';
 import TrackingPortal from './pages/TrackingPortal.jsx';
 import LandingPage from './pages/LandingPage.jsx';
+import Signup from './pages/Signup.jsx';
 import AdminLogin from './pages/admin/Login.jsx';
 import AdminDashboard from './pages/admin/Dashboard.jsx';
 import ComplaintDetail from './pages/admin/ComplaintDetail.jsx';
@@ -94,6 +95,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/canal" element={<PublicApp />} />
+          <Route path="/crear-compte" element={<Signup />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/forgot-password" element={<ForgotPassword />} />
           <Route path="/admin/reset-password" element={<ResetPassword />} />
