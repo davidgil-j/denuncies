@@ -21,8 +21,8 @@
 ### Registre d'empreses (Crear Compte)
 
 - [ ] **SIGNUP-01**: Existeix una pàgina pública "Crear Compte" (ca/es/en) on una empresa nova s'hi pot registrar (nom d'empresa + correu + contrasenya)
-- [ ] **SIGNUP-02**: En registrar-se, es crea automàticament una nova organització i el nou usuari hi queda com a `superadmin`, sense intervenció manual
-- [ ] **SIGNUP-03**: Cada organització nova obté un enllaç de canal públic propi (basat en un slug únic)
+- [x] **SIGNUP-02**: En registrar-se, es crea automàticament una nova organització i el nou usuari hi queda com a `superadmin`, sense intervenció manual
+- [x] **SIGNUP-03**: Cada organització nova obté un enllaç de canal públic propi (basat en un slug únic)
 
 ### Canal públic per organització
 
@@ -74,8 +74,8 @@ Diferit a futurs milestones.
 | ORG-02 | Phase 1 | Complete |
 | ORG-03 | Phase 1 | Complete |
 | SIGNUP-01 | Phase 2 | Pending |
-| SIGNUP-02 | Phase 2 | Pending |
-| SIGNUP-03 | Phase 2 | Pending |
+| SIGNUP-02 | Phase 2 | Complete |
+| SIGNUP-03 | Phase 2 | Complete |
 | ORG-04 | Phase 3 | Pending |
 | PUBLIC-02 | Phase 3 | Pending |
 | PUBLIC-03 | Phase 3 | Pending |
@@ -86,6 +86,7 @@ Diferit a futurs milestones.
 | VERIF-02 | Phase 5 | Pending |
 
 **Coverage:**
+
 - v1.0 requirements: 17 total
 - Mapped to phases: 17
 - Unmapped: 0 ✓

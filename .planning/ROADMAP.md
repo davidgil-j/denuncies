@@ -49,8 +49,8 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — Migració 006: slugify, generate_unique_org_slug i extensió de handle_new_user() (org + superadmin automàtic), aplicada via supabase db push --linked
-- [ ] 02-02-PLAN.md — signUpOrganization() a supabase.js, traduccions ca/es/en i pàgina pública /crear-compte amb selector d'idioma
+- [x] 02-01-PLAN.md — Migració 006: slugify, generate_unique_org_slug i extensió de handle_new_user() (org + superadmin automàtic), aplicada via supabase db push --linked
+- [x] 02-02-PLAN.md — signUpOrganization() a supabase.js, traduccions ca/es/en i pàgina pública /crear-compte amb selector d'idioma
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -115,7 +115,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Entorn separat + fonament multi-tenant | 1/1 | Complete | 2026-06-10 |
-| 2. Autoregistre d'empreses (Crear Compte) | 0/3 | Not started | - |
+| 2. Autoregistre d'empreses (Crear Compte) | 2/3 | In Progress | - |
 | 3. Canal públic per organització | 0/TBD | Not started | - |
 | 4. Panell admin amb context d'organització | 0/TBD | Not started | - |
 | 5. Landing, traduccions i verificació E2E | 0/TBD | Not started | - |

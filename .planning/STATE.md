@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 1 completada i desplegada (Plataforma 2 separada i en producció); pendent decidir si es continua amb Phase 2 (Crear Compte)
-last_updated: "2026-06-11T08:21:12.682Z"
-last_activity: 2026-06-11 -- Phase 2 planning complete
+stopped_at: Completed 02-01-PLAN.md (migration 006 applied to zojrqjmauruishfvgdja)
+last_updated: "2026-06-11T09:07:50.645Z"
+last_activity: 2026-06-11
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
-  percent: 0
+  completed_plans: 2
+  percent: 67
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10)
 
 **Core value:** El denunciant ha de poder informar amb confidencialitat total, i si tria l'anonimat, els gestors mai poden esbrinar la seva identitat.
-**Current focus:** Phase 2 — Autoregistre d'empreses (Crear Compte)
+**Current focus:** Phase 02 — Autoregistre d'empreses (Crear Compte)
 
 ## Current Position
 
-Phase: 2 of 5 (Autoregistre d'empreses — Crear Compte)
-Plan: 0 of TBD in current phase
-Status: Ready to execute
-Last activity: 2026-06-11 -- Phase 2 planning complete
+Phase: 02 (Autoregistre d'empreses (Crear Compte)) — EXECUTING
+Plan: 2 of 3
+Status: Plans 01-02 complete; plan 03 (end-to-end verification) pending
+Last activity: 2026-06-11
 
-Progress: [██░░░░░░░░] 20%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [██░░░░░░░░] 20%
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 02 P01 | 10min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,7 @@ Recent decisions affecting current work:
 - Phase 1: `organization_id` + RLS multi-tenant des de zero (BD buida, sense migració de dades)
 - Phase 1: Rutes amb slug (`/canal/:slug`) en lloc de subdominis
 - Phase 1: Categories globals i fixes, no per organització
+- [Phase 02]: Migration 006 (slugify, generate_unique_org_slug, extended handle_new_user) applied to zojrqjmauruishfvgdja via supabase db push --linked — Self-signup now atomically creates organizations + superadmin profile; invite-manager flow unchanged
 
 ### Pending Todos
 
@@ -84,6 +86,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-06-10
-Stopped at: Phase 1 completada i desplegada (Plataforma 2 separada i en producció); pendent decidir si es continua amb Phase 2 (Crear Compte)
+Last session: 2026-06-11T09:06:44.745Z
+Stopped at: Completed 02-01-PLAN.md (migration 006 applied to zojrqjmauruishfvgdja)
 Resume file: None
