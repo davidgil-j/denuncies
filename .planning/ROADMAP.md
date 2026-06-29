@@ -67,11 +67,24 @@ Plans:
   2. El seguiment per codi de tracking només retorna denúncies de l'organització correcta
   3. Categories i traduccions (ca/es/en) funcionen igual que abans
 
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
+**Wave 1**
 
-- [ ] 03-01: TBD (es definirà a `/gsd:plan-phase 3`)
+- [ ] 03-01-PLAN.md — Migració 007: estreny get_complaint_by_tracking_code (2 args, filtrat per organització) + RLS EXISTS-join a attachments/messages, aplicada via supabase db push --linked
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 03-02-PLAN.md — supabase.js: getOrganizationBySlug(), saveComplaint/getComplaintByCode amb organization_id + traduccions channelNotFound (ca/es/en)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 03-03-PLAN.md — App.jsx: ruta /canal/:slug + guard de resolució de slug (organizationId a ComplaintForm/TrackingPortal)
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 03-04-PLAN.md — Verificació E2E: form per slug, submissió org-scoped, seguiment trobat a org A i NO trobat a org B
 
 ### Phase 4: Panell admin amb context d'organització
 
@@ -116,6 +129,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Entorn separat + fonament multi-tenant | 1/1 | Complete | 2026-06-10 |
 | 2. Autoregistre d'empreses (Crear Compte) | 2/3 | In Progress | - |
-| 3. Canal públic per organització | 0/TBD | Not started | - |
+| 3. Canal públic per organització | 0/4 | Not started | - |
 | 4. Panell admin amb context d'organització | 0/TBD | Not started | - |
 | 5. Landing, traduccions i verificació E2E | 0/TBD | Not started | - |
