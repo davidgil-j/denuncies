@@ -88,6 +88,11 @@ body {
   height: 80px;
   width: auto;
 }
+.card-header .admin-wordmark {
+  display: block;
+  margin-bottom: 18px;
+  font-size: 20px;
+}
 .card-header h1 {
   font-size: 13px;
   font-weight: 700;

@@ -61,6 +61,7 @@ export default function Signup() {
       </div>
 
       <div className="admin-login-card">
+        <span className="admin-wordmark admin-wordmark--card">Reportia</span>
         <h1 className="admin-login-title">{t.pageTitle}</h1>
         <p className="admin-login-sub">{t.pageSubtitle}</p>
 

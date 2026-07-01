@@ -41,9 +41,7 @@ function PublicApp() {
 
       <div className="card">
         <div className="card-header">
-          <span className="logo-wrap">
-            <img src="/logo.png" alt="Reportia" />
-          </span>
+          <span className="admin-wordmark">Reportia</span>
           <h1>{t.title}</h1>
           <p className="subtitle">{t.subtitle}</p>
           <span className="legal-badge">{t.legalBadge}</span>
