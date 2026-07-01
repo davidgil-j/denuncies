@@ -46,7 +46,7 @@ export default function AdminLogin() {
   return (
     <div className="admin-login-page">
       <div className="admin-login-card">
-        <img src="/logo.png" alt="Reportia" className="admin-login-logo" />
+        <span className="admin-wordmark admin-wordmark--card">Reportia</span>
         <h1 className="admin-login-title">Panel d'administració</h1>
         <p className="admin-login-sub">Canal Ètic · Accés restringit</p>
 

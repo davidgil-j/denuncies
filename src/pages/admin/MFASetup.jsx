@@ -85,7 +85,7 @@ export default function MFASetup() {
   return (
     <div className="admin-layout">
       <aside className="admin-sidebar">
-        <div className="admin-sidebar-logo"><img src="/logo.png" alt="Reportia" /></div>
+        <div className="admin-sidebar-logo"><span className="admin-wordmark">Reportia</span></div>
         <nav className="admin-nav">
           <div className="admin-nav-item" onClick={() => navigate('/admin')} style={{ cursor: 'pointer' }}>🗂 Denúncies</div>
           {profile?.role === 'superadmin' && (

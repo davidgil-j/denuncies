@@ -96,7 +96,7 @@ export default function ComplaintDetail() {
   if (loading) return (
     <div className="admin-layout">
       <aside className="admin-sidebar">
-        <div className="admin-sidebar-logo"><img src="/logo.png" alt="Reportia" /></div>
+        <div className="admin-sidebar-logo"><span className="admin-wordmark">Reportia</span></div>
         <button className="admin-logout-btn" onClick={handleLogout}>Tancar sessió</button>
       </aside>
       <main className="admin-main"><div className="admin-loading" style={{ margin: 48 }}>Carregant...</div></main>
@@ -106,7 +106,7 @@ export default function ComplaintDetail() {
   if (!complaint) return (
     <div className="admin-layout">
       <aside className="admin-sidebar">
-        <div className="admin-sidebar-logo"><img src="/logo.png" alt="Reportia" /></div>
+        <div className="admin-sidebar-logo"><span className="admin-wordmark">Reportia</span></div>
         <button className="admin-logout-btn" onClick={handleLogout}>Tancar sessió</button>
       </aside>
       <main className="admin-main"><div className="admin-empty" style={{ margin: 48 }}>Denúncia no trobada.</div></main>
@@ -117,7 +117,7 @@ export default function ComplaintDetail() {
     <div className="admin-layout">
       {/* Sidebar */}
       <aside className="admin-sidebar">
-        <div className="admin-sidebar-logo"><img src="/logo.png" alt="Reportia" /></div>
+        <div className="admin-sidebar-logo"><span className="admin-wordmark">Reportia</span></div>
         <nav className="admin-nav">
           <div className="admin-nav-item" onClick={() => navigate('/admin')} style={{ cursor: 'pointer' }}>Denúncies</div>
         </nav>

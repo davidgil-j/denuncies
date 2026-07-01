@@ -57,7 +57,7 @@ export default function ResetPassword() {
   if (!ready) return (
     <div className="admin-login-page">
       <div className="admin-login-card">
-        <img src="/logo.png" alt="Reportia" className="admin-login-logo" />
+        <span className="admin-wordmark admin-wordmark--card">Reportia</span>
         <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>⏳ Verificant l'enllaç...</p>
       </div>
     </div>
@@ -66,7 +66,7 @@ export default function ResetPassword() {
   return (
     <div className="admin-login-page">
       <div className="admin-login-card">
-        <img src="/logo.png" alt="Reportia" className="admin-login-logo" />
+        <span className="admin-wordmark admin-wordmark--card">Reportia</span>
         <h1 className="admin-login-title">{isInvite ? 'Benvingut/da' : 'Nova contrasenya'}</h1>
         <p className="admin-login-sub">{isInvite ? 'Estableix la teva contrasenya per accedir al panell.' : 'Introdueix la teva nova contrasenya.'}</p>
 
