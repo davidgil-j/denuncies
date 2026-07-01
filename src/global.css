@@ -2,10 +2,10 @@
 
 /* ── CSS Variables ─────────────────────────────────────────────── */
 :root {
-  --primary:       #27d18d;
-  --primary-light: #4ddea0;
-  --primary-dark:  #1eb87a;
-  --primary-bg:    #eafaf3;
+  --primary:       #2563eb;
+  --primary-light: #3b82f6;
+  --primary-dark:  #1d4ed8;
+  --primary-bg:    #eff6ff;
   --success:       #059669;
   --success-bg:    #ecfdf5;
   --danger:        #dc2626;
@@ -14,16 +14,16 @@
   --warning-bg:    #fffbeb;
 
   --surface:       #ffffff;
-  --surface-2:     #f4fbf8;
-  --bg:            #294e59;
-  --bg-2:          #1e3a42;
-  --text:          #1a2e2a;
-  --text-muted:    #4a6b64;
-  --text-light:    #7a9e96;
-  --border:        #d4ede5;
-  --border-focus:  #27d18d;
+  --surface-2:     #f8faff;
+  --bg:            #060c18;
+  --bg-2:          #0b1526;
+  --text:          #1e293b;
+  --text-muted:    #64748b;
+  --text-light:    #94a3b8;
+  --border:        #e2e8f0;
+  --border-focus:  #3b82f6;
 
-  --font:          'Syne', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font:          'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --r-sm:          8px;
   --r-md:          12px;
   --r-lg:          20px;
@@ -54,7 +54,7 @@ body {
   justify-content: flex-start;
   padding: 32px 16px 80px;
   background:
-    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(39,209,141,.18) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(37,99,235,.15) 0%, transparent 70%),
     var(--bg);
 }
 
@@ -787,7 +787,7 @@ select.field-input { cursor: pointer; }
 .admin-layout {
   display: flex;
   min-height: 100vh;
-  background: #f4fbf8;
+  background: #f8faff;
   font-family: var(--font);
 }
 .admin-sidebar {
@@ -1062,7 +1062,7 @@ select.field-input { cursor: pointer; }
 /* Admin Login */
 .admin-login-page {
   min-height: 100vh;
-  background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(39,209,141,.18) 0%, transparent 70%), var(--bg);
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(37,99,235,.15) 0%, transparent 70%), var(--bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1220,7 +1220,7 @@ select.field-input { cursor: pointer; }
   justify-content: center;
   padding: 32px 16px;
   background:
-    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(39,209,141,.18) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(37,99,235,.15) 0%, transparent 70%),
     var(--bg);
 }
 .landing-inner {
