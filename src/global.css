@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Syne:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* ── CSS Variables ─────────────────────────────────────────────── */
 :root {
@@ -322,6 +322,33 @@ textarea.field-input {
   line-height: 1.6;
 }
 select.field-input { cursor: pointer; }
+
+/* ── Password show/hide toggle ─────────────────────────────────── */
+/* Hide Edge/IE native reveal button */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear { display: none; }
+
+/* Chrome: mask plain-text input to look like password (avoids native reveal button) */
+.pw-masked { -webkit-text-security: disc; }
+
+.pw-wrap { position: relative; }
+.pw-wrap .field-input { padding-right: 44px; }
+.pw-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--surface);
+  border: none;
+  cursor: pointer;
+  color: var(--text-light);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  z-index: 1;
+}
+.pw-toggle:hover { color: var(--text); }
 
 .fields-row {
   display: grid;
@@ -779,6 +806,31 @@ select.field-input { cursor: pointer; }
 .msg-feedback.ok  { background: var(--success-bg); color: var(--success); }
 .msg-feedback.err { background: var(--danger-bg);  color: var(--danger);  }
 
+/* Admin message thread: manager bubbles on the right */
+.admin-msg-thread .msg-bubble-wrap.manager { justify-content: flex-end; }
+.admin-msg-thread .msg-bubble-wrap.reporter { justify-content: flex-start; }
+.admin-msg-thread .msg-bubble.manager {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-bottom-left-radius: var(--r-lg);
+  border-bottom-right-radius: 4px;
+}
+.admin-msg-thread .msg-bubble.reporter {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: var(--r-lg);
+}
+
+/* Admin email link */
+.admin-email-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-size: 13px;
+}
+.admin-email-link:hover { text-decoration: underline; }
+
 /* ── Footer ────────────────────────────────────────────────────── */
 .page-footer {
   margin-top: 24px;
@@ -871,6 +923,59 @@ select.field-input { cursor: pointer; }
   flex-shrink: 0;
 }
 .admin-back-btn:hover { background: var(--surface); color: var(--text); }
+
+/* Canal banner */
+.canal-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: rgba(37,99,235,.08);
+  border: 1px solid rgba(59,130,246,.25);
+  border-radius: var(--r-md);
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+.canal-banner-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.canal-banner-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--primary);
+}
+.canal-banner-url {
+  display: block;
+  font-size: 13px;
+  color: var(--text);
+  font-family: monospace;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.canal-banner-url:hover { text-decoration: underline; color: var(--primary); }
+.canal-banner-copy {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--primary);
+  background: transparent;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.canal-banner-copy:hover { background: var(--primary); color: #fff; }
 
 /* Stats */
 .admin-stats {
@@ -1126,6 +1231,40 @@ select.field-input { cursor: pointer; }
   margin-bottom: 16px;
 }
 .admin-date-range { display: flex; align-items: center; gap: 6px; }
+.admin-date-field { display: flex; flex-direction: column; gap: 2px; }
+.date-range-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.admin-date-input-wrap { position: relative; }
+.date-empty-hint {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--text-light);
+  pointer-events: none;
+  display: none;
+}
+@media (max-width: 768px) {
+  .date-empty-hint { display: block; }
+}
+.admin-copy-email-btn {
+  font-size: 11px;
+  font-family: var(--font);
+  padding: 2px 8px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--t);
+}
+.admin-copy-email-btn:hover { border-color: var(--primary); color: var(--primary); }
 .admin-clear-btn {
   background: var(--danger-bg);
   color: var(--danger);
@@ -1343,7 +1482,98 @@ select.field-input { cursor: pointer; }
   line-height: 1.5;
 }
 
+/* ── Choice screen ─────────────────────────────────────────────── */
+.choice-screen { padding: 40px 48px; }
+.choice-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+  text-align: center;
+  margin-bottom: 28px;
+}
+.choice-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.choice-card {
+  border: 2px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 28px 20px;
+  cursor: pointer;
+  transition: var(--t);
+  text-align: center;
+  background: var(--surface);
+  width: 100%;
+  font-family: var(--font);
+}
+.choice-card:hover {
+  border-color: var(--primary);
+  background: var(--primary-bg);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(37,99,235,.12);
+}
+.choice-icon { font-size: 32px; margin-bottom: 12px; }
+.choice-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.choice-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
 /* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .admin-layout { flex-direction: column; }
+  .admin-sidebar {
+    width: 100%;
+    height: auto;
+    position: static;
+    flex-direction: row;
+    align-items: center;
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+    overflow-x: auto;
+  }
+  .admin-sidebar-logo {
+    padding: 0 16px 0 0;
+    border-bottom: none;
+    border-right: 1px solid rgba(255,255,255,.1);
+  }
+  .admin-nav {
+    flex: 1;
+    padding: 0;
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+  }
+  .admin-nav-item {
+    padding: 6px 12px;
+    border-radius: var(--r-sm);
+    font-size: 12px;
+    border-left: none;
+  }
+  .admin-nav-item.active {
+    border-left: none;
+    background: rgba(37,99,235,.2);
+  }
+  .admin-sidebar-user { display: none; }
+  .admin-logout-btn { margin: 0; }
+  .admin-main { padding: 16px; }
+  .admin-detail-grid { grid-template-columns: 1fr; }
+  .admin-topbar { flex-wrap: wrap; gap: 8px; }
+  .admin-table { min-width: 700px; }
+  .admin-table-wrap { overflow-x: auto; }
+  .admin-filters-bar { flex-wrap: wrap; }
+  .canal-banner { flex-direction: column; align-items: flex-start; overflow: hidden; }
+  .canal-banner-info { width: 100%; max-width: 100%; }
+}
+
 @media (max-width: 640px) {
   .page { padding: 16px 12px 60px; }
   .card-header { padding: 28px 24px 24px; }
@@ -1353,6 +1583,8 @@ select.field-input { cursor: pointer; }
   .success-wrap { padding: 32px 24px; }
   .fields-row { grid-template-columns: 1fr; }
   .mode-grid { grid-template-columns: 1fr; }
+  .choice-grid { grid-template-columns: 1fr; }
+  .choice-screen { padding: 28px 24px; }
   .tracking-code { font-size: 26px; }
   .btn-row { flex-direction: column-reverse; }
 }

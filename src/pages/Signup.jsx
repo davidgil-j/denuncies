@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { signUpOrganization } from '../lib/supabase.js';
 import { translations } from '../translations.js';
 
@@ -12,6 +13,7 @@ export default function Signup() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [showPw, setShowPw] = useState(false);
 
   const t = translations[lang].signup;
 
@@ -114,16 +116,21 @@ export default function Signup() {
               </div>
               <div className="field">
                 <label className="field-label">{t.passwordLabel}</label>
-                <input
-                  className="field-input"
-                  type="password"
-                  value={form.password}
-                  onChange={update('password')}
-                  placeholder="••••••••"
-                  autoComplete="new-password"
-                  minLength={6}
-                  required
-                />
+                <div className="pw-wrap">
+                  <input
+                    className={`field-input${!showPw ? ' pw-masked' : ''}`}
+                    type="text"
+                    value={form.password}
+                    onChange={update('password')}
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    minLength={6}
+                    required
+                  />
+                  <button type="button" className="pw-toggle" onClick={() => setShowPw(v => !v)} tabIndex={-1}>
+                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
                 <small style={{ color: 'var(--text-muted, #888)' }}>{t.passwordHint}</small>
               </div>
 

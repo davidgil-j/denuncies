@@ -112,7 +112,7 @@ function FileUpload({ files, onChange, t }) {
 }
 
 // ── Main complaint form ───────────────────────────────────────────
-export default function ComplaintForm({ lang, onTrack }) {
+export default function ComplaintForm({ lang, onTrack, organizationId }) {
   const t = translations[lang];
 
   const [step, setStep] = useState(1);
@@ -120,6 +120,7 @@ export default function ComplaintForm({ lang, onTrack }) {
   const [trackingCode, setTrackingCode] = useState(null);
   const [copied, setCopied] = useState(false);
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState('');
   const [turnstileToken, setTurnstileToken] = useState(null);
 
   const [form, setForm] = useState({
@@ -142,6 +143,9 @@ export default function ComplaintForm({ lang, onTrack }) {
   // ── Validation ────────────────────────────────────────────────
   function validateStep(s) {
     const errs = {};
+    if (s === 1 && !form.isAnonymous) {
+      if (!form.email) errs.email = t.required;
+    }
     if (s === 2) {
       if (!form.category) errs.category = t.required;
       if (!form.description || form.description.trim().length < 20)
@@ -167,22 +171,23 @@ export default function ComplaintForm({ lang, onTrack }) {
 
     if (submitting) return; // protecció doble clic
     setSubmitting(true);
+    setSubmitError('');
     try {
       const { trackingCode: code, error } = await saveComplaint({
         formData: { ...form, language: lang },
         files: form.files,
+        organizationId,
       });
 
       if (error) {
-        // Fallback: show code even if DB is not yet connected
         console.error('[Supabase]', error);
-        const fallback = 'DEMO-' + Math.random().toString(36).slice(2,6).toUpperCase();
-        setTrackingCode(fallback);
+        setSubmitError(t.submitError);
       } else {
         setTrackingCode(code);
       }
     } catch (err) {
       console.error(err);
+      setSubmitError(t.submitError);
     } finally {
       setSubmitting(false);
     }
@@ -204,6 +209,7 @@ export default function ComplaintForm({ lang, onTrack }) {
     setStep(1);
     setTrackingCode(null);
     setErrors({});
+    setSubmitError('');
     setTurnstileToken(null);
   }
 
@@ -290,15 +296,17 @@ export default function ComplaintForm({ lang, onTrack }) {
                 </div>
                 <div className="fields-row">
                   <div className="field">
-                    <label className="field-label">{t.email} <span className="opt">({t.optional})</span></label>
+                    <label className="field-label">{t.email}</label>
                     <input
-                      className="field-input"
+                      className={`field-input ${errors.email ? 'error' : ''}`}
                       type="email"
                       placeholder="correu@exemple.com"
                       value={form.email}
-                      onChange={e => set('email', e.target.value)}
+                      onChange={e => { set('email', e.target.value); clearError('email'); }}
                       autoComplete="email"
+                      required
                     />
+                    {errors.email && <div className="field-error">⚠ {errors.email}</div>}
                   </div>
                   <div className="field">
                     <label className="field-label">{t.phone} <span className="opt">({t.optional})</span></label>
@@ -405,7 +413,7 @@ export default function ComplaintForm({ lang, onTrack }) {
 
             <div className="summary-box">
               <div className="summary-row">
-                <span className="summary-key">Modalitat</span>
+                <span className="summary-key">{t.summaryModality}</span>
                 <span className="summary-val">
                   {form.isAnonymous
                     ? <span className="badge-anon">🕵️ {t.summaryAnonymous}</span>
@@ -461,6 +469,11 @@ export default function ComplaintForm({ lang, onTrack }) {
               />
             </div>
 
+            {submitError && (
+              <div className="field-error" style={{ marginBottom: 12, fontSize: 13 }}>
+                ⚠ {submitError}
+              </div>
+            )}
             <button
               type="submit"
               className="btn btn-submit"

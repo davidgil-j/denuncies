@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { signInAdmin, getAdminSession } from '../../lib/supabase.js';
+
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -9,7 +11,9 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
+  const [showPw, setShowPw]     = useState(false);
   const [turnstileToken, setTurnstileToken] = useState(null);
+  const turnstileRef = useRef(null);
 
   useEffect(() => {
     getAdminSession().then(s => { if (s) navigate('/admin', { replace: true }); });
@@ -37,6 +41,7 @@ export default function AdminLogin() {
         setError('Error en iniciar sessió: ' + err.message);
       }
       setTurnstileToken(null);
+      turnstileRef.current?.reset();
       return;
     }
 
@@ -65,19 +70,25 @@ export default function AdminLogin() {
           </div>
           <div className="field">
             <label className="field-label">Contrasenya</label>
-            <input
-              className="field-input"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="current-password"
-              required
-            />
+            <div className="pw-wrap">
+              <input
+                className={`field-input${!showPw ? ' pw-masked' : ''}`}
+                type="text"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                required
+              />
+              <button type="button" className="pw-toggle" onClick={() => setShowPw(v => !v)} tabIndex={-1}>
+                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0' }}>
             <Turnstile
+              ref={turnstileRef}
               siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
               onSuccess={token => setTurnstileToken(token)}
               onError={() => setTurnstileToken(null)}
@@ -96,7 +107,7 @@ export default function AdminLogin() {
           <Link to="/admin/forgot-password" className="admin-login-back" style={{ margin: 0 }}>
             He oblidat la contrasenya
           </Link>
-          <a href="/canal" className="admin-login-back" style={{ margin: 0 }}>← Canal públic</a>
+          <a href="/" className="admin-login-back" style={{ margin: 0 }}>← Inici</a>
         </div>
       </div>
     </div>

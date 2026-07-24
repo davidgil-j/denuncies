@@ -165,7 +165,7 @@ export default function MFASetup() {
               </details>
 
               <button className="btn btn-primary" onClick={() => setStep('verify')} style={{ width: '100%', padding: 12 }}>
-                Ja he escaneajt → Continuar
+                Ja he escaneiat → Continuar
               </button>
             </div>
           ) : (

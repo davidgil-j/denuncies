@@ -65,7 +65,7 @@ export const translations = {
     trackCodePlaceholder: 'Ex: A3B7C9X2',
     trackButton: 'Consultar estat',
     trackNotFound: 'No s\'ha trobat cap cas amb aquest codi. Verifica que és correcte.',
-    trackGoBack: 'Tornar al formulari',
+    trackGoBack: 'Tornar enrere',
     // Status labels
     status: {
       received: 'Rebut',
@@ -100,10 +100,18 @@ export const translations = {
     messageSentOk: 'Missatge enviat correctament.',
     messageSentError: 'Error en enviar el missatge. Torna-ho a provar.',
     privacyLink: 'Política de privacitat',
+    // Choice screen
+    choiceTitle: 'Com et podem ajudar?',
+    choiceSubmit: 'Presentar una denúncia',
+    choiceSubmitDesc: 'Envia una nova comunicació de forma confidencial',
+    choiceTrack: 'Consultar l\'estat',
+    choiceTrackDesc: 'Fes el seguiment del teu cas amb el codi de seguiment',
     // Validation
     required: 'Aquest camp és obligatori',
     invalidEmail: 'Format de correu no vàlid',
     privacyRequired: 'Has d\'acceptar la política de privacitat per continuar',
+    submitError: 'Error en enviar la comunicació. Comprova la teva connexió i torna-ho a provar.',
+    summaryModality: 'Modalitat',
     signup: {
       pageTitle: 'Crear compte',
       pageSubtitle: 'Registra la teva empresa i obtén el teu propi canal de denúncies',
@@ -146,7 +154,7 @@ export const translations = {
       ctaTitle: 'Prepara el teu canal avui',
       ctaDesc: 'Uneix-te a les empreses que ja compleixen la normativa i protegeixen els seus treballadors.',
       ctaButton: 'Crear compte gratis',
-      footer: 'Totes les comunicacions estan protegides per xifratge d\'extrem a extrem · © 2025 Reportia',
+      footer: 'Totes les comunicacions estan protegides per xifratge d\'extrem a extrem · © 2026 Reportia',
     },
   },
 
@@ -207,7 +215,7 @@ export const translations = {
     trackCodePlaceholder: 'Ej: A3B7C9X2',
     trackButton: 'Consultar estado',
     trackNotFound: 'No se ha encontrado ningún caso con ese código. Verifica que es correcto.',
-    trackGoBack: 'Volver al formulario',
+    trackGoBack: 'Volver',
     status: {
       received: 'Recibido',
       reviewing: 'Pendiente de revisión',
@@ -240,9 +248,17 @@ export const translations = {
     messageSentOk: 'Mensaje enviado correctamente.',
     messageSentError: 'Error al enviar el mensaje. Inténtalo de nuevo.',
     privacyLink: 'Política de privacidad',
+    // Choice screen
+    choiceTitle: '¿Cómo podemos ayudarte?',
+    choiceSubmit: 'Presentar una denuncia',
+    choiceSubmitDesc: 'Envía una nueva comunicación de forma confidencial',
+    choiceTrack: 'Consultar el estado',
+    choiceTrackDesc: 'Haz el seguimiento de tu caso con el código de seguimiento',
     required: 'Este campo es obligatorio',
     invalidEmail: 'Formato de correo no válido',
     privacyRequired: 'Debes aceptar la política de privacidad para continuar',
+    submitError: 'Error al enviar la comunicación. Comprueba tu conexión e inténtalo de nuevo.',
+    summaryModality: 'Modalidad',
     signup: {
       pageTitle: 'Crear cuenta',
       pageSubtitle: 'Registra tu empresa y obtén tu propio canal de denuncias',
@@ -285,7 +301,7 @@ export const translations = {
       ctaTitle: 'Prepara tu canal hoy',
       ctaDesc: 'Únete a las empresas que ya cumplen la normativa y protegen a sus trabajadores.',
       ctaButton: 'Crear cuenta gratis',
-      footer: 'Todas las comunicaciones están protegidas por cifrado de extremo a extremo · © 2025 Reportia',
+      footer: 'Todas las comunicaciones están protegidas por cifrado de extremo a extremo · © 2026 Reportia',
     },
   },
 
@@ -346,7 +362,7 @@ export const translations = {
     trackCodePlaceholder: 'E.g: A3B7C9X2',
     trackButton: 'Check status',
     trackNotFound: 'No case found with that code. Please verify it is correct.',
-    trackGoBack: 'Back to form',
+    trackGoBack: 'Back',
     status: {
       received: 'Received',
       reviewing: 'Pending review',
@@ -379,9 +395,17 @@ export const translations = {
     messageSentOk: 'Message sent successfully.',
     messageSentError: 'Error sending message. Please try again.',
     privacyLink: 'Privacy policy',
+    // Choice screen
+    choiceTitle: 'How can we help you?',
+    choiceSubmit: 'Submit a report',
+    choiceSubmitDesc: 'Send a new communication confidentially',
+    choiceTrack: 'Check status',
+    choiceTrackDesc: 'Track your case with your tracking code',
     required: 'This field is required',
     invalidEmail: 'Invalid email format',
     privacyRequired: 'You must accept the privacy policy to continue',
+    submitError: 'Error submitting your report. Please check your connection and try again.',
+    summaryModality: 'Type',
     signup: {
       pageTitle: 'Create account',
       pageSubtitle: 'Register your company and get your own whistleblowing channel',
@@ -424,7 +448,7 @@ export const translations = {
       ctaTitle: 'Get your channel ready today',
       ctaDesc: 'Join the companies that already comply with the regulation and protect their employees.',
       ctaButton: 'Create free account',
-      footer: 'All communications are protected by end-to-end encryption · © 2025 Reportia',
+      footer: 'All communications are protected by end-to-end encryption · © 2026 Reportia',
     },
   },
 };

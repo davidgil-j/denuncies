@@ -141,6 +141,7 @@ export default function Users() {
         <nav className="admin-nav">
           <div className="admin-nav-item" onClick={() => navigate('/admin')} style={{ cursor: 'pointer' }}>🗂 Denúncies</div>
           <div className="admin-nav-item active">Usuaris</div>
+          <div className="admin-nav-item" onClick={() => navigate('/admin/mfa')} style={{ cursor: 'pointer' }}>🔐 Seguretat</div>
         </nav>
         <button className="admin-logout-btn" onClick={handleLogout}>Tancar sessió</button>
       </aside>

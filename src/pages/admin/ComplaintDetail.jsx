@@ -35,9 +35,14 @@ export default function ComplaintDetail() {
   const [statusNote, setStatusNote]     = useState('');
   const [feedback, setFeedback] = useState(null);
   const bottomRef = useRef();
+  const shouldScroll = useRef(false);
 
   useEffect(() => { loadAll(); }, [id]);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => {
+    if (!shouldScroll.current) return;
+    shouldScroll.current = false;
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   async function loadAll() {
     setLoading(true);
@@ -61,6 +66,7 @@ export default function ComplaintDetail() {
     setSending(false);
     if (!error) {
       setDraft('');
+      shouldScroll.current = true;
       const { messages: msgs } = await getMessages(id);
       setMessages(msgs);
     }
@@ -120,6 +126,7 @@ export default function ComplaintDetail() {
         <div className="admin-sidebar-logo"><span className="admin-wordmark">Reportia</span></div>
         <nav className="admin-nav">
           <div className="admin-nav-item" onClick={() => navigate('/admin')} style={{ cursor: 'pointer' }}>Denúncies</div>
+          <div className="admin-nav-item" onClick={() => navigate('/admin/mfa')} style={{ cursor: 'pointer' }}>Seguretat</div>
         </nav>
         <button className="admin-logout-btn" onClick={handleLogout}>Tancar sessió</button>
       </aside>
@@ -161,7 +168,21 @@ export default function ComplaintDetail() {
                 {!complaint.is_anonymous && complaint.reporter_email && (
                   <div className="admin-info-row">
                     <span className="admin-info-key">Correu</span>
-                    <span className="admin-info-val">{complaint.reporter_email}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <a href={`mailto:${complaint.reporter_email.trim()}`} className="admin-info-val admin-email-link" onClick={e => e.stopPropagation()}>
+                        {complaint.reporter_email}
+                      </a>
+                      <button
+                        type="button"
+                        className="admin-copy-email-btn"
+                        title="Copiar correu"
+                        onClick={() => {
+                          navigator.clipboard.writeText(complaint.reporter_email);
+                        }}
+                      >
+                        Copiar
+                      </button>
+                    </div>
                   </div>
                 )}
                 {!complaint.is_anonymous && complaint.reporter_phone && (
@@ -279,7 +300,7 @@ export default function ComplaintDetail() {
             <div className="admin-section" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <div className="admin-section-title">Missatges amb el denunciant</div>
 
-              <div className="msg-thread" style={{ flex: 1 }}>
+              <div className="msg-thread admin-msg-thread" style={{ flex: 1 }}>
                 {messages.length === 0 ? (
                   <div className="msg-empty">Encara no hi ha missatges.</div>
                 ) : (
