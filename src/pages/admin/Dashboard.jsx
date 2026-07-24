@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, signOutAdmin } from '../../lib/supabase.js';
+import { supabase, signOutAdmin, getMyOrganization, getComplaintStats } from '../../lib/supabase.js';
 import { useAdminAuth } from '../../contexts/AdminAuth.jsx';
 import { exportToExcel, exportSummaryToPDF } from '../../lib/export.js';
 
@@ -30,6 +30,9 @@ export default function AdminDashboard() {
   const [total, setTotal]           = useState(0);
   const [loading, setLoading]       = useState(true);
   const [page, setPage]             = useState(1);
+  const [org, setOrg]               = useState(null);
+  const [copied, setCopied]         = useState(false);
+  const [statsData, setStatsData]   = useState({ total: 0, open: 0, resolved: 0 });
   const PER_PAGE = 20;
 
   // Filters
@@ -44,6 +47,19 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!authLoading) load();
   }, [filters, sortCol, sortDir, page, isSuperadmin, authLoading]);
+
+  useEffect(() => {
+    if (!authLoading && isSuperadmin) {
+      getMyOrganization().then(({ organization }) => setOrg(organization));
+    }
+  }, [authLoading, isSuperadmin]);
+
+  useEffect(() => {
+    if (!authLoading) {
+      getComplaintStats(isSuperadmin ? null : allowedCategories ?? [])
+        .then(s => setStatsData(s));
+    }
+  }, [authLoading, isSuperadmin, allowedCategories]);
 
   async function load() {
     setLoading(true);
@@ -97,10 +113,6 @@ export default function AdminDashboard() {
 
   const hasFilters = Object.values(filters).some(v => v !== '');
 
-  const statsAll   = total;
-  const statsOpen  = complaints.filter(c => ['received','reviewing','investigating','waiting'].includes(c.status)).length;
-  const statsResolved = complaints.filter(c => ['resolved','closed'].includes(c.status)).length;
-
   const formatDate = iso => iso
     ? new Date(iso).toLocaleDateString('ca-ES', { day: 'numeric', month: 'short', year: 'numeric' })
     : '—';
@@ -114,7 +126,7 @@ export default function AdminDashboard() {
   return (
     <div className="admin-layout">
       <aside className="admin-sidebar">
-        <div className="admin-sidebar-logo"><img src="/logo.png" alt="Reportia" /></div>
+        <div className="admin-sidebar-logo"><span className="admin-wordmark">Reportia</span></div>
         <nav className="admin-nav">
           <div className="admin-nav-item active">Denúncies</div>
           {isSuperadmin && (
@@ -122,6 +134,9 @@ export default function AdminDashboard() {
               Usuaris
             </div>
           )}
+          <div className="admin-nav-item" onClick={() => navigate('/admin/mfa')} style={{ cursor: 'pointer' }}>
+            Seguretat
+          </div>
         </nav>
         <div className="admin-sidebar-user">
           <div className="admin-sidebar-role">{isSuperadmin ? 'Superadmin' : 'Gestor'}</div>
@@ -143,18 +158,39 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* Canal banner */}
+        {org && isSuperadmin && (() => {
+          const canalUrl = `${window.location.origin}/canal/${org.slug}`;
+          return (
+            <div className="canal-banner">
+              <div className="canal-banner-info">
+                <span className="canal-banner-label">El teu canal públic</span>
+                <a href={canalUrl} target="_blank" rel="noopener noreferrer" className="canal-banner-url">
+                  {canalUrl}
+                </a>
+              </div>
+              <button
+                className="canal-banner-copy"
+                onClick={() => { navigator.clipboard.writeText(canalUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+              >
+                {copied ? '✓ Copiat' : 'Copiar enllaç'}
+              </button>
+            </div>
+          );
+        })()}
+
         {/* Stats */}
         <div className="admin-stats">
           <div className="admin-stat-card">
-            <div className="admin-stat-num">{statsAll}</div>
+            <div className="admin-stat-num">{statsData.total}</div>
             <div className="admin-stat-label">Total</div>
           </div>
           <div className="admin-stat-card open">
-            <div className="admin-stat-num">{statsOpen}</div>
+            <div className="admin-stat-num">{statsData.open}</div>
             <div className="admin-stat-label">Obertes</div>
           </div>
           <div className="admin-stat-card resolved">
-            <div className="admin-stat-num">{statsResolved}</div>
+            <div className="admin-stat-num">{statsData.resolved}</div>
             <div className="admin-stat-label">Resoltes</div>
           </div>
         </div>
@@ -177,11 +213,23 @@ export default function AdminDashboard() {
           </select>
 
           <div className="admin-date-range">
-            <input type="date" className="admin-filter-select" value={filters.dateFrom}
-              onChange={e => setFilter('dateFrom', e.target.value)} title="Des de" />
+            <div className="admin-date-field">
+              <span className="date-range-lbl">Des de</span>
+              <div className="admin-date-input-wrap">
+                <input type="date" className="admin-filter-select" value={filters.dateFrom}
+                  onChange={e => setFilter('dateFrom', e.target.value)} />
+                {!filters.dateFrom && <span className="date-empty-hint">dd/mm/aa</span>}
+              </div>
+            </div>
             <span style={{ color: 'var(--text-light)', fontSize: 12 }}>—</span>
-            <input type="date" className="admin-filter-select" value={filters.dateTo}
-              onChange={e => setFilter('dateTo', e.target.value)} title="Fins a" />
+            <div className="admin-date-field">
+              <span className="date-range-lbl">Fins a</span>
+              <div className="admin-date-input-wrap">
+                <input type="date" className="admin-filter-select" value={filters.dateTo}
+                  onChange={e => setFilter('dateTo', e.target.value)} />
+                {!filters.dateTo && <span className="date-empty-hint">dd/mm/aa</span>}
+              </div>
+            </div>
           </div>
 
           {hasFilters && (

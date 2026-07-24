@@ -7,7 +7,13 @@ if (!SUPABASE_URL || !SUPABASE_ANON || SUPABASE_ANON === 'PENDING_REPLACE_WITH_A
   console.warn('[Supabase] ⚠️  Missing credentials — running in offline/demo mode.');
 }
 
-export const supabase = createClient(SUPABASE_URL ?? '', SUPABASE_ANON ?? '');
+export const supabase = createClient(SUPABASE_URL ?? '', SUPABASE_ANON ?? '', {
+  auth: {
+    storage:          typeof window !== 'undefined' ? window.sessionStorage : undefined,
+    persistSession:   true,
+    autoRefreshToken: true,
+  },
+});
 
 export { SUPABASE_URL };
 
@@ -17,14 +23,17 @@ export { SUPABASE_URL };
  * Save a new complaint to the database.
  * Returns { trackingCode, error }
  */
-export async function saveComplaint({ formData, files }) {
+export async function saveComplaint({ formData, files, organizationId }) {
+  const id           = crypto.randomUUID();
   const trackingCode = generateTrackingCode();
 
-  // 1. Insert complaint record
-  const { data: complaint, error: dbError } = await supabase
+  // 1. Insert complaint record (ID generated client-side to avoid SELECT after INSERT)
+  const { error: dbError } = await supabase
     .from('complaints')
     .insert({
+      id,
       tracking_code:   trackingCode,
+      organization_id: organizationId ?? null,
       is_anonymous:    formData.isAnonymous,
       reporter_name:   formData.isAnonymous ? null : formData.name  || null,
       reporter_email:  formData.isAnonymous ? null : formData.email || null,
@@ -37,11 +46,11 @@ export async function saveComplaint({ formData, files }) {
       language:        formData.language ?? 'ca',
       status:          'received',
       priority:        'normal',
-    })
-    .select()
-    .single();
+    });
 
   if (dbError) return { trackingCode: null, error: dbError };
+
+  const complaint = { id };
 
   // 2. Upload attachments (if any)
   for (const file of files) {
@@ -66,9 +75,10 @@ export async function saveComplaint({ formData, files }) {
 
   // 3. Write audit log entry
   await supabase.from('audit_logs').insert({
-    complaint_id: complaint.id,
-    action:       'created',
-    details:      { channel: 'web', language: formData.language ?? 'ca' },
+    complaint_id:    complaint.id,
+    organization_id: organizationId ?? null,
+    action:          'created',
+    details:         { channel: 'web', language: formData.language ?? 'ca' },
   });
 
   return { trackingCode, error: null };
@@ -79,13 +89,23 @@ export async function saveComplaint({ formData, files }) {
  * Returns { complaint, error }
  */
 export async function getComplaintByCode(trackingCode) {
-  const { data, error } = await supabase
-    .from('complaints')
-    .select('id, tracking_code, status, category, created_at, updated_at')
-    .eq('tracking_code', trackingCode.toUpperCase())
-    .single();
+  const { data, error } = await supabase.rpc('get_complaint_by_tracking_code', {
+    p_code: trackingCode.toUpperCase(),
+  });
+  return { complaint: data?.[0] ?? null, error };
+}
 
-  return { complaint: data, error };
+export async function getOrganizationBySlug(slug) {
+  const { data, error } = await supabase.rpc('get_organization_by_slug', { p_slug: slug });
+  return { organization: data?.[0] ?? null, error };
+}
+
+export async function getMyOrganization() {
+  const { data, error } = await supabase
+    .from('organizations')
+    .select('id, name, slug')
+    .single();
+  return { organization: data ?? null, error };
 }
 
 /**
@@ -173,6 +193,29 @@ export async function signInAdmin(email, password) {
   return { session: data?.session, error };
 }
 
+/**
+ * Self-signup for a new organization. Creates the auth.users row with
+ * company_name + full_name in raw_user_meta_data; the database trigger
+ * (migration 006) provisions the organization + superadmin profile.
+ * Returns { user, needsConfirmation, error }.
+ */
+export async function signUpOrganization({ companyName, fullName, email, password }) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { company_name: companyName, full_name: fullName },
+      emailRedirectTo: `${window.location.origin}/admin/login`,
+    },
+  });
+
+  return {
+    user: data?.user ?? null,
+    needsConfirmation: !!data?.user && !data?.session,
+    error,
+  };
+}
+
 export async function signOutAdmin() {
   return supabase.auth.signOut();
 }
@@ -180,7 +223,7 @@ export async function signOutAdmin() {
 function clearStaleAuthToken() {
   try {
     const ref = new URL(SUPABASE_URL).hostname.split('.')[0];
-    localStorage.removeItem(`sb-${ref}-auth-token`);
+    sessionStorage.removeItem(`sb-${ref}-auth-token`);
   } catch {
     // ignore
   }
@@ -297,14 +340,46 @@ export async function deleteManager(userId) {
   return { error: result.error ? new Error(result.error) : null };
 }
 
+// ── Stats ──────────────────────────────────────────────────────────────
+
+/**
+ * Global complaint counts (total, open, resolved) for the dashboard stat cards.
+ * allowedCategories = null means superadmin (all), [] means no access.
+ */
+export async function getComplaintStats(allowedCategories = null) {
+  const openStatuses     = ['received', 'reviewing', 'investigating', 'waiting'];
+  const resolvedStatuses = ['resolved', 'closed'];
+
+  if (allowedCategories !== null && allowedCategories.length === 0) {
+    return { total: 0, open: 0, resolved: 0 };
+  }
+
+  const applyFilter = (q) => {
+    if (allowedCategories !== null && allowedCategories.length > 0) {
+      q = q.in('category', allowedCategories);
+    }
+    return q;
+  };
+
+  const [{ count: total }, { count: open }, { count: resolved }] = await Promise.all([
+    applyFilter(supabase.from('complaints').select('id', { count: 'exact', head: true })),
+    applyFilter(supabase.from('complaints').select('id', { count: 'exact', head: true }).in('status', openStatuses)),
+    applyFilter(supabase.from('complaints').select('id', { count: 'exact', head: true }).in('status', resolvedStatuses)),
+  ]);
+
+  return { total: total ?? 0, open: open ?? 0, resolved: resolved ?? 0 };
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function generateTrackingCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
   let code = '';
   for (let i = 0; i < 8; i++) {
     if (i === 4) code += '-';
-    code += chars[Math.floor(Math.random() * chars.length)];
+    code += chars[bytes[i] % chars.length]; // 256 % 32 === 0, no modulo bias
   }
   return code; // e.g. "A3B7-C9X2"
 }

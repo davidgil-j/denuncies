@@ -143,7 +143,7 @@ export default function PrivacyPolicy() {
     <div className="page">
       <div className="card" style={{ maxWidth: 720, padding: 0 }}>
         <div className="card-header">
-          <span className="logo-wrap"><img src="/logo.png" alt="Reportia" /></span>
+          <span className="admin-wordmark">Reportia</span>
           <h1 style={{ fontSize: 16 }}>{c.title}</h1>
           <p className="subtitle">Reportia · Canal Ètic</p>
         </div>

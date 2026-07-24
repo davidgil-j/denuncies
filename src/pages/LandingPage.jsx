@@ -1,53 +1,122 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { translations } from '../translations.js';
+import { Lock, LayoutDashboard, Scale, Zap, ShieldCheck, ArrowRight } from 'lucide-react';
+
+const LANGS = ['ca', 'es', 'en'];
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [lang, setLang] = useState('ca');
+  const t = translations[lang].landing;
 
   return (
-    <div className="landing-page">
-      <div className="landing-inner">
-        <div className="landing-logo">
-          <img src="/logo.png" alt="Reportia" />
+    <div className="sl-page">
+
+      {/* Navbar */}
+      <nav className="sl-nav">
+        <div className="sl-nav-inner">
+          <span className="sl-wordmark">Reportia</span>
+          <div className="sl-nav-right">
+            <div className="sl-langs">
+              {LANGS.map(l => (
+                <button
+                  key={l}
+                  className={`sl-lang-btn${lang === l ? ' active' : ''}`}
+                  onClick={() => setLang(l)}
+                >
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <button className="sl-btn-ghost" onClick={() => navigate('/admin/login')}>
+              {t.navLogin}
+            </button>
+            <button className="sl-btn-primary" onClick={() => navigate('/crear-compte')}>
+              {t.navSignup} →
+            </button>
+          </div>
         </div>
-        <h1 className="landing-title">Canal Ètic</h1>
-        <p className="landing-sub">Selecciona una opció per continuar</p>
+      </nav>
 
-        <div className="landing-cards">
-          <button className="landing-card" onClick={() => navigate('/canal')}>
-            <div className="landing-card-icon">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              </svg>
-            </div>
-            <div className="landing-card-text">
-              <span className="landing-card-title">Presentar una denúncia</span>
-              <span className="landing-card-desc">Envia una denúncia de forma segura i confidencial</span>
-            </div>
-            <span className="landing-card-arrow">→</span>
-          </button>
-
-          <button className="landing-card landing-card-admin" onClick={() => navigate('/admin')}>
-            <div className="landing-card-icon">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7" rx="1"/>
-                <rect x="14" y="3" width="7" height="7" rx="1"/>
-                <rect x="3" y="14" width="7" height="7" rx="1"/>
-                <rect x="14" y="14" width="7" height="7" rx="1"/>
-              </svg>
-            </div>
-            <div className="landing-card-text">
-              <span className="landing-card-title">Panel de control</span>
-              <span className="landing-card-desc">Accés restringit per a gestors autoritzats</span>
-            </div>
-            <span className="landing-card-arrow">→</span>
-          </button>
+      {/* Hero */}
+      <section className="sl-hero">
+        <div className="sl-hero-grid" aria-hidden="true" />
+        <div className="sl-hero-glow" aria-hidden="true" />
+        <div className="sl-hero-inner">
+          <span className="sl-badge">
+            <ShieldCheck size={13} />
+            {t.heroBadge}
+          </span>
+          <h1 className="sl-hero-title">{t.heroTitle}</h1>
+          <p className="sl-hero-sub">{t.heroSub}</p>
+          <div className="sl-hero-ctas">
+            <button className="sl-cta-main" onClick={() => navigate('/crear-compte')}>
+              {t.heroCta}
+              <ArrowRight size={16} />
+            </button>
+            <button className="sl-cta-ghost" onClick={() => navigate('/admin/login')}>
+              {t.heroLogin}
+            </button>
+          </div>
         </div>
+      </section>
 
-        <p className="landing-footer">
-          Totes les comunicacions estan protegides per xifratge d'extrem a extrem
-        </p>
+      {/* Trust bar */}
+      <div className="sl-trust">
+        <div className="sl-trust-inner">
+          {[
+            { Icon: Lock,        label: t.trust1 },
+            { Icon: Scale,       label: t.trust2 },
+            { Icon: ShieldCheck, label: t.trust3 },
+            { Icon: Zap,         label: t.trust4 },
+          ].map(({ Icon, label }) => (
+            <div key={label} className="sl-trust-item">
+              <Icon size={15} />
+              <span>{label}</span>
+            </div>
+          ))}
+        </div>
       </div>
+
+      {/* Features */}
+      <section className="sl-features">
+        <div className="sl-features-inner">
+          <div className="sl-feat-card">
+            <div className="sl-feat-icon"><Lock size={22} /></div>
+            <h3>{t.feat1Title}</h3>
+            <p>{t.feat1Desc}</p>
+          </div>
+          <div className="sl-feat-card">
+            <div className="sl-feat-icon"><LayoutDashboard size={22} /></div>
+            <h3>{t.feat2Title}</h3>
+            <p>{t.feat2Desc}</p>
+          </div>
+          <div className="sl-feat-card">
+            <div className="sl-feat-icon"><Scale size={22} /></div>
+            <h3>{t.feat3Title}</h3>
+            <p>{t.feat3Desc}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Bottom CTA */}
+      <section className="sl-cta-section">
+        <div className="sl-cta-inner">
+          <h2>{t.ctaTitle}</h2>
+          <p>{t.ctaDesc}</p>
+          <button className="sl-cta-main" onClick={() => navigate('/crear-compte')}>
+            {t.ctaButton}
+            <ArrowRight size={16} />
+          </button>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="sl-footer">
+        <span>{t.footer}</span>
+      </footer>
+
     </div>
   );
 }

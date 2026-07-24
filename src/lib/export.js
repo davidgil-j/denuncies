@@ -131,9 +131,9 @@ export function exportComplaintToPDF(complaint, messages = []) {
   // Status badge area
   doc.setFontSize(10);
   doc.setTextColor(41, 78, 89);
-  doc.setFont(undefined, 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.text('ESTAT:', 14, y);
-  doc.setFont(undefined, 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.text(STATUS_LABELS[complaint.status] ?? complaint.status, 40, y);
   doc.text('PRIORITAT:', 100, y);
   doc.text(PRIORITY_LABELS[complaint.priority] ?? complaint.priority, 130, y);
@@ -166,11 +166,11 @@ export function exportComplaintToPDF(complaint, messages = []) {
 
   // Description
   doc.setFontSize(10);
-  doc.setFont(undefined, 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(41, 78, 89);
   doc.text('Descripció dels fets', 14, y);
   y += 5;
-  doc.setFont(undefined, 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setTextColor(50);
   doc.setFontSize(9);
   const descLines = doc.splitTextToSize(complaint.description ?? '', 180);
@@ -181,7 +181,7 @@ export function exportComplaintToPDF(complaint, messages = []) {
   if (messages.length > 0) {
     if (y > 240) { doc.addPage(); y = 20; }
     doc.setFontSize(10);
-    doc.setFont(undefined, 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(41, 78, 89);
     doc.text('Missatges', 14, y);
     y += 4;

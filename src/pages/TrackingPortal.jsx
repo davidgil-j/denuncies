@@ -12,6 +12,7 @@ function MessageThread({ complaintId, lang }) {
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState(null); // { ok: bool, text: string }
   const bottomRef = useRef();
+  const shouldScroll = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -28,6 +29,8 @@ function MessageThread({ complaintId, lang }) {
   }, [complaintId]);
 
   useEffect(() => {
+    if (!shouldScroll.current) return;
+    shouldScroll.current = false;
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
@@ -46,7 +49,7 @@ function MessageThread({ complaintId, lang }) {
     } else {
       setDraft('');
       setFeedback({ ok: true, text: t.messageSentOk });
-      // Reload messages
+      shouldScroll.current = true;
       const { messages: msgs } = await getMessages(complaintId);
       setMessages(msgs);
       setTimeout(() => setFeedback(null), 3000);

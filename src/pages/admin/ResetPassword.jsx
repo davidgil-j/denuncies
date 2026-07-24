@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { updatePassword } from '../../lib/supabase.js';
 import { supabase } from '../../lib/supabase.js';
+
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -11,6 +13,8 @@ export default function ResetPassword() {
   const [error, setError]         = useState('');
   const [ready, setReady]         = useState(false);
   const [isInvite, setIsInvite]   = useState(false);
+  const [showPw, setShowPw]       = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     // Supabase uses two different flows depending on project config:
@@ -57,7 +61,7 @@ export default function ResetPassword() {
   if (!ready) return (
     <div className="admin-login-page">
       <div className="admin-login-card">
-        <img src="/logo.png" alt="Reportia" className="admin-login-logo" />
+        <span className="admin-wordmark admin-wordmark--card">Reportia</span>
         <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>⏳ Verificant l'enllaç...</p>
       </div>
     </div>
@@ -66,20 +70,32 @@ export default function ResetPassword() {
   return (
     <div className="admin-login-page">
       <div className="admin-login-card">
-        <img src="/logo.png" alt="Reportia" className="admin-login-logo" />
+        <span className="admin-wordmark admin-wordmark--card">Reportia</span>
         <h1 className="admin-login-title">{isInvite ? 'Benvingut/da' : 'Nova contrasenya'}</h1>
         <p className="admin-login-sub">{isInvite ? 'Estableix la teva contrasenya per accedir al panell.' : 'Introdueix la teva nova contrasenya.'}</p>
 
         <form onSubmit={handleSubmit} className="admin-login-form">
           <div className="field">
             <label className="field-label">Nova contrasenya</label>
-            <input className="field-input" type="password" value={password}
-              onChange={e => setPassword(e.target.value)} placeholder="Mínim 8 caràcters" required />
+            <div className="pw-wrap">
+              <input className={`field-input${!showPw ? ' pw-masked' : ''}`}
+                type="text" value={password}
+                onChange={e => setPassword(e.target.value)} placeholder="Mínim 8 caràcters" required />
+              <button type="button" className="pw-toggle" onClick={() => setShowPw(v => !v)} tabIndex={-1}>
+                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
           <div className="field">
             <label className="field-label">Confirmar contrasenya</label>
-            <input className="field-input" type="password" value={confirm}
-              onChange={e => setConfirm(e.target.value)} placeholder="Repeteix la contrasenya" required />
+            <div className="pw-wrap">
+              <input className={`field-input${!showConfirm ? ' pw-masked' : ''}`}
+                type="text" value={confirm}
+                onChange={e => setConfirm(e.target.value)} placeholder="Repeteix la contrasenya" required />
+              <button type="button" className="pw-toggle" onClick={() => setShowConfirm(v => !v)} tabIndex={-1}>
+                {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
           {error && <div className="admin-login-error">⚠️ {error}</div>}
           <button type="submit" className="btn btn-submit" disabled={loading}>
