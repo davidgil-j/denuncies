@@ -32,6 +32,11 @@
   --shadow-md:     0 4px 16px rgba(0,0,0,.10);
   --shadow-lg:     0 24px 48px rgba(0,0,0,.22);
   --t:             all .2s ease;
+
+  /* Glass system */
+  --glass-blur-sm:  blur(12px) saturate(140%);
+  --glass-blur-md:  blur(16px) saturate(150%);
+  --glass-blur-lg:  blur(24px) saturate(160%);
 }
 
 /* ── Reset ─────────────────────────────────────────────────────── */
@@ -60,9 +65,10 @@ body {
 
 /* ── Card ──────────────────────────────────────────────────────── */
 .card {
-  background: var(--surface);
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: var(--glass-blur-lg);
   border-radius: var(--r-xl);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255,255,255,0.15) inset;
   width: 100%;
   max-width: 680px;
   overflow: hidden;
@@ -242,7 +248,7 @@ body {
   cursor: pointer;
   transition: var(--t);
   text-align: center;
-  background: var(--surface);
+  background: rgba(255,255,255,0.88);
 }
 .mode-card:hover { border-color: var(--primary-light); background: var(--primary-bg); }
 .mode-card.selected {
@@ -364,7 +370,8 @@ input[type="password"]::-ms-clear { display: none; }
   text-align: center;
   cursor: pointer;
   transition: var(--t);
-  background: var(--surface-2);
+  background: rgba(248,250,255,0.78);
+  backdrop-filter: var(--glass-blur-sm);
   position: relative;
 }
 .upload-zone:hover, .upload-zone.drag-over {
@@ -423,8 +430,8 @@ input[type="password"]::-ms-clear { display: none; }
 
 /* ── Step 4 – Summary ──────────────────────────────────────────── */
 .summary-box {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: rgba(248,250,255,0.80);
+  border: 1px solid rgba(255,255,255,0.35);
   border-radius: var(--r-lg);
   padding: 20px 24px;
   margin-bottom: 24px;
@@ -479,9 +486,9 @@ input[type="password"]::-ms-clear { display: none; }
   gap: 12px;
   margin-bottom: 24px;
   padding: 16px;
-  background: var(--surface-2);
+  background: rgba(248,250,255,0.80);
   border-radius: var(--r-md);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255,255,255,0.35);
 }
 .privacy-row input[type="checkbox"] {
   width: 18px;
@@ -666,8 +673,9 @@ input[type="password"]::-ms-clear { display: none; }
   line-height: 1.6;
 }
 .track-result {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: rgba(248,250,255,0.80);
+  backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid rgba(255,255,255,0.35);
   border-radius: var(--r-lg);
   padding: 24px;
   margin-top: 24px;
@@ -718,8 +726,9 @@ input[type="password"]::-ms-clear { display: none; }
   line-height: 1.5;
 }
 .msg-thread {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: rgba(248,250,255,0.75);
+  backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid rgba(255,255,255,0.35);
   border-radius: var(--r-lg);
   padding: 16px;
   max-height: 320px;
@@ -754,8 +763,8 @@ input[type="password"]::-ms-clear { display: none; }
   border-bottom-right-radius: 4px;
 }
 .msg-bubble.manager {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.85);
+  border: 1px solid rgba(226,232,240,0.7);
   color: var(--text);
   border-bottom-left-radius: 4px;
 }
@@ -844,13 +853,15 @@ input[type="password"]::-ms-clear { display: none; }
 .admin-layout {
   display: flex;
   min-height: 100vh;
-  background: #f8faff;
+  background: radial-gradient(ellipse 70% 50% at 65% 15%, rgba(37,99,235,.06) 0%, transparent 60%), #f8faff;
   font-family: var(--font);
 }
 .admin-sidebar {
   width: 220px;
   flex-shrink: 0;
-  background: var(--bg);
+  background: rgba(6,12,24,0.82);
+  backdrop-filter: var(--glass-blur-md);
+  border-right: 1px solid rgba(255,255,255,0.06);
   display: flex;
   flex-direction: column;
   padding: 24px 0 16px;
@@ -931,6 +942,7 @@ input[type="password"]::-ms-clear { display: none; }
   justify-content: space-between;
   gap: 16px;
   background: rgba(37,99,235,.08);
+  backdrop-filter: var(--glass-blur-sm);
   border: 1px solid rgba(59,130,246,.25);
   border-radius: var(--r-md);
   padding: 12px 16px;
@@ -984,15 +996,18 @@ input[type="password"]::-ms-clear { display: none; }
   margin-bottom: 24px;
 }
 .admin-stat-card {
+  --_tint: 255, 255, 255;
   flex: 1;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(var(--_tint), 0.82);
+  backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid rgba(255,255,255,0.5);
   border-radius: var(--r-lg);
   padding: 20px 24px;
   text-align: center;
+  box-shadow: 0 2px 12px rgba(0,0,0,.06);
 }
-.admin-stat-card.open     { border-color: #fde68a; background: var(--warning-bg); }
-.admin-stat-card.resolved { border-color: #6ee7b7; background: var(--success-bg); }
+.admin-stat-card.open     { --_tint: 255, 251, 235; border-color: #fde68a; }
+.admin-stat-card.resolved { --_tint: 236, 253, 245; border-color: #6ee7b7; }
 .admin-stat-num   { font-size: 36px; font-weight: 800; color: var(--text); }
 .admin-stat-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 4px; }
 
@@ -1020,10 +1035,12 @@ input[type="password"]::-ms-clear { display: none; }
 
 /* Table */
 .admin-table-wrap {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid rgba(255,255,255,0.5);
   border-radius: var(--r-lg);
   overflow: hidden;
+  box-shadow: 0 2px 16px rgba(0,0,0,.06);
 }
 .admin-table {
   width: 100%;
@@ -1127,11 +1144,13 @@ input[type="password"]::-ms-clear { display: none; }
   align-items: start;
 }
 .admin-section {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid rgba(255,255,255,0.5);
   border-radius: var(--r-lg);
   padding: 20px 24px;
   margin-bottom: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.05);
 }
 .admin-section:last-child { margin-bottom: 0; }
 .admin-section-title {
@@ -1179,9 +1198,11 @@ input[type="password"]::-ms-clear { display: none; }
   padding: 24px;
 }
 .admin-login-card {
-  background: var(--surface);
+  background: rgba(255,255,255,0.90);
+  backdrop-filter: var(--glass-blur-lg);
+  border: 1px solid rgba(255,255,255,0.20);
   border-radius: var(--r-xl);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255,255,255,0.15) inset;
   padding: 48px 40px;
   width: 100%;
   max-width: 400px;
@@ -1357,14 +1378,15 @@ input[type="password"]::-ms-clear { display: none; }
   background: rgba(0,0,0,.5);
   display: flex; align-items: center; justify-content: center;
   z-index: 100;
-  backdrop-filter: blur(2px);
 }
 .admin-modal {
-  background: var(--surface);
+  background: rgba(255,255,255,0.90);
+  backdrop-filter: var(--glass-blur-lg);
+  border: 1px solid rgba(255,255,255,0.25);
   border-radius: var(--r-xl);
   padding: 32px 36px;
   width: 100%; max-width: 440px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255,255,255,0.15) inset;
   animation: cardIn .25s ease;
 }
 .admin-modal-title { font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
@@ -1418,8 +1440,9 @@ input[type="password"]::-ms-clear { display: none; }
   align-items: center;
   gap: 18px;
   width: 100%;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.07);
+  backdrop-filter: var(--glass-blur-md);
+  border: 1px solid rgba(255,255,255,.12);
   border-radius: var(--r-lg);
   padding: 22px 24px;
   cursor: pointer;
@@ -1503,7 +1526,7 @@ input[type="password"]::-ms-clear { display: none; }
   cursor: pointer;
   transition: var(--t);
   text-align: center;
-  background: var(--surface);
+  background: rgba(255,255,255,0.88);
   width: 100%;
   font-family: var(--font);
 }
@@ -1610,8 +1633,7 @@ input[type="password"]::-ms-clear { display: none; }
   top: 0;
   z-index: 100;
   background: rgba(6, 12, 24, 0.85);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: var(--glass-blur-sm);
   border-bottom: 1px solid rgba(59, 130, 246, 0.12);
 }
 .sl-nav-inner {
@@ -1842,8 +1864,9 @@ input[type="password"]::-ms-clear { display: none; }
   gap: 18px;
 }
 .sl-feat-card {
-  background: #0b1526;
-  border: 1px solid rgba(59, 130, 246, 0.1);
+  background: rgba(11,21,38,0.65);
+  backdrop-filter: var(--glass-blur-md);
+  border: 1px solid rgba(59, 130, 246, 0.12);
   border-radius: 16px;
   padding: 28px 24px 32px;
   transition: all .22s ease;
