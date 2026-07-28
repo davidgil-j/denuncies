@@ -65,7 +65,7 @@ body {
 
 /* ── Card ──────────────────────────────────────────────────────── */
 .card {
-  background: rgba(255,255,255,0.88);
+  background: rgba(255,255,255,0.80);
   backdrop-filter: var(--glass-blur-lg);
   border-radius: var(--r-xl);
   box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255,255,255,0.15) inset;
@@ -853,7 +853,10 @@ input[type="password"]::-ms-clear { display: none; }
 .admin-layout {
   display: flex;
   min-height: 100vh;
-  background: radial-gradient(ellipse 70% 50% at 65% 15%, rgba(37,99,235,.06) 0%, transparent 60%), #f8faff;
+  background:
+    radial-gradient(ellipse 80% 55% at 72% -5%,  rgba(37,99,235,.30) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 5%  90%,  rgba(99,102,241,.18) 0%, transparent 55%),
+    #dce8ff;
   font-family: var(--font);
 }
 .admin-sidebar {
@@ -998,7 +1001,7 @@ input[type="password"]::-ms-clear { display: none; }
 .admin-stat-card {
   --_tint: 255, 255, 255;
   flex: 1;
-  background: rgba(var(--_tint), 0.82);
+  background: rgba(var(--_tint), 0.65);
   backdrop-filter: var(--glass-blur-sm);
   border: 1px solid rgba(255,255,255,0.5);
   border-radius: var(--r-lg);
@@ -1035,7 +1038,7 @@ input[type="password"]::-ms-clear { display: none; }
 
 /* Table */
 .admin-table-wrap {
-  background: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.65);
   backdrop-filter: var(--glass-blur-sm);
   border: 1px solid rgba(255,255,255,0.5);
   border-radius: var(--r-lg);
@@ -1144,7 +1147,7 @@ input[type="password"]::-ms-clear { display: none; }
   align-items: start;
 }
 .admin-section {
-  background: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.65);
   backdrop-filter: var(--glass-blur-sm);
   border: 1px solid rgba(255,255,255,0.5);
   border-radius: var(--r-lg);
@@ -1198,7 +1201,7 @@ input[type="password"]::-ms-clear { display: none; }
   padding: 24px;
 }
 .admin-login-card {
-  background: rgba(255,255,255,0.90);
+  background: rgba(255,255,255,0.80);
   backdrop-filter: var(--glass-blur-lg);
   border: 1px solid rgba(255,255,255,0.20);
   border-radius: var(--r-xl);
@@ -1380,7 +1383,7 @@ input[type="password"]::-ms-clear { display: none; }
   z-index: 100;
 }
 .admin-modal {
-  background: rgba(255,255,255,0.90);
+  background: rgba(255,255,255,0.80);
   backdrop-filter: var(--glass-blur-lg);
   border: 1px solid rgba(255,255,255,0.25);
   border-radius: var(--r-xl);
