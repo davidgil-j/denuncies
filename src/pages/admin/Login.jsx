@@ -13,6 +13,7 @@ export default function AdminLogin() {
   const [error, setError]       = useState('');
   const [showPw, setShowPw]     = useState(false);
   const [turnstileToken, setTurnstileToken] = useState(null);
+  const [turnstileFailed, setTurnstileFailed] = useState(false);
   const turnstileRef = useRef(null);
 
   useEffect(() => {
@@ -21,7 +22,7 @@ export default function AdminLogin() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!turnstileToken) {
+    if (!turnstileToken && !turnstileFailed) {
       setError('Completa la verificació de seguretat.');
       return;
     }
@@ -91,14 +92,14 @@ export default function AdminLogin() {
               ref={turnstileRef}
               siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
               onSuccess={token => setTurnstileToken(token)}
-              onError={() => setTurnstileToken(null)}
+              onError={() => { setTurnstileToken(null); setTurnstileFailed(true); }}
               onExpire={() => setTurnstileToken(null)}
             />
           </div>
 
           {error && <div className="admin-login-error">{error}</div>}
 
-          <button type="submit" className="btn btn-submit" disabled={loading || !turnstileToken}>
+          <button type="submit" className="btn btn-submit" disabled={loading || (!turnstileToken && !turnstileFailed)}>
             {loading ? 'Entrant...' : 'Entrar'}
           </button>
         </form>
