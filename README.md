@@ -80,27 +80,17 @@ npm run dev
 
 ## Deploy a producció
 
-El deploy s'activa automàticament quan fas `git push` a `main`, **sempre que els secrets de GitHub estiguin configurats** (veure secció següent).
+El deploy s'activa **automàticament** quan fas `git push` a `main` gràcies a la integració nativa de Vercel amb GitHub. No calen configuracions addicionals.
 
-Si els secrets no estan configurats, despliega manualment:
+Si necessites desplegar manualment (per exemple, sense push):
 
 ```bash
 vercel --prod
 ```
 
----
-
-## GitHub Secrets necessaris (per a auto-deploy)
-
-Afegeix aquests secrets a **GitHub → Settings → Secrets and variables → Actions**:
-
-| Secret | Valor |
-|--------|-------|
-| `VERCEL_TOKEN` | Genera'l a [vercel.com/account/tokens](https://vercel.com/account/tokens) |
-| `VERCEL_ORG_ID` | `team_3bcd9MdETUvRxXs2e2bN5WAL` |
-| `VERCEL_PROJECT_ID` | `prj_CYTx6c6MtVlhO3dMFseNQUgQLOY7` |
-
-Un cop configurats, qualsevol `push` a `main` desplegarà a producció automàticament sense haver de fer `vercel --prod` manualment.
+**Identificadors del projecte Vercel** (per si cal connectar una nova màquina):
+- Org ID: `team_3bcd9MdETUvRxXs2e2bN5WAL`
+- Project ID: `prj_CYTx6c6MtVlhO3dMFseNQUgQLOY7`
 
 ---
 
