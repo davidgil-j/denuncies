@@ -1,0 +1,54 @@
+import React, { useEffect, useState } from 'react';
+import { Outlet, useLocation, useParams } from 'react-router-dom';
+import { translations } from '../translations.js';
+import { getOrganizationBySlug } from '../lib/supabase.js';
+import V2Layout, { detectLang } from './V2Layout.jsx';
+
+/**
+ * Ruta pare del canal v2 (/v2/canal/:slug). Carrega l'organització un sol cop i
+ * comparteix idioma i organització amb les pàgines filles via <Outlet context>.
+ * L'idioma viu aquí perquè no es perdi en passar d'una pàgina a una altra.
+ */
+export default function V2Canal() {
+  const { slug } = useParams();
+  const { pathname } = useLocation();
+  const [lang, setLang] = useState(detectLang);
+  const [org, setOrg] = useState(null);
+  const [status, setStatus] = useState('loading'); // loading | ready | notfound
+  const t = translations[lang].v2;
+  const base = `/canal/${slug}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    setStatus('loading');
+    getOrganizationBySlug(slug).then(({ organization }) => {
+      if (cancelled) return;
+      if (organization) { setOrg(organization); setStatus('ready'); }
+      else setStatus('notfound');
+    });
+    return () => { cancelled = true; };
+  }, [slug]);
+
+  // Cada pàgina comença a dalt
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+
+  return (
+    <V2Layout lang={lang} setLang={setLang} org={status === 'ready' ? org : null} homeTo={base}>
+      {status === 'loading' && (
+        <div className="v2-center" role="status" aria-live="polite">
+          <div className="v2-spinner" />
+          <span className="v2-vh">{t.loading}</span>
+        </div>
+      )}
+      {status === 'notfound' && (
+        <div className="v2-center">
+          <div>
+            <h1 className="v2-sec-title">{t.notFoundTitle}</h1>
+            <p>{t.notFoundDesc}</p>
+          </div>
+        </div>
+      )}
+      {status === 'ready' && <Outlet context={{ lang, org, base }} />}
+    </V2Layout>
+  );
+}
