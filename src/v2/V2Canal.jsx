@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Outlet, useLocation, useParams } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { translations } from '../translations.js';
 import { getOrganizationBySlug } from '../lib/supabase.js';
-import V2Layout, { detectLang } from './V2Layout.jsx';
+import V2Layout, { detectLang, LANGS } from './V2Layout.jsx';
 
 /**
  * Ruta pare del canal v2 (/v2/canal/:slug). Carrega l'organització un sol cop i
@@ -11,8 +11,13 @@ import V2Layout, { detectLang } from './V2Layout.jsx';
  */
 export default function V2Canal() {
   const { slug } = useParams();
-  const { pathname } = useLocation();
-  const [lang, setLang] = useState(detectLang);
+  const location = useLocation();
+  const { pathname } = location;
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const urlLang = params.get('lang');
+  // L'idioma viu a l'adreça (?lang=): sobreviu a recarregar i no deixa rastre al navegador
+  const [lang, setLang] = useState(() => (LANGS.includes(urlLang) ? urlLang : detectLang()));
   const [org, setOrg] = useState(null);
   const [status, setStatus] = useState('loading'); // loading | ready | notfound
   const t = translations[lang].v2;
@@ -29,8 +34,21 @@ export default function V2Canal() {
     return () => { cancelled = true; };
   }, [slug]);
 
-  // Cada pàgina comença a dalt
-  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  // Cada pàgina comença a dalt, amb el focus al contingut (els lectors de pantalla ho anuncien)
+  const firstPath = React.useRef(true);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    if (firstPath.current) { firstPath.current = false; return; }
+    document.getElementById('v2-main')?.focus({ preventScroll: true });
+  }, [pathname]);
+
+  // Manté ?lang= a l'adreça en canviar d'idioma o de pàgina (substituint, sense afegir entrades)
+  useEffect(() => {
+    if (urlLang === lang) return;
+    const next = new URLSearchParams(location.search);
+    next.set('lang', lang);
+    navigate({ pathname, search: `?${next}`, hash: location.hash }, { replace: true, state: location.state });
+  }, [lang, urlLang, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <V2Layout lang={lang} setLang={setLang} org={status === 'ready' ? org : null} homeTo={base}>

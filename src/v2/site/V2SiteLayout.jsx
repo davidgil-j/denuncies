@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
 import { Lock, Menu, X, ArrowRight } from 'lucide-react';
 import { translations } from '../../translations.js';
-import { LANGS, BOE_URL, ICON, detectLang } from '../V2Layout.jsx';
+import { LANGS, BOE_URL, ICON, detectLang, Stable, useLangAnchor } from '../V2Layout.jsx';
+import { CONTACT_EMAIL } from './plans.js';
 import './site.css';
 
 // Bandera de la UE. Còpia del símbol del canal amb un id propi perquè el web no depengui del canal.
@@ -18,6 +19,12 @@ function SiteEuFlag({ label }) {
 }
 
 const DEMO_PATH = '/canal/demo';
+// L'idioma triat a la web es recorda i el panell el fa servir (mateixa clau)
+const LANG_KEY = 'reportia-panel-lang';
+// Per sota d'aquesta amplada la navegació va al menú (a sobre cap en una línia, amb seccions i botó)
+const DESKTOP = 1160;
+// Seccions de la portada accessibles des de la navegació
+const SECTIONS = [['ley', 'navLaw'], ['precios', 'navPricing'], ['preguntas', 'navFaq']];
 
 /**
  * Marc comú del web públic de Reportia (/v2): franja legal, capçalera amb navegació, peu.
@@ -26,7 +33,12 @@ const DEMO_PATH = '/canal/demo';
 export default function V2SiteLayout() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryLang = searchParams.get('lang');
-  const [lang, setLangState] = useState(() => (LANGS.includes(queryLang) ? queryLang : detectLang()));
+  // Idioma: el de l'adreça, si no el que es va triar (es recorda també per al panell), si no el del navegador
+  const [lang, setLangState] = useState(() => {
+    if (LANGS.includes(queryLang)) return queryLang;
+    try { const saved = localStorage.getItem(LANG_KEY); if (LANGS.includes(saved)) return saved; } catch { /* res */ }
+    return detectLang();
+  });
   const [menuOpen, setMenuOpen] = useState(false);
   const headerRef = useRef(null);
   const menuBtnRef = useRef(null);
@@ -39,8 +51,11 @@ export default function V2SiteLayout() {
     if (LANGS.includes(queryLang)) setLangState(queryLang);
   }, [queryLang]);
 
+  const holdScroll = useLangAnchor(lang);
   function setLang(l) {
+    holdScroll();
     setLangState(l);
+    try { localStorage.setItem(LANG_KEY, l); } catch { /* sense emmagatzematge */ }
     // Si la pàgina es va obrir amb ?lang=, el mantenim al dia perquè recarregar no canviï l'idioma
     if (searchParams.has('lang')) setSearchParams({ lang: l }, { replace: true });
   }
@@ -67,7 +82,7 @@ export default function V2SiteLayout() {
     function onPointer(e) {
       if (headerRef.current && !headerRef.current.contains(e.target)) setMenuOpen(false);
     }
-    const mq = window.matchMedia('(min-width: 960px)');
+    const mq = window.matchMedia(`(min-width: ${DESKTOP}px)`);
     function onMq(e) { if (e.matches) setMenuOpen(false); }
     document.addEventListener('keydown', onKey);
     document.addEventListener('pointerdown', onPointer);
@@ -79,12 +94,40 @@ export default function V2SiteLayout() {
     };
   }, [menuOpen]);
 
+  // Enllaços a una secció (/#precios): s'hi desplaça quan la pàgina ja és a lloc
+  const scrollToHash = (h) => {
+    const el = document.getElementById(decodeURIComponent(h.slice(1)));
+    if (!el) return;
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' });
+  };
+  useEffect(() => {
+    if (!hash) return undefined;
+    const id = requestAnimationFrame(() => scrollToHash(hash));
+    return () => cancelAnimationFrame(id);
+  }, [pathname, hash]);
+  // Tornar a prémer la secció on ja s'és (l'adreça no canvia) també hi baixa
+  const sectionClick = (id) => () => {
+    setMenuOpen(false);
+    if (pathname === '/' && hash === `#${id}`) scrollToHash(`#${id}`);
+  };
+
+  // En canviar de pàgina, el focus va al contingut (els lectors de pantalla ho anuncien)
+  const firstPath = useRef(true);
+  useEffect(() => {
+    if (firstPath.current) { firstPath.current = false; return; }
+    if (!hash) document.getElementById('v2-main')?.focus({ preventScroll: true });
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const isHome = pathname === '/';
+  // Etiquetes de la capçalera amb l'amplada de l'idioma més llarg: el menú no es desplaça
+  const st = (key) => <Stable lang={lang} pick={T => T.v2site[key]} />;
   const navClass = ({ isActive }) => `v2-site-navlink${isActive ? ' is-current' : ''}`;
 
   return (
     <div className="v2 v2-site">
-      <div className="v2-strip v2-site-strip">
+      <a className="v2-skip" href="#v2-main">{tv.skip}</a>
+      <aside className="v2-strip v2-site-strip" aria-label={t.stripLabel}>
         <div className="v2-wrap">
           <SiteEuFlag label={tv.euFlag} />
           <span className="v2-strip-text">
@@ -92,17 +135,23 @@ export default function V2SiteLayout() {
             <a href={BOE_URL} target="_blank" rel="noopener noreferrer">{tv.lawShort}</a>
           </span>
         </div>
-      </div>
+      </aside>
 
-      <header className="v2-site-header" ref={headerRef}>
+      <header
+        className="v2-site-header" ref={headerRef}
+        onBlur={e => { if (menuOpen && !headerRef.current?.contains(e.relatedTarget)) setMenuOpen(false); }}
+      >
         <div className="v2-wrap">
           <Link className="v2-site-brand" to="/" aria-label={t.homeLabel}>Reportia</Link>
 
           <nav className="v2-site-nav" aria-label={t.navLabel}>
-            <NavLink className={navClass} to={DEMO_PATH}>{t.navDemo}</NavLink>
-            <NavLink className={navClass} to="/admin/login" end>{t.navLogin}</NavLink>
+            {SECTIONS.map(([id, key]) => (
+              <Link className="v2-site-navlink is-section" key={id} to={{ pathname: '/', hash: `#${id}` }} onClick={sectionClick(id)}>{st(key)}</Link>
+            ))}
+            <NavLink className={navClass} to={`${DEMO_PATH}?lang=${lang}`}>{st('navDemoShort')}</NavLink>
+            <NavLink className={navClass} to="/admin/login" end>{st('navLogin')}</NavLink>
             {/* A la portada el botó ja és al titular: aquí no es repeteix */}
-            {!isHome && <Link className="v2-btn v2-btn-primary v2-site-cta" to="/crear-compte">{t.navSignup}</Link>}
+            {!isHome && <Link className="v2-btn v2-btn-primary v2-site-cta" to="/crear-compte">{st('navSignup')}</Link>}
           </nav>
 
           <div className="v2-lang" role="group" aria-label={tv.langGroup}>
@@ -135,14 +184,17 @@ export default function V2SiteLayout() {
 
         <div className="v2-site-menu" id="v2-site-menu" data-open={menuOpen}>
           <nav aria-label={t.navLabel}>
-            <Link className="v2-site-menu-row" to={DEMO_PATH}>{t.navDemo}<ArrowRight {...ICON} /></Link>
+            {SECTIONS.map(([id, key]) => (
+              <Link className="v2-site-menu-row" key={id} to={{ pathname: '/', hash: `#${id}` }} onClick={sectionClick(id)}>{t[key]}<ArrowRight {...ICON} /></Link>
+            ))}
+            <Link className="v2-site-menu-row" to={`${DEMO_PATH}?lang=${lang}`}>{t.navDemo}<ArrowRight {...ICON} /></Link>
             <Link className="v2-site-menu-row" to="/admin/login">{t.navLogin}<ArrowRight {...ICON} /></Link>
             <Link className="v2-btn v2-btn-primary" to="/crear-compte">{t.navSignup}</Link>
           </nav>
         </div>
       </header>
 
-      <main>
+      <main id="v2-main" tabIndex={-1}>
         <Outlet context={{ lang, setLang }} />
       </main>
 
@@ -152,6 +204,7 @@ export default function V2SiteLayout() {
           <span className="secure"><Lock {...ICON} />{tv.footerSecure}</span>
           <a href={BOE_URL} target="_blank" rel="noopener noreferrer">{tv.footerLaw}</a>
           <Link to="/privacitat">{tv.privacy}</Link>
+          <a href={`mailto:${CONTACT_EMAIL}`}>{t.footerContact}</a>
         </div>
       </footer>
     </div>

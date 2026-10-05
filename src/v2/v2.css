@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Wix+Madefor+Display:wght@600&family=Wix+Madefor+Text:wght@400;500;600&display=swap');
+/* Las tipografías se sirven desde la propia web (src/main.jsx): quien abre el canal no deja su IP en un tercero */
 
 /* ==========================================================================
    Rediseño v2 · "Institucional rigurosa"
@@ -9,7 +9,7 @@
    ========================================================================== */
 /* Reset bàsic (abans venia de global.css, que ja no es carrega) */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { min-height: 100vh; background: #F3F5F8; -webkit-font-smoothing: antialiased; }
+body { min-height: 100vh; background: #EAEEF3; -webkit-font-smoothing: antialiased; }
 
 .v2, body.v2-body {
   --navy-950: #0A1830;
@@ -19,15 +19,16 @@ body { min-height: 100vh; background: #F3F5F8; -webkit-font-smoothing: antialias
   --accent-press: #123468;
   --accent-tint: #EEF3FA;
   --accent-line: #CCD9EE;
-  --bg: #F3F5F8;
+  --bg: #EAEEF3;
+  --band: #DFE5EE;
   --surface: #FFFFFF;
   --surface-2: #F7F9FB;
   --ink: #0F1B2D;
   --ink-2: #46546A;
-  --ink-3: #5A677B;
-  --line: #D3DAE4;
-  --line-2: #E5E9EF;
-  --line-strong: #B9C4D2;
+  --ink-3: #536074;
+  --line: #CDD5E0;
+  --line-2: #DCE2EA;
+  --line-strong: #7E8BA0;
   --on-navy: #F1F4F9;
   --on-navy-2: #B3C0D2;
   --danger: #B42318;
@@ -38,7 +39,7 @@ body { min-height: 100vh; background: #F3F5F8; -webkit-font-smoothing: antialias
   --s-6: 32px; --s-7: 48px; --s-8: 64px; --s-9: 96px;
   --r-sm: 8px; --r: 12px; --r-lg: 20px;
 
-  --shadow-1: 0 1px 2px rgba(15,34,66,.06);
+  --shadow-1: 0 1px 2px rgba(15,34,66,.07), 0 2px 6px -2px rgba(15,34,66,.08);
   --shadow-2: 0 1px 2px rgba(15,34,66,.05), 0 6px 16px -4px rgba(15,34,66,.10);
   --shadow-3: 0 0 0 1px rgba(15,34,66,.07), 0 1px 2px rgba(15,34,66,.05), 0 8px 16px -4px rgba(15,34,66,.06), 0 28px 56px -16px rgba(15,34,66,.16);
 
@@ -150,7 +151,7 @@ body.v2-body { background: var(--bg); }
 .v2-btn:active { transform: scale(.98); }
 .v2-btn-primary { background: var(--accent); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 1px 2px rgba(10,24,48,.22), 0 4px 10px -3px rgba(15,34,66,.30); }
 .v2-btn-primary:active { background: var(--accent-press); box-shadow: inset 0 1px 2px rgba(10,24,48,.30); }
-.v2-btn-secondary { background: var(--surface); color: var(--navy-900); box-shadow: inset 0 0 0 1px var(--line-strong), 0 1px 2px rgba(15,34,66,.06); }
+.v2-btn-secondary { background: var(--surface); color: var(--navy-900); box-shadow: inset 0 0 0 1px var(--line-strong), 0 1px 2px rgba(15,34,66,.12), 0 2px 4px -2px rgba(15,34,66,.10); }
 .v2-btn-secondary:active { background: var(--bg); }
 .v2-btn-quiet { background: transparent; color: var(--accent); min-height: 44px; padding: 0 12px; }
 @media (hover: hover) and (pointer: fine) {
@@ -229,7 +230,9 @@ body.v2-body { background: var(--bg); }
 .v2-f-row dd.opc { color: var(--ink-3); }
 .v2-ficha-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); padding: var(--s-4) var(--s-3) var(--s-2); }
 .v2-ficha-foot p { font-size: 14px; line-height: 1.4; color: var(--ink-2); }
-.v2-ficha-foot small { display: block; font-size: 13px; color: var(--ink-3); }
+.v2-ficha-foot small, .v2-ficha-foot .v2-ficha-code-note { display: block; font-size: 13px; color: var(--ink-3); }
+.v2-ficha-foot .v2-ficha-code-note.v2-stable { display: grid; }
+.v2-ficha-code-txt { min-width: 0; }
 .v2-code { flex: none; font-family: var(--font-text); font-weight: 600; font-size: 15px; line-height: 1; letter-spacing: .1em; font-variant-numeric: tabular-nums; color: var(--navy-900); padding: 9px 8px 9px 11px; border-radius: var(--r-sm); background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); }
 
 /* qué pasará después */
@@ -257,6 +260,30 @@ body.v2-body { background: var(--bg); }
 .v2-refs > div:last-child { border-bottom: 1px solid var(--line-2); }
 .v2-refs dt { font-size: 15px; font-weight: 600; line-height: 1.4; color: var(--ink); }
 .v2-refs dd { margin-top: 2px; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+
+/* canales externos de información (art. 7.2) */
+.v2-ext { display: grid; gap: var(--s-4); margin-top: var(--s-7); padding-top: var(--s-6); border-top: 1px solid var(--line-2); }
+.v2-ext h3 { font-family: var(--font-display); font-weight: 600; font-size: 20px; line-height: 1.25; letter-spacing: -.012em; color: var(--navy-900); }
+.v2-ext-main p { margin-top: 6px; font-size: 15px; line-height: 1.55; color: var(--ink-2); max-width: 36em; }
+.v2-ext-list { display: grid; gap: var(--s-2); }
+.v2-ext-list a {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); min-height: 64px; padding: 12px var(--s-4);
+  border-radius: var(--r); background: var(--bg); box-shadow: inset 0 0 0 1px var(--line-2); text-decoration: none;
+  -webkit-tap-highlight-color: transparent; transition: background-color var(--t-fast) ease, box-shadow var(--t-fast) ease;
+}
+.v2-ext-list b { display: block; font-size: 15px; font-weight: 600; line-height: 1.35; color: var(--ink); }
+.v2-ext-list small { display: block; margin-top: 1px; font-size: 14px; line-height: 1.4; color: var(--ink-2); }
+.v2-ext-list svg { width: 18px; height: 18px; color: var(--ink-3); transition: transform 160ms var(--ease-out), color var(--t-fast) ease; }
+.v2-ext-list a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .v2-ext-list a:hover { background: var(--accent-tint); box-shadow: inset 0 0 0 1px var(--accent-line); }
+  .v2-ext-list a:hover svg { color: var(--accent); transform: translate(1px, -1px); }
+}
+@media (min-width: 960px) {
+  .v2-ext { grid-template-columns: repeat(12, minmax(0,1fr)); column-gap: var(--s-5); align-items: center; }
+  .v2-ext-main { grid-column: 1 / span 5; }
+  .v2-ext-list { grid-column: 7 / span 6; }
+}
 
 @media (min-width: 600px) { .v2-actions { display: flex; flex-wrap: wrap; } }
 @media (min-width: 960px) {
@@ -351,7 +378,7 @@ body.v2-body { background: var(--bg); }
 }
 textarea.v2-input { min-height: 180px; padding: 14px 16px; line-height: 1.55; resize: vertical; }
 input[type="date"].v2-input { padding-right: 12px; }
-.v2-input::placeholder { color: #7B879A; }
+.v2-input::placeholder { color: #64748B; }
 .v2-input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent), 0 0 0 4px rgba(28,76,150,.22); }
 @media (hover: hover) and (pointer: fine) { .v2-input:hover:not(:focus) { box-shadow: inset 0 0 0 1px #94A3B8; } }
 .v2-input[aria-invalid="true"] { box-shadow: inset 0 0 0 2px var(--danger); }
@@ -404,8 +431,11 @@ input[type="date"].v2-input { padding-right: 12px; }
 .v2-sum-row dt { font-size: 13px; font-weight: 600; color: var(--ink-3); letter-spacing: .005em; }
 .v2-sum-row dd { grid-column: 1; font-size: 15px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; white-space: pre-line; }
 .v2-sum-row dd.is-empty { color: var(--ink-3); }
-.v2-sum-row .v2-btn-quiet { grid-column: 2; grid-row: 1 / 3; align-self: center; }
-.v2-sum-desc { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.v2-sum-row .v2-sum-act { grid-column: 2; grid-row: 1 / 3; align-self: center; }
+.v2-sum-desc { max-height: 22em; overflow-y: auto; }
+.v2-rejected { margin-top: 6px; display: grid; gap: 2px; font-size: 14px; font-weight: 400; line-height: 1.45; color: var(--ink-2); }
+.v2-rejected-name { font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.v2-consent-link { margin-top: var(--s-2); font-size: 14px; }
 .v2-pill { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .v2-pill svg { width: 16px; height: 16px; color: var(--accent); }
 
@@ -511,4 +541,95 @@ input[type="date"].v2-input { padding-right: 12px; }
 @media (prefers-reduced-motion: reduce) {
   .v2 *, .v2 *::before, .v2 *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
   .v2-btn:active, .v2-opt:active { transform: none; }
+}
+
+/* ==========================================================================
+   Jerarquía (revisión de octubre): titulares con más peso y bandas que ordenan
+   ========================================================================== */
+.v2-sec-title { font-size: clamp(26px, 1.25vw + 18px, 36px); letter-spacing: -.02em; }
+/* canal público: los pasos en banda blanca, el marco legal en banda teñida */
+.v2-pasos { clip-path: inset(0 -100vmax); margin-top: var(--s-8); padding-block: var(--s-8); background: var(--surface); box-shadow: 0 0 0 100vmax var(--surface); }
+.v2-pasos + .v2-legal { margin-top: 0; }
+.v2-plazo { background: var(--bg); box-shadow: none; }
+.v2-legal { background: var(--band); box-shadow: none; }
+.v2-refs > div { border-color: var(--line); }
+.v2-ext { border-top-color: var(--line); }
+.v2-ext-list a { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-2), var(--shadow-1); }
+@media (min-width: 960px) { .v2-pasos { margin-top: var(--s-9); padding-block: var(--s-9); } }
+/* idioma activo: se distingue (contraste de borde y de texto) */
+.v2-lang button[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--accent); color: var(--accent); }
+
+/* Colores forzados (Contraste alto de Windows): campos, opciones y foco visibles */
+@media (forced-colors: active) {
+  .v2-input, .v2-search input, .v2-sel select, .v2-date input, .v2-opt, .v2-choice, .v2-check, .v2-chip { border: 1px solid CanvasText; }
+  .v2-input:focus, .v2-search input:focus, .v2-sel select:focus, .v2-date input:focus { outline: 2px solid Highlight; outline-offset: 2px; }
+  .v2-radio, .v2-box { border: 2px solid CanvasText; }
+  .is-on > .v2-radio, .is-on .v2-box, .v2-cbox.is-mixed .v2-box { forced-color-adjust: none; background: Highlight; border-color: Highlight; }
+  .v2-opt.is-on, .v2-choice.is-on, .v2-chip.is-on { outline: 2px solid Highlight; }
+  .v2-steps .bar { border: 1px solid CanvasText; }
+}
+
+/* táctil: no se puede arrastrar; los nombres de adjunto se leen enteros */
+@media (pointer: coarse) { .v2-drop-hint { display: none; } }
+.v2-file-name { white-space: normal; overflow-wrap: anywhere; }
+/* cabecera del canal a 360 px: el nombre de la empresa cabe */
+@media (max-width: 380px) {
+  .v2-header .v2-lang button { width: 40px; }
+  .v2-header .v2-wrap { gap: var(--s-2); }
+}
+/* enlace «ir al contenido» también en la web pública y en el canal */
+.v2-skip { position: absolute; left: 12px; top: -60px; z-index: 50; padding: 10px 14px; border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: var(--shadow-2); transition: top var(--t-fast) var(--ease-out); }
+.v2-skip:focus { top: 12px; outline: 3px solid var(--focus); outline-offset: 2px; }
+main:focus { outline: none; }
+
+/* ==========================================================================
+   Textos estables entre idiomas: las tres versiones comparten celda y la caja
+   mide siempre lo que el idioma más largo. Al cambiar de idioma nada se mueve.
+   ========================================================================== */
+.v2-stable { display: inline-grid; min-width: 0; }
+h1.v2-stable, h2.v2-stable, h3.v2-stable, p.v2-stable, div.v2-stable, dt.v2-stable, dd.v2-stable, figcaption.v2-stable, legend.v2-stable, .v2-stable.is-block { display: grid; }
+.v2-stable > .v2-stable-v { grid-area: 1 / 1; min-width: 0; margin: 0; padding: 0; }
+.v2-stable > .v2-stable-v[aria-hidden="true"] { visibility: hidden; pointer-events: none; -webkit-user-select: none; user-select: none; }
+.v2-stable > .v2-swap-v { grid-area: 1 / 1; min-width: 0; }
+.v2-stable > .v2-swap-v[data-off] { visibility: hidden; }
+/* Dins d'un botó la caixa és la de l'idioma més llarg: el text es queda al costat de la seva icona
+   (o centrat si no en té), perquè el botó es vegi igual de ben compost en els tres idiomes */
+.v2-btn > .v2-stable > .v2-stable-v { text-align: center; }
+.v2-btn.icon-lead > .v2-stable > .v2-stable-v { text-align: left; }
+.v2-btn.icon-trail > .v2-stable > .v2-stable-v { text-align: right; }
+/* Amb :has(), millor: el botó és una graella i les versions amagades ocupen totes les columnes, de
+   manera que les eixamplen per igual. La icona s'alinea cap al text i el text cap a la icona: queden
+   junts i centrats, i el botó fa sempre l'amplada de l'idioma més llarg. */
+@supports selector(:has(*)) {
+  .v2-btn { --btn-ico: 20px; --btn-gap: 10px; }
+  .v2-btn:has(> .v2-stable) { display: inline-grid; grid-template-columns: auto; column-gap: var(--btn-gap); align-items: center; }
+  .v2-btn:has(> .v2-stable) > .v2-stable { display: contents; }
+  .v2-btn > .v2-stable > :is(.v2-stable-v, .v2-swap-v) { grid-row: 1; grid-column: 1; justify-self: center; text-align: center; }
+  .v2-btn:has(> .v2-stable) > svg { grid-row: 1; }
+  .v2-btn:is(.icon-lead, .icon-trail):has(> .v2-stable) { grid-template-columns: auto auto; }
+  .v2-btn:is(.icon-lead, .icon-trail) > .v2-stable > :is(.v2-stable-v[aria-hidden="true"], .v2-swap-v[data-off]) { grid-column: 1 / -1; justify-self: center; }
+  .v2-btn.icon-lead:has(> .v2-stable) > svg { grid-column: 1; justify-self: end; }
+  .v2-btn.icon-lead > .v2-stable > :is(.v2-stable-v, .v2-swap-v) { grid-column: 2; justify-self: start; }
+  .v2-btn.icon-lead > .v2-stable > :is(.v2-stable-v[aria-hidden="true"], .v2-swap-v[data-off]) { padding-left: calc(var(--btn-ico) + var(--btn-gap)); }
+  .v2-btn.icon-trail:has(> .v2-stable) > svg { grid-column: 2; justify-self: start; }
+  .v2-btn.icon-trail > .v2-stable > :is(.v2-stable-v, .v2-swap-v) { grid-column: 1; justify-self: end; }
+  .v2-btn.icon-trail > .v2-stable > :is(.v2-stable-v[aria-hidden="true"], .v2-swap-v[data-off]) { padding-right: calc(var(--btn-ico) + var(--btn-gap)); }
+}
+
+.v2-stable.v2-brand-sub { display: none; }
+@media (min-width: 600px) { .v2-stable.v2-brand-sub { display: grid; } }
+
+/* ── Fluïdesa en canviar de pàgina ───────────────────────────────────────
+   La pàgina nova entra amb una esvaïda breu (només opacitat: no mou res ni afecta el que és fix).
+   Mentre es descarrega una part, l'espai es manté perquè el peu no pugi, i l'indicador només
+   apareix si la càrrega s'allarga: en una connexió normal no arriba a veure's. */
+@keyframes v2-page-in { from { opacity: 0; } }
+@keyframes v2-late { from { opacity: 0; } to { opacity: 1; } }
+.v2-center[role="status"] { min-height: 60vh; }
+.v2-center[role="status"] > .v2-spinner { opacity: 0; animation: v2-spin .8s linear infinite, v2-late 160ms ease-out 280ms forwards; }
+@media (prefers-reduced-motion: no-preference) {
+  #v2-main > :not(.v2-center) { animation: v2-page-in 180ms var(--ease-out) backwards; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .v2-center[role="status"] > .v2-spinner { opacity: 1; animation: none; border-top-color: var(--accent); }
 }

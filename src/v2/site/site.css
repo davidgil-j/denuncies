@@ -8,7 +8,7 @@
 /* ---------- marco: franja fina, cabecera, menú móvil ---------- */
 .v2-strip.v2-site-strip .v2-wrap { min-height: 36px; }
 
-.v2-site-header { position: relative; z-index: 3; background: var(--surface); box-shadow: inset 0 -1px 0 var(--line-2); }
+.v2-site-header { position: sticky; top: 0; z-index: 3; background: var(--surface); box-shadow: inset 0 -1px 0 var(--line-2); }
 .v2-site-header > .v2-wrap { display: flex; align-items: center; gap: var(--s-3); min-height: 72px; }
 .v2-site-brand {
   margin-right: auto; padding: 10px 0; border-radius: var(--r-sm); text-decoration: none;
@@ -59,7 +59,7 @@
 .v2-site-menu-row:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--r-sm); }
 .v2-site-menu .v2-btn { width: 100%; margin-top: var(--s-5); }
 
-@media (min-width: 960px) {
+@media (min-width: 1160px) {
   .v2-site-header > .v2-wrap { min-height: 80px; gap: var(--s-4); }
   .v2-site-nav { display: flex; align-items: center; gap: var(--s-1); }
   .v2-site-menu-btn, .v2-site-menu { display: none; }
@@ -156,7 +156,7 @@
   .v2-land-ref dt a:hover svg { color: var(--accent); transform: translate(1px, -1px); }
 }
 @media (min-width: 600px) {
-  .v2-land-ref { grid-template-columns: 128px minmax(0,1fr); align-items: baseline; }
+  .v2-land-ref { grid-template-columns: 152px minmax(0,1fr); align-items: baseline; }
 }
 @media (min-width: 960px) {
   .v2-land-obl { margin-top: var(--s-9); padding-block: var(--s-8); }
@@ -227,7 +227,8 @@
   font-size: 15px; font-weight: 600; letter-spacing: .005em; color: var(--navy-900); overflow-wrap: anywhere;
 }
 .v2-land-path svg { width: 16px; height: 16px; color: var(--accent); }
-.v2-land-flow { justify-self: start; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: var(--s-4); }
+.v2-land-flow-box { justify-self: start; margin-top: var(--s-4); }
+.v2-land-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .v2-land-flow-step { display: inline-flex; align-items: center; gap: 6px; }
 .v2-land-flow svg { width: 14px; height: 14px; color: var(--ink-3); }
 .v2-land-status {
@@ -244,6 +245,162 @@
   .v2-land-num { grid-row: auto; }
   .v2-land-step:not(:last-child)::before { left: 52px; right: calc(-1 * var(--s-5) + 12px); top: 19.25px; bottom: auto; width: auto; height: 1.5px; }
   .v2-land-step h3 { padding-top: var(--s-4); }
+}
+
+/* ---------- La ley, punto por punto ---------- */
+.v2-land-law, .v2-land-price, .v2-land-faq, .v2-land-two { scroll-margin-top: var(--s-4); }
+.v2-land-law { padding-top: var(--s-8); }
+.v2-land-law-grid { display: grid; gap: var(--s-5); margin-top: var(--s-6); align-items: start; }
+.v2-land-table {
+  width: 100%; border-collapse: separate; border-spacing: 0; text-align: left;
+  border-radius: var(--r); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-2), var(--shadow-1);
+}
+.v2-land-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.v2-land-table tbody, .v2-land-table tr, .v2-land-table tbody th, .v2-land-table td { display: block; }
+.v2-land-table tr { padding: var(--s-4) var(--s-4) 18px; }
+.v2-land-table tr + tr { border-top: 1px solid var(--line-2); }
+.v2-land-table tbody th { font-size: 16px; font-weight: 600; line-height: 1.4; color: var(--navy-900); }
+.v2-land-table td { margin-top: 4px; font-size: 15px; line-height: 1.5; color: var(--ink-2); }
+.v2-land-table td.v2-land-art { margin-top: 0; }
+.v2-land-art a {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 32px; border-radius: 2px;
+  font-size: 13px; font-weight: 600; color: var(--accent); text-decoration: none; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.v2-land-art a svg { width: 13px; height: 13px; color: var(--ink-3); transition: transform 160ms var(--ease-out), color var(--t-fast) ease; }
+.v2-land-art a:focus-visible, .v2-land-own a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+@media (hover: hover) and (pointer: fine) {
+  .v2-land-art a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .v2-land-art a:hover svg { color: var(--accent); transform: translate(1px, -1px); }
+}
+
+/* lo que ninguna herramienta hace por la empresa */
+.v2-land-own { padding: var(--s-5); border-radius: var(--r); background: var(--accent-tint); box-shadow: inset 0 0 0 1px var(--accent-line); }
+.v2-land-own .v2-land-badge { background: var(--navy-900); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 1px 2px rgba(15,34,66,.22); }
+.v2-land-own h3 { margin-top: var(--s-4); font-family: var(--font-display); font-weight: 600; font-size: 19px; line-height: 1.25; letter-spacing: -.01em; color: var(--navy-900); }
+.v2-land-own > p { margin-top: 6px; font-size: 15px; line-height: 1.5; color: var(--ink-2); }
+.v2-land-own ol { margin-top: var(--s-4); }
+.v2-land-own li { padding: var(--s-3) 0; border-top: 1px solid var(--accent-line); font-size: 15px; line-height: 1.5; color: var(--ink); }
+.v2-land-own li:last-child { padding-bottom: 0; }
+.v2-land-own a { display: block; width: fit-content; margin-top: 2px; font-size: 13px; font-weight: 600; color: var(--accent); white-space: nowrap; text-underline-offset: 3px; font-variant-numeric: tabular-nums; }
+
+@media (min-width: 760px) {
+  .v2-land-table thead { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; display: table-header-group; }
+  .v2-land-table tbody { display: table-row-group; }
+  .v2-land-table tr { display: table-row; padding: 0; }
+  .v2-land-table tbody th, .v2-land-table td { display: table-cell; margin: 0; padding: 14px var(--s-4); vertical-align: top; }
+  .v2-land-table thead th { padding: 14px var(--s-4) 12px; font-size: 13px; font-weight: 600; line-height: 1.3; color: var(--ink-3); border-bottom: 1px solid var(--line-2); }
+  .v2-land-table tr + tr { border-top: 0; }
+  .v2-land-table tbody tr + tr > * { border-top: 1px solid var(--line-2); }
+  .v2-land-table tbody th { width: 34%; padding-left: var(--s-5); font-size: 15px; }
+  .v2-land-table thead th:first-child { padding-left: var(--s-5); }
+  .v2-land-table td:last-child, .v2-land-table thead th:last-child { padding-right: var(--s-5); }
+  .v2-land-table td.v2-land-art { width: 96px; padding-block: 9px; }
+  .v2-land-art-pre { display: none; }
+}
+@media (min-width: 1024px) {
+  .v2-land-law { padding-top: var(--s-9); }
+  .v2-land-law-grid { grid-template-columns: repeat(12, minmax(0,1fr)); column-gap: var(--s-5); }
+  .v2-land-table { grid-column: 1 / span 8; }
+  .v2-land-own { grid-column: 9 / span 4; padding: var(--s-5) var(--s-5) var(--s-6); }
+}
+
+/* ---------- En su web, sin instalar nada ---------- */
+.v2-land-int { display: grid; gap: var(--s-5); padding-top: var(--s-8); align-items: center; }
+.v2-land-int-text p { margin-top: var(--s-3); max-width: 34em; font-size: 16px; line-height: 1.6; color: var(--ink-2); }
+.v2-land-int-pieces { display: grid; border-radius: var(--r); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-2), var(--shadow-1); }
+.v2-land-int-pieces > div { display: grid; grid-template-rows: auto 1fr; gap: var(--s-3); padding: var(--s-4) var(--s-4) var(--s-5); min-width: 0; }
+.v2-land-int-pieces > div + div { border-top: 1px solid var(--line-2); }
+.v2-land-int-pieces dt { font-size: 13px; font-weight: 600; line-height: 1.3; color: var(--ink-3); }
+.v2-land-int-pieces dd { display: flex; align-items: center; min-height: 88px; min-width: 0; }
+.v2-land-int-pieces .v2-land-path { margin-top: 0; background: var(--bg); }
+/* el mismo botón que se copia desde el panel */
+.v2-land-sample-btn { display: inline-flex; align-items: center; padding: 12px 18px; border-radius: var(--r-sm); background: var(--navy-900); color: #fff; font-size: 15px; font-weight: 600; line-height: 1.2; }
+.v2-land-qr { display: block; width: 104px; height: 104px; padding: 8px; border-radius: var(--r-sm); background: #fff; box-shadow: inset 0 0 0 1px var(--line); }
+.v2-land-qr img { display: block; width: 88px; height: 88px; image-rendering: pixelated; }
+@media (min-width: 600px) {
+  .v2-land-int-pieces { grid-template-columns: minmax(0,1.15fr) minmax(0,1.15fr) minmax(0,.9fr); }
+  .v2-land-int-pieces > div + div { border-top: 0; border-left: 1px solid var(--line-2); }
+  .v2-land-int-pieces > div { padding: var(--s-4) var(--s-5) var(--s-5); }
+  .v2-land-int-pieces dd { min-height: 104px; }
+}
+@media (min-width: 1024px) {
+  .v2-land-int { grid-template-columns: repeat(12, minmax(0,1fr)); column-gap: var(--s-5); padding-top: var(--s-9); }
+  .v2-land-int-text { grid-column: 1 / span 5; }
+  .v2-land-int-pieces { grid-column: 6 / span 7; }
+}
+
+/* ---------- Precios ---------- */
+.v2-land-price { padding-top: var(--s-8); }
+.v2-land-plans { margin-top: var(--s-6); border-radius: var(--r-lg); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-2), var(--shadow-2); overflow: hidden; }
+.v2-land-plan-list { display: grid; }
+.v2-land-plan { padding: var(--s-5) var(--s-4) var(--s-5); min-width: 0; }
+.v2-land-plan + .v2-land-plan { border-top: 1px solid var(--line-2); }
+.v2-land-plan h3 { font-family: var(--font-display); font-weight: 600; font-size: 21px; line-height: 1.25; letter-spacing: -.012em; color: var(--navy-900); }
+.v2-land-plan-size { margin-top: 2px; font-size: 15px; line-height: 1.45; color: var(--ink-2); }
+.v2-land-plan-price { display: flex; align-items: flex-end; gap: var(--s-3); margin-top: var(--s-4); }
+.v2-land-plan-price b { font-family: var(--font-display); font-weight: 600; font-size: 40px; line-height: 1; letter-spacing: -.02em; color: var(--navy-900); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.v2-land-plan-price > span { padding-bottom: 2px; font-size: 13px; line-height: 1.35; color: var(--ink-2); }
+.v2-land-plan-price.is-custom { display: block; }
+.v2-land-plan-price.is-custom b { display: block; font-size: 30px; line-height: 40px; }
+.v2-land-plan-price.is-custom > span { display: grid; margin-top: 4px; padding: 0; }
+
+.v2-land-incl { padding: var(--s-5) var(--s-4); background: var(--surface-2); border-top: 1px solid var(--line-2); }
+.v2-land-incl h3 { font-size: 15px; font-weight: 600; line-height: 1.4; color: var(--ink); }
+.v2-land-incl ul { display: grid; gap: var(--s-3) var(--s-5); margin-top: var(--s-4); }
+.v2-land-incl li { display: grid; grid-template-columns: 18px minmax(0,1fr); gap: 10px; font-size: 15px; line-height: 1.45; color: var(--ink); }
+.v2-land-incl svg { width: 18px; height: 18px; margin-top: 2px; color: var(--accent); }
+
+.v2-land-plans-foot { display: grid; gap: var(--s-4); padding: var(--s-5) var(--s-4); border-top: 1px solid var(--line-2); }
+.v2-land-plans-foot p { font-size: 15px; line-height: 1.5; color: var(--ink); max-width: 34em; }
+.v2-land-plans-actions { display: grid; gap: var(--s-2); }
+.v2-land-plans-actions .v2-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; }
+.v2-land-plans-actions .v2-btn { order: -1; }
+@media (min-width: 600px) {
+  .v2-land-incl ul { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .v2-land-plans-foot { grid-template-columns: minmax(0,1fr) auto; align-items: center; }
+  .v2-land-plans-actions { display: flex; align-items: center; gap: var(--s-5); }
+  .v2-land-plans-actions .v2-btn { order: 0; }
+}
+@media (min-width: 760px) {
+  /* nombre, tamaño y precio comparten filas: los tres precios quedan a la misma altura */
+  .v2-land-plan-list { grid-template-columns: repeat(3, minmax(0,1fr)); grid-template-rows: auto auto auto; }
+  .v2-land-plan { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; padding: var(--s-6) var(--s-5); }
+  .v2-land-plan + .v2-land-plan { border-top: 0; border-left: 1px solid var(--line-2); }
+  .v2-land-plan-price { align-self: start; margin-top: var(--s-5); }
+  .v2-land-incl, .v2-land-plans-foot { padding-inline: var(--s-5); }
+}
+@media (min-width: 1024px) {
+  .v2-land-price { padding-top: var(--s-9); }
+  .v2-land-plan { padding: var(--s-6); }
+  .v2-land-incl { padding: var(--s-5) var(--s-6) var(--s-6); }
+  .v2-land-incl ul { grid-template-columns: repeat(4, minmax(0,1fr)); }
+  .v2-land-plans-foot { padding: var(--s-5) var(--s-6); }
+}
+
+/* ---------- Preguntas frecuentes ---------- */
+.v2-land-faq { display: grid; gap: var(--s-5); padding-top: var(--s-8); }
+.v2-land-faq-head p { margin-top: var(--s-3); font-size: 15px; line-height: 1.55; color: var(--ink-2); max-width: 24em; }
+.v2-land-q { border-top: 1px solid var(--line); }
+.v2-land-q:last-child { border-bottom: 1px solid var(--line); }
+.v2-land-q summary {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-4); padding: 18px 0;
+  cursor: pointer; list-style: none; font-size: 17px; font-weight: 600; line-height: 1.4; color: var(--navy-900);
+  -webkit-tap-highlight-color: transparent; transition: color var(--t-fast) ease;
+}
+.v2-land-q summary::-webkit-details-marker { display: none; }
+.v2-land-q summary svg { width: 20px; height: 20px; margin-top: 2px; color: var(--ink-3); transition: transform 200ms var(--ease-out), color var(--t-fast) ease; }
+.v2-land-q[open] summary svg { transform: rotate(45deg); color: var(--accent); }
+.v2-land-q summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
+.v2-land-q > p { padding: 0 var(--s-6) var(--s-5) 0; font-size: 16px; line-height: 1.6; color: var(--ink-2); max-width: 66ch; }
+@media (hover: hover) and (pointer: fine) {
+  .v2-land-q summary:hover { color: var(--accent); }
+  .v2-land-q summary:hover svg { color: var(--accent); }
+}
+@media (prefers-reduced-motion: reduce) { .v2-land-q summary svg { transition: none; } }
+@media (min-width: 1024px) {
+  .v2-land-faq { grid-template-columns: repeat(12, minmax(0,1fr)); column-gap: var(--s-5); padding-top: var(--s-9); align-items: start; }
+  .v2-land-faq-head { grid-column: 1 / span 4; }
+  .v2-land-faq-list { grid-column: 5 / span 8; }
 }
 
 /* ---------- Banda final ---------- */
@@ -397,3 +554,80 @@
 @media (prefers-reduced-motion: no-preference) {
   html:has(.v2-pv) { scroll-behavior: smooth; }
 }
+
+/* enlace con aspecto de texto que ejecuta una acción (cerrar sesión en el segundo paso) */
+.v2-link-btn { -webkit-appearance: none; appearance: none; border: 0; padding: 0; background: none; cursor: pointer; font: inherit; min-height: 44px; }
+.v2-auth .v2-otp.v2-input { max-width: none; }
+
+/* ==========================================================================
+   Jerarquía (revisión de octubre): ritmo de bandas en la portada
+   portada (fondo) · obligada (blanco) · dos partes (fondo) · ley (teñida)
+   · puesta en marcha + web (blanco) · precios (fondo) · preguntas (blanco) · cierre (marino)
+   Las bandas van a sangre con una sombra de 100vmax recortada: sin desborde horizontal.
+   ========================================================================== */
+.v2-land-two { padding-bottom: var(--s-8); }
+.v2-land-side { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-2), var(--shadow-1); }
+.v2-land-side.is-private { background: var(--navy-900); color: var(--on-navy-2); box-shadow: 0 1px 2px rgba(10,24,48,.2), 0 16px 32px -16px rgba(10,24,48,.5); }
+.is-private .v2-land-badge { background: rgba(255,255,255,.1); box-shadow: inset 0 0 0 1px rgba(255,255,255,.22); }
+.v2-land-side.is-private h3 { color: #fff; }
+.v2-land-side.is-private .v2-land-side-head p { color: var(--on-navy-2); }
+.is-private .v2-land-caps { border-top-color: rgba(255,255,255,.14); }
+.is-private .v2-land-caps li { color: var(--on-navy); }
+.is-private .v2-land-caps svg { color: #9DB8E6; }
+.v2-land-law, .v2-land-steps, .v2-land-int, .v2-land-faq { clip-path: inset(0 -100vmax); }
+.v2-land-law { padding-block: var(--s-8); background: var(--band); box-shadow: 0 0 0 100vmax var(--band); }
+.v2-land-table { box-shadow: inset 0 0 0 1px var(--line-2), var(--shadow-2); }
+.v2-land-steps { padding-top: var(--s-8); background: var(--surface); box-shadow: 0 0 0 100vmax var(--surface); }
+.v2-land-int { padding-block: var(--s-8); background: var(--surface); box-shadow: 0 0 0 100vmax var(--surface); }
+.v2-land-int-pieces { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+.v2-land-faq { margin-top: var(--s-8); padding-block: var(--s-8); background: var(--surface); box-shadow: 0 0 0 100vmax var(--surface); }
+.v2-land-faq + .v2-land-end { margin-top: 0; }
+.v2-land-incl { background: var(--accent-tint); border-top-color: var(--accent-line); }
+@media (min-width: 760px) {
+  .v2-land-table thead th { background: var(--surface-2); color: var(--ink-2); }
+  .v2-land-table thead th:first-child { border-top-left-radius: var(--r); }
+  .v2-land-table thead th:last-child { border-top-right-radius: var(--r); }
+}
+@media (min-width: 960px) {
+  .v2-land-two { padding-bottom: var(--s-9); }
+  .v2-land-law, .v2-land-int, .v2-land-faq { padding-block: var(--s-9); }
+  .v2-land-steps { padding-top: var(--s-9); }
+  .v2-land-faq { margin-top: var(--s-9); }
+}
+/* alta: «Qué incluye» en una hoja teñida */
+.v2-auth-aside { padding: var(--s-5); border-radius: var(--r-lg); background: var(--accent-tint); box-shadow: inset 0 0 0 1px var(--accent-line); }
+.v2-auth-aside .v2-note { background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent-line); }
+@media (min-width: 600px) { .v2-auth-aside { padding: var(--s-6); } }
+@media (min-width: 960px) { .v2-auth-grid .v2-auth-aside { padding-top: var(--s-6); } }
+/* privacidad: el texto legal como documento */
+.v2-pv-body { padding: var(--s-5) var(--s-4); border-radius: var(--r-lg); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-2), var(--shadow-1); }
+.v2-pv-sec:last-child { padding-bottom: 0; }
+.v2-pv-sec dl { background: var(--surface-2); }
+@media (min-width: 600px) { .v2-pv-body { padding: var(--s-6); } }
+@media (min-width: 960px) { .v2-pv-body { grid-column: 4 / span 8; padding: var(--s-7); } }
+
+/* la costura entre las dos partes: la conversación dentro de la denuncia */
+.v2-land-seam-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line), var(--shadow-1); color: var(--accent); }
+.v2-land-seam-icon svg { width: 20px; height: 20px; }
+
+/* objetivos táctiles de los enlaces a artículos */
+@media (pointer: coarse) {
+  .v2-land-art a, .v2-land-ref dt a { min-height: 44px; }
+  .v2-land-own a { display: inline-flex; align-items: center; min-height: 44px; }
+  .v2-pv-toc a { min-height: 44px; }
+}
+.v2-land-law, .v2-land-price, .v2-land-faq, .v2-land-two { scroll-margin-top: 88px; }
+
+/* página no encontrada */
+.v2-404 { padding-block: var(--s-7) var(--s-8); }
+.v2-404-icon { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: var(--s-5); border-radius: var(--r); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line), var(--shadow-1); color: var(--accent); }
+.v2-404-icon svg { width: 26px; height: 26px; }
+.v2-404 .v2-actions { margin-top: var(--s-5); }
+
+/* alta: aceptación y prueba */
+.v2-auth .v2-check { margin-top: var(--s-5); }
+.v2-su-trial { display: flex; align-items: flex-start; gap: 8px; margin-top: var(--s-4); font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+.v2-su-trial svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: var(--accent); }
+
+/* Menú en fila: cada enllaç ocupa l'amplada de l'idioma més llarg, amb el text centrat */
+@media (min-width: 1160px) { .v2-site-navlink .v2-stable-v { text-align: center; } }

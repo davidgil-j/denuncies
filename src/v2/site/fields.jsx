@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Eye, EyeOff, CircleAlert } from 'lucide-react';
 import { ICON } from '../V2Layout.jsx';
 
-export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Correu: sense espais ni caràcters de llista o d'etiqueta, domini amb parts no buides i extensió de 2 lletres o més
+export const EMAIL_RE = /^[^\s@,;:<>()[\]\\"]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i;
 
 export function FieldError({ id, children }) {
   if (!children) return null;

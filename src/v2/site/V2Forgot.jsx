@@ -3,8 +3,11 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { ChevronLeft, CircleAlert, MailCheck } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { sendPasswordReset } from '../../lib/supabase.js';
-import { ICON, fmt } from '../V2Layout.jsx';
+import { ICON, fmt, stableOf } from '../V2Layout.jsx';
 import { EMAIL_RE, FieldError, authErrorKey } from './fields.jsx';
+
+// Text que reserva l'espai de l'idioma més llarg: en canviar d'idioma, la pantalla no es mou
+const S = stableOf(T => T.v2site.forgot);
 
 export default function V2Forgot() {
   const { lang } = useOutletContext();
@@ -43,22 +46,22 @@ export default function V2Forgot() {
     <div className="v2-auth v2-wrap">
       <div className="v2-auth-narrow">
         <header className="v2-auth-head">
-          <h1 className="v2-h1">{t.title}</h1>
-          {!sent && <p className="v2-lead">{t.lead}</p>}
+          <S as="h1" className="v2-h1" k="title" />
+          {!sent && <S as="p" className="v2-lead" k="lead" />}
         </header>
 
         <div className="v2-auth-panel">
           {sent ? (
             <div className="v2-auth-done" aria-live="polite">
               <span className="v2-auth-done-icon" aria-hidden="true"><MailCheck {...ICON} /></span>
-              <h2 tabIndex={-1} ref={sentRef}>{t.sentTitle}</h2>
-              <p>{fmt(t.sentText, { email: email.trim() })}<small>{t.sentSpam}</small></p>
-              <Link className="v2-btn v2-btn-secondary icon-lead" to="/admin/login"><ChevronLeft {...ICON} />{t.back}</Link>
+              <S as="h2" tabIndex={-1} ref={sentRef} k="sentTitle" />
+              <p>{fmt(t.sentText, { email: email.trim() })}<small><S k="sentSpam" /></small></p>
+              <Link className="v2-btn v2-btn-secondary icon-lead" to="/admin/login"><ChevronLeft {...ICON} /><S k="back" /></Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit} noValidate>
               <div className="v2-field">
-                <label htmlFor="v2-fg-email">{t.email}</label>
+                <label htmlFor="v2-fg-email"><S k="email" /></label>
                 <input
                   ref={emailRef} id="v2-fg-email" className="v2-input" type="email" inputMode="email"
                   value={email} onChange={e => { setEmail(e.target.value); setEmailError(false); }}
@@ -79,7 +82,7 @@ export default function V2Forgot() {
 
         {!sent && (
           <p className="v2-auth-alt">
-            <Link className="v2-btn v2-btn-quiet icon-lead v2-auth-back" to="/admin/login"><ChevronLeft {...ICON} />{t.back}</Link>
+            <Link className="v2-btn v2-btn-quiet icon-lead v2-auth-back" to="/admin/login"><ChevronLeft {...ICON} /><S k="back" /></Link>
           </p>
         )}
       </div>

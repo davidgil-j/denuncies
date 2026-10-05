@@ -3,8 +3,11 @@ import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { Check, Circle, CircleAlert, LinkIcon } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { updatePassword, onAuthEvent } from '../../lib/supabase.js';
-import { ICON } from '../V2Layout.jsx';
+import { ICON, stableOf } from '../V2Layout.jsx';
 import { FieldError, PwInput, authErrorKey } from './fields.jsx';
+
+// Text que reserva l'espai de l'idioma més llarg: en canviar d'idioma, la pantalla no es mou
+const S = stableOf(T => T.v2site.reset);
 
 const MIN = 8;
 // Si en aquest temps no arriba cap esdeveniment d'invitació o recuperació, l'enllaç no és vàlid
@@ -83,7 +86,7 @@ export default function V2Reset() {
       <div className="v2-center" role="status" aria-live="polite">
         <div className="v2-auth-checking">
           <div className="v2-spinner" />
-          <p>{t.checking}</p>
+          <S as="p" k="checking" />
         </div>
       </div>
     );
@@ -95,9 +98,9 @@ export default function V2Reset() {
         <div className="v2-auth-narrow">
           <div className="v2-auth-panel v2-auth-done">
             <span className="v2-auth-done-icon" aria-hidden="true"><LinkIcon {...ICON} /></span>
-            <h1 className="v2-h1" tabIndex={-1} ref={titleRef}>{t.invalidTitle}</h1>
-            <p>{t.invalidText}</p>
-            <Link className="v2-btn v2-btn-primary" to="/admin/forgot-password">{t.invalidCta}</Link>
+            <S as="h1" className="v2-h1" tabIndex={-1} ref={titleRef} k="invalidTitle" />
+            <S as="p" k="invalidText" />
+            <Link className="v2-btn v2-btn-primary" to="/admin/forgot-password"><S k="invalidCta" /></Link>
           </div>
         </div>
       </div>
@@ -112,15 +115,15 @@ export default function V2Reset() {
     <div className="v2-auth v2-wrap">
       <div className="v2-auth-narrow">
         <header className="v2-auth-head">
-          <h1 className="v2-h1" tabIndex={-1} ref={titleRef}>{isInvite ? t.titleInvite : t.titleReset}</h1>
-          <p className="v2-lead">{isInvite ? t.leadInvite : t.leadReset}</p>
+          <S as="h1" className="v2-h1" tabIndex={-1} ref={titleRef} k={isInvite ? 'titleInvite' : 'titleReset'} />
+          <S as="p" className="v2-lead" k={isInvite ? 'leadInvite' : 'leadReset'} />
         </header>
 
         <div className="v2-auth-panel">
           <form onSubmit={handleSubmit} noValidate>
             <div className="v2-fields">
               <div className="v2-field">
-                <label htmlFor="v2-rs-pw">{t.newPw}</label>
+                <label htmlFor="v2-rs-pw"><S k="newPw" /></label>
                 <PwInput
                   id="v2-rs-pw" inputRef={pwRef} value={password}
                   onChange={e => { setPassword(e.target.value); if (errors.password) setErrors({}); }}
@@ -131,7 +134,7 @@ export default function V2Reset() {
                 <FieldError id="v2-rs-pw-err">{errors.password}</FieldError>
               </div>
               <div className="v2-field">
-                <label htmlFor="v2-rs-confirm">{t.confirmPw}</label>
+                <label htmlFor="v2-rs-confirm"><S k="confirmPw" /></label>
                 <PwInput
                   id="v2-rs-confirm" inputRef={confirmRef} value={confirm}
                   onChange={e => { setConfirm(e.target.value); if (errors.confirm) setErrors({}); }}
@@ -144,8 +147,8 @@ export default function V2Reset() {
             </div>
 
             <ul className="v2-reqs" id="v2-rs-reqs" aria-label={t.reqTitle}>
-              {[[lenOk, t.reqLength], [matchOk, t.reqMatch]].map(([ok, label]) => (
-                <li key={label} className={ok ? 'is-ok' : undefined}>
+              {[[lenOk, t.reqLength], [matchOk, t.reqMatch]].map(([ok, label], i) => (
+                <li key={i} className={ok ? 'is-ok' : undefined}>
                   {ok ? <Check {...ICON} /> : <Circle {...ICON} />}
                   <span>{label}<span className="v2-vh">: {ok ? t.reqOk : t.reqPending}</span></span>
                 </li>

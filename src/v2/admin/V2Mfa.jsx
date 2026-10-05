@@ -2,10 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ShieldCheck, ShieldAlert, Copy, Check, ChevronLeft, ArrowRight, CircleAlert, Info, Smartphone } from 'lucide-react';
 import { listMfaFactors, enrollMfaFactor, verifyMfaEnrollment, unenrollMfaFactor, IS_DEMO } from '../../lib/supabase.js';
 import { ICON, fmt } from '../V2Layout.jsx';
-import { useAdmin, Confirm, copyText } from './adminKit.jsx';
+import { useAdmin, L, SwapL, Confirm, copyText } from './adminKit.jsx';
 
 export default function V2Mfa() {
-  const { t, profile, email, isSuperadmin, notify } = useAdmin();
+  const { t, profile, email, isSuperadmin, notify, mfaSetup, refreshProfile } = useAdmin();
   const [factors, setFactors] = useState(null);
   const [step, setStep] = useState('status'); // status | scan | code
   const [enroll, setEnroll] = useState(null); // { factorId, qrCode, secret }
@@ -55,6 +55,8 @@ export default function V2Mfa() {
     setEnroll(null);
     notify(t.enabledOk);
     load();
+    // Amb la verificació feta, la sessió ja té el segon pas: es desbloqueja la resta del panell
+    if (mfaSetup) refreshProfile();
   }
 
   async function disable() {
@@ -83,10 +85,17 @@ export default function V2Mfa() {
     <div className="v2-page v2-narrow">
       <header className="v2-ph">
         <div className="v2-ph-main">
-          <h1 className="v2-ph-title">{t.mTitle}</h1>
-          <p className="v2-ph-lead">{t.mLead}</p>
+          <L as="h1" className="v2-ph-title" k="mTitle" />
+          <L as="p" className="v2-ph-lead" k="mLead" />
         </div>
       </header>
+
+      {mfaSetup && (
+        <div className="v2-note" role="note">
+          <ShieldAlert {...ICON} />
+          <p>{t.mfaRequiredTitle}<small><L k="mfaRequiredText" /></small></p>
+        </div>
+      )}
 
       {factors === null ? (
         <div className="v2-sec" aria-hidden="true">
@@ -97,16 +106,16 @@ export default function V2Mfa() {
           <div className="v2-mfa-state">
             <span className="v2-mfa-icon">{verified ? <ShieldCheck {...ICON} /> : <ShieldAlert {...ICON} />}</span>
             <div>
-              <h2 className="v2-sec-h" id="v2-mfa-t">{verified ? t.mOnTitle : t.mOffTitle}</h2>
-              <p className="v2-sec-lead">{verified ? t.mOnText : t.mOffText}</p>
+              <L as="h2" className="v2-sec-h" id="v2-mfa-t" k={verified ? 'mOnTitle' : 'mOffTitle'} />
+              <L as="p" className="v2-sec-lead" k={verified ? 'mOnText' : 'mOffText'} />
             </div>
           </div>
           <div className="v2-mfa-actions">
             {verified ? (
-              <button type="button" className="v2-btn v2-btn-ghost-danger v2-btn-sm" onClick={() => { setOffErr(''); setConfirmOff(true); }}>{t.mDisable}</button>
+              <p className="v2-sec-lead"><Info {...ICON} /><L k="mOnRequired" /></p>
             ) : (
               <button type="button" className="v2-btn v2-btn-primary v2-btn-sm icon-lead" onClick={start} aria-busy={busy}>
-                <Smartphone {...ICON} />{t.mEnable}
+                <Smartphone {...ICON} /><L k="mEnable" />
               </button>
             )}
           </div>
@@ -114,36 +123,36 @@ export default function V2Mfa() {
         </section>
       ) : (
         <section className="v2-sec v2-mfa-setup" aria-labelledby="v2-setup-t">
-          <p className="v2-mfa-step v2-num">{fmt(t.stepOf, { n: step === 'scan' ? 1 : 2 })}</p>
+          <L as="p" className="v2-mfa-step v2-num" pick={x => fmt(x.stepOf, { n: step === 'scan' ? 1 : 2 })} />
           <div className="v2-mfa-bar" aria-hidden="true"><span className="is-on" /><span className={step === 'code' ? 'is-on' : ''} /></div>
 
-          {IS_DEMO && <div className="v2-note is-quiet v2-mfa-demo"><Info {...ICON} /><p>{t.demoMfa}</p></div>}
+          {IS_DEMO && <div className="v2-note is-quiet v2-mfa-demo"><Info {...ICON} /><L as="p" k="demoMfa" /></div>}
 
           {step === 'scan' ? (
             <>
-              <h2 className="v2-sec-h" id="v2-setup-t" ref={headRef} tabIndex={-1}>{t.s1Title}</h2>
-              <p className="v2-sec-lead">{t.s1Text}</p>
+              <L as="h2" className="v2-sec-h" id="v2-setup-t" ref={headRef} tabIndex={-1} k="s1Title" />
+              <L as="p" className="v2-sec-lead" k="s1Text" />
               <div className="v2-qr-row">
                 <div className="v2-qr"><img src={enroll.qrCode} alt={t.qrAlt} width="168" height="168" /></div>
                 <div className="v2-qr-key">
-                  <p>{t.manualKey}</p>
+                  <L as="p" k="manualKey" />
                   <code className="v2-secret">{secretShown}</code>
                   <button type="button" className="v2-mini-btn" onClick={async () => { if (await copyText(secret)) { setKeyCopied(true); setTimeout(() => setKeyCopied(false), 2000); } }}>
-                    {keyCopied ? <Check {...ICON} /> : <Copy {...ICON} />}{keyCopied ? t.copied : t.copyKey}
+                    {keyCopied ? <Check {...ICON} /> : <Copy {...ICON} />}<SwapL on={keyCopied} k="copyKey" kOn="copied" />
                   </button>
                 </div>
               </div>
               <div className="v2-mfa-nav">
-                <button type="button" className="v2-btn v2-btn-secondary v2-btn-sm" onClick={cancelSetup}>{t.cancel}</button>
-                <button type="button" className="v2-btn v2-btn-primary v2-btn-sm icon-trail" onClick={() => setStep('code')}>{t.next}<ArrowRight {...ICON} /></button>
+                <button type="button" className="v2-btn v2-btn-secondary v2-btn-sm" onClick={cancelSetup}><L k="cancel" /></button>
+                <button type="button" className="v2-btn v2-btn-primary v2-btn-sm icon-trail" onClick={() => setStep('code')}><L k="next" /><ArrowRight {...ICON} /></button>
               </div>
             </>
           ) : (
             <form onSubmit={verify} noValidate>
-              <h2 className="v2-sec-h" id="v2-setup-t">{t.s2Title}</h2>
-              <p className="v2-sec-lead">{t.s2Text}</p>
+              <L as="h2" className="v2-sec-h" id="v2-setup-t" k="s2Title" />
+              <L as="p" className="v2-sec-lead" k="s2Text" />
               <div className="v2-field v2-otp-field">
-                <label htmlFor="v2-otp">{t.codeLabel}</label>
+                <label htmlFor="v2-otp"><L k="codeLabel" /></label>
                 <input
                   ref={codeRef}
                   id="v2-otp"
@@ -154,7 +163,6 @@ export default function V2Mfa() {
                   pattern="[0-9]*"
                   autoComplete="one-time-code"
                   enterKeyHint="done"
-                  maxLength={6}
                   placeholder="000000"
                   aria-invalid={!!error}
                   aria-describedby={error ? 'v2-otp-err' : undefined}
@@ -162,8 +170,8 @@ export default function V2Mfa() {
                 {error && <p className="v2-err" id="v2-otp-err" role="alert"><CircleAlert {...ICON} />{error}</p>}
               </div>
               <div className="v2-mfa-nav">
-                <button type="button" className="v2-btn v2-btn-secondary v2-btn-sm icon-lead" onClick={() => { setStep('scan'); setError(''); }}><ChevronLeft {...ICON} />{t.backStep}</button>
-                <button type="submit" className="v2-btn v2-btn-primary v2-btn-sm" disabled={code.length !== 6} aria-busy={busy}>{busy ? t.verifying : t.verify}</button>
+                <button type="button" className="v2-btn v2-btn-secondary v2-btn-sm icon-lead" onClick={() => { setStep('scan'); setError(''); }}><ChevronLeft {...ICON} /><L k="backStep" /></button>
+                <button type="submit" className="v2-btn v2-btn-primary v2-btn-sm" disabled={code.length !== 6} aria-busy={busy}><L k={busy ? 'verifying' : 'verify'} /></button>
               </div>
             </form>
           )}
@@ -171,11 +179,11 @@ export default function V2Mfa() {
       )}
 
       <section className="v2-sec" aria-labelledby="v2-acc-t">
-        <h2 className="v2-sec-h" id="v2-acc-t">{t.account}</h2>
+        <L as="h2" className="v2-sec-h" id="v2-acc-t" k="account" />
         <dl className="v2-kv is-account">
-          <div><dt>{t.fullName}</dt><dd>{profile?.full_name || t.notProvided}</dd></div>
-          <div><dt>{t.email}</dt><dd>{email || t.notProvided}</dd></div>
-          <div><dt>{t.role}</dt><dd>{isSuperadmin ? t.roleSuperadmin : t.roleManager}</dd></div>
+          <div><L as="dt" k="fullName" /><dd>{profile?.full_name || t.notProvided}</dd></div>
+          <div><L as="dt" k="email" /><dd>{email || t.notProvided}</dd></div>
+          <div><L as="dt" k="role" /><L as="dd" k={isSuperadmin ? 'roleSuperadmin' : 'roleManager'} /></div>
         </dl>
       </section>
 
@@ -189,7 +197,7 @@ export default function V2Mfa() {
         onConfirm={disable}
         onCancel={() => setConfirmOff(false)}
       >
-        <p>{t.disableText}</p>
+        <L as="p" k="disableText" />
         {offErr && <p className="v2-err" role="alert"><CircleAlert {...ICON} />{offErr}</p>}
       </Confirm>
     </div>

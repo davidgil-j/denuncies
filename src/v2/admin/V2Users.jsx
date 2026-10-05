@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { UserPlus, Check, Minus, CircleAlert, CircleCheck, X, ShieldCheck, UserRoundMinus, Send } from 'lucide-react';
-import { getAllProfiles, getManagerPermissions, setManagerPermissions, inviteManager, deleteManager } from '../../lib/supabase.js';
+import { UserPlus, Check, Minus, CircleAlert, CircleCheck, X, ShieldCheck, UserRoundMinus, Send, ShieldPlus, ShieldMinus } from 'lucide-react';
+import { getAllProfiles, getManagerPermissions, setManagerPermissions, inviteManager, deleteManager, updateProfile } from '../../lib/supabase.js';
+import { EMAIL_RE } from '../site/fields.jsx';
 import { ICON, fmt, initials } from '../V2Layout.jsx';
-import { useAdmin, Confirm, PERMS } from './adminKit.jsx';
+import { useAdmin, L, Confirm, PERMS } from './adminKit.jsx';
 
 const PERM_LABEL = { can_view: ['pView', 'pViewHelp'], can_edit: ['pEdit', 'pEditHelp'], can_reply: ['pReply', 'pReplyHelp'], can_delete: ['pDelete', 'pDeleteHelp'] };
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function emptyPerms(categories) {
   return categories.map(c => ({ category: c.value, can_view: false, can_edit: false, can_reply: false, can_delete: false }));
@@ -39,7 +39,11 @@ export default function V2Users() {
 
   const [showInvite, setShowInvite] = useState(false);
   const [inv, setInv] = useState({ name: '', email: '' });
-  const [invErr, setInvErr] = useState('');
+  const [invErr, setInvErr] = useState({}); // { name, email, form }
+  const inviteBtn = useRef(null);
+  const [roleTarget, setRoleTarget] = useState(null); // { person, to }
+  const [roleBusy, setRoleBusy] = useState(false);
+  const [roleErr, setRoleErr] = useState('');
   const [inviting, setInviting] = useState(false);
 
   const [removeTarget, setRemoveTarget] = useState(null);
@@ -61,6 +65,8 @@ export default function V2Users() {
 
   async function selectManager(p) {
     if (selected?.id === p.id) return;
+    // Canviar de gestor amb canvis sense desar els perdria: es pregunta
+    if (dirty && !window.confirm(t.leaveUnsaved)) return;
     setSelected(p);
     setPermsFb(null);
     setPermsLoading(true);
@@ -91,12 +97,19 @@ export default function V2Users() {
   };
 
   const dirty = selected && JSON.stringify(perms) !== original;
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const onBefore = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', onBefore);
+    return () => window.removeEventListener('beforeunload', onBefore);
+  }, [dirty]);
 
   async function savePerms() {
     setSaving(true);
     setPermsFb(null);
     const active = perms.filter(p => PERMS.some(k => p[k]));
-    const { error } = await setManagerPermissions(selected.id, active);
+    let error = null;
+    try { ({ error } = await setManagerPermissions(selected.id, active)); } catch (err) { error = err; }
     setSaving(false);
     if (error) { setPermsFb({ ok: false, text: t.permsErr }); return; }
     setOriginal(JSON.stringify(perms));
@@ -105,27 +118,55 @@ export default function V2Users() {
     setTimeout(() => setPermsFb(null), 3000);
   }
 
+  function closeInvite() {
+    setShowInvite(false);
+    setInvErr({});
+    requestAnimationFrame(() => inviteBtn.current?.focus());
+  }
+
   async function sendInvite(e) {
     e.preventDefault();
-    setInvErr('');
     const name = inv.name.trim();
     const email = inv.email.trim().toLowerCase();
-    if (!name || !EMAIL_RE.test(email)) { setInvErr(t.inviteErr); return; }
+    const er = {};
+    if (!name) er.name = t.inviteErrName;
+    if (!EMAIL_RE.test(email)) er.email = t.inviteErrEmail;
+    setInvErr(er);
+    if (er.name) { document.getElementById('v2-inv-name')?.focus(); return; }
+    if (er.email) { document.getElementById('v2-inv-email')?.focus(); return; }
     setInviting(true);
-    const { error } = await inviteManager(email, name);
+    let error = null;
+    // Un error de xarxa o de sessió no ha de deixar el botó per sempre a «Enviant…»
+    try { ({ error } = await inviteManager(email, name)); } catch (err) { error = err; }
     setInviting(false);
     // Els errors de la funció arriben sense traduir: es mostra sempre un text propi
-    if (error) { setInvErr(/already|exist|registered|ja existeix/i.test(error.message ?? '') ? t.inviteExists : t.inviteErr); return; }
+    if (error) { setInvErr({ form: /already|exist|registered|ja existeix/i.test(error.message ?? '') ? t.inviteExists : t.inviteErr }); return; }
     setInv({ name: '', email: '' });
-    setShowInvite(false);
+    closeInvite();
     notify(fmt(t.inviteOk, { email }));
+    loadProfiles();
+  }
+
+  // Segon administrador: el compte no ha de dependre d'una sola persona (art. 8.3, relleu del responsable)
+  async function doRole() {
+    setRoleBusy(true);
+    setRoleErr('');
+    let error = null;
+    try { ({ error } = await updateProfile(roleTarget.person.id, { role: roleTarget.to })); } catch (err) { error = err; }
+    setRoleBusy(false);
+    if (error) { setRoleErr(t.roleErr); return; }
+    const name = roleTarget.person.full_name || roleTarget.person.email;
+    notify(fmt(roleTarget.to === 'superadmin' ? t.promoted : t.demoted, { name }));
+    if (selected?.id === roleTarget.person.id) setSelected(null);
+    setRoleTarget(null);
     loadProfiles();
   }
 
   async function doRemove() {
     setRemoving(true);
     setRemoveErr('');
-    const { error } = await deleteManager(removeTarget.id);
+    let error = null;
+    try { ({ error } = await deleteManager(removeTarget.id)); } catch (err) { error = err; }
     setRemoving(false);
     if (error) { setRemoveErr(t.removeErr); return; }
     const name = removeTarget.full_name || removeTarget.email;
@@ -147,13 +188,13 @@ export default function V2Users() {
     <div className="v2-page">
       <header className="v2-ph">
         <div className="v2-ph-main">
-          <h1 className="v2-ph-title">{t.uTitle}</h1>
-          <p className="v2-ph-lead">{t.uLead}</p>
+          <L as="h1" className="v2-ph-title" k="uTitle" />
+          <L as="p" className="v2-ph-lead" k="uLead" />
         </div>
         {!showInvite && (
           <div className="v2-ph-actions">
-            <button type="button" className="v2-btn v2-btn-primary v2-btn-sm icon-lead" onClick={() => { setShowInvite(true); setInvErr(''); }}>
-              <UserPlus {...ICON} />{t.invite}
+            <button ref={inviteBtn} type="button" className="v2-btn v2-btn-primary v2-btn-sm icon-lead" onClick={() => { setShowInvite(true); setInvErr({}); }}>
+              <UserPlus {...ICON} /><L k="invite" />
             </button>
           </div>
         )}
@@ -163,28 +204,38 @@ export default function V2Users() {
         <form className="v2-sec v2-invite" onSubmit={sendInvite} noValidate aria-labelledby="v2-inv-t">
           <div className="v2-invite-head">
             <div>
-              <h2 className="v2-sec-h" id="v2-inv-t">{t.inviteTitle}</h2>
-              <p className="v2-sec-lead">{t.inviteLead}</p>
+              <L as="h2" className="v2-sec-h" id="v2-inv-t" k="inviteTitle" />
+              <L as="p" className="v2-sec-lead" k="inviteLead" />
             </div>
-            <button type="button" className="v2-icon-btn is-plain" onClick={() => setShowInvite(false)} aria-label={t.cancel}><X {...ICON} /></button>
+            <button type="button" className="v2-icon-btn is-plain" onClick={closeInvite} aria-label={t.cancel}><X {...ICON} /></button>
           </div>
           <div className="v2-invite-fields">
             <div className="v2-field">
-              <label htmlFor="v2-inv-name">{t.fullName}</label>
-              <input id="v2-inv-name" className="v2-input v2-input-sm" autoComplete="off" value={inv.name} onChange={e => setInv(v => ({ ...v, name: e.target.value }))} autoFocus />
+              <label htmlFor="v2-inv-name"><L k="fullName" /></label>
+              <input
+                id="v2-inv-name" className="v2-input v2-input-sm" autoComplete="off" maxLength={120} value={inv.name} autoFocus
+                onChange={e => { setInv(v => ({ ...v, name: e.target.value })); setInvErr(x => ({ ...x, name: '', form: '' })); }}
+                aria-invalid={!!invErr.name || undefined} aria-describedby={invErr.name ? 'v2-inv-name-e' : undefined}
+              />
+              {invErr.name && <p className="v2-err" id="v2-inv-name-e"><CircleAlert {...ICON} />{invErr.name}</p>}
             </div>
             <div className="v2-field">
-              <label htmlFor="v2-inv-email">{t.email}</label>
-              <input id="v2-inv-email" className="v2-input v2-input-sm" type="email" inputMode="email" autoComplete="off" spellCheck={false} value={inv.email} onChange={e => setInv(v => ({ ...v, email: e.target.value }))} />
+              <label htmlFor="v2-inv-email"><L k="email" /></label>
+              <input
+                id="v2-inv-email" className="v2-input v2-input-sm" type="email" inputMode="email" autoComplete="off" spellCheck={false} maxLength={200} value={inv.email}
+                onChange={e => { setInv(v => ({ ...v, email: e.target.value })); setInvErr(x => ({ ...x, email: '', form: '' })); }}
+                aria-invalid={!!invErr.email || undefined} aria-describedby={invErr.email ? 'v2-inv-email-e' : undefined}
+              />
+              {invErr.email && <p className="v2-err" id="v2-inv-email-e"><CircleAlert {...ICON} />{invErr.email}</p>}
             </div>
             <div className="v2-invite-actions">
-              <button type="button" className="v2-btn v2-btn-secondary v2-btn-sm" onClick={() => setShowInvite(false)}>{t.cancel}</button>
-              <button type="submit" className="v2-btn v2-btn-primary v2-btn-sm icon-trail" aria-busy={inviting} disabled={!inv.name.trim() || !inv.email.trim()}>
-                {inviting ? t.sending : t.sendInvite}<Send {...ICON} />
+              <button type="button" className="v2-btn v2-btn-secondary v2-btn-sm" onClick={closeInvite}><L k="cancel" /></button>
+              <button type="submit" className="v2-btn v2-btn-primary v2-btn-sm icon-trail" aria-busy={inviting}>
+                <L k={inviting ? 'sending' : 'sendInvite'} /><Send {...ICON} />
               </button>
             </div>
           </div>
-          {invErr && <p className="v2-err" role="alert"><CircleAlert {...ICON} />{invErr}</p>}
+          {invErr.form && <p className="v2-err" role="alert"><CircleAlert {...ICON} />{invErr.form}</p>}
         </form>
       )}
 
@@ -218,7 +269,14 @@ export default function V2Users() {
                     {isMgr ? (
                       <button type="button" className="v2-person" aria-pressed={selected?.id === p.id} onClick={() => selectManager(p)}>{body}</button>
                     ) : (
-                      <div className="v2-person is-static">{body}<ShieldCheck className="v2-person-shield" {...ICON} /></div>
+                      <div className="v2-person is-static">
+                        {body}
+                        {isMe ? <ShieldCheck className="v2-person-shield" {...ICON} /> : (
+                          <button type="button" className="v2-mini-btn" onClick={() => { setRoleErr(''); setRoleTarget({ person: p, to: 'manager' }); }}>
+                            <ShieldMinus {...ICON} /><L k="demote" />
+                          </button>
+                        )}
+                      </div>
                     )}
                   </li>
                 );
@@ -230,27 +288,32 @@ export default function V2Users() {
         <section className="v2-sec v2-perms" ref={permsRef} aria-labelledby="v2-perms-t" aria-busy={permsLoading}>
           {!selected ? (
             <div className="v2-perms-empty">
-              <h2 className="v2-sec-h" id="v2-perms-t">{t.permsHeading}</h2>
-              <p>{t.pickManager}</p>
+              <L as="h2" className="v2-sec-h" id="v2-perms-t" k="permsHeading" />
+              <L as="p" k="pickManager" />
               <p className="v2-perms-super"><ShieldCheck {...ICON} /><span><b>{t.roleSuperadmin}.</b> {t.superNote}</span></p>
             </div>
           ) : (
             <>
               <div className="v2-perms-head">
                 <div>
-                  <h2 className="v2-sec-h" id="v2-perms-t">{fmt(t.permsTitle, { name: selName })}</h2>
-                  <p className="v2-sec-lead">{t.permsLead}</p>
+                  <L as="h2" className="v2-sec-h" id="v2-perms-t" pick={x => fmt(x.permsTitle, { name: selName })} />
+                  <L as="p" className="v2-sec-lead" k="permsLead" />
                 </div>
-                <button type="button" className="v2-btn v2-btn-ghost-danger v2-btn-sm icon-lead" onClick={() => { setRemoveErr(''); setRemoveTarget(selected); }}>
-                  <UserRoundMinus {...ICON} />{t.remove}
-                </button>
+                <div className="v2-perms-acts">
+                  <button type="button" className="v2-btn v2-btn-secondary v2-btn-sm icon-lead" onClick={() => { setRoleErr(''); setRoleTarget({ person: selected, to: 'superadmin' }); }}>
+                    <ShieldPlus {...ICON} /><L k="promote" />
+                  </button>
+                  <button type="button" className="v2-btn v2-btn-ghost-danger v2-btn-sm icon-lead" onClick={() => { setRemoveErr(''); setRemoveTarget(selected); }}>
+                    <UserRoundMinus {...ICON} /><L k="remove" />
+                  </button>
+                </div>
               </div>
 
               {/* Escriptori: matriu categoria × permís */}
               <table className="v2-matrix">
                 <thead>
                   <tr>
-                    <th className="m-cat"><span className="v2-vh">{t.fCategory}</span></th>
+                    <th className="m-cat"><L className="v2-vh" k="fCategory" /></th>
                     {PERMS.map(k => (
                       <th key={k}><span className="m-h">{t[PERM_LABEL[k][0]]}</span><span className="m-help">{t[PERM_LABEL[k][1]]}</span></th>
                     ))}
@@ -258,7 +321,7 @@ export default function V2Users() {
                 </thead>
                 <tbody>
                   <tr className="m-all">
-                    <th scope="row">{t.allCats}</th>
+                    <th scope="row"><L k="allCats" /></th>
                     {PERMS.map(k => (
                       <td key={k}>
                         <Box checked={colState[k].all} mixed={colState[k].mixed} onChange={() => toggleCol(k)} label={fmt(t.permAria, { perm: t[PERM_LABEL[k][0]], cat: t.allCats })} />
@@ -285,32 +348,34 @@ export default function V2Users() {
                   const label = categories.find(c => c.value === p.category)?.label ?? p.category;
                   return (
                     <li key={p.category} className={p.can_view ? 'is-on' : ''}>
-                      <p className="v2-mperms-cat">{label}</p>
+                      <fieldset>
+                      <legend className="v2-mperms-cat">{label}</legend>
                       <div className="v2-mperms-grid">
                         {PERMS.map(k => (
                           <label key={k} className={`v2-chip${p[k] ? ' is-on' : ''}`}>
-                            <input type="checkbox" checked={p[k]} onChange={() => toggle(i, k)} />
+                            <input type="checkbox" checked={p[k]} onChange={() => toggle(i, k)} aria-label={fmt(t.permAria, { perm: t[PERM_LABEL[k][0]], cat: label })} />
                             <span className="v2-box" aria-hidden="true"><Check strokeWidth={2.5} /></span>
                             {t[PERM_LABEL[k][0]]}
                           </label>
                         ))}
                       </div>
+                      </fieldset>
                     </li>
                   );
                 })}
               </ul>
 
-              <p className="v2-perm-hint">{t.permHint}</p>
+              <L as="p" className="v2-perm-hint" k="permHint" />
 
               <div className={`v2-savebar${dirty ? ' is-dirty' : ''}`}>
                 <span role="status" className="v2-savebar-status">
                   {permsFb ? (
                     <span className={`v2-feedback ${permsFb.ok ? 'is-ok' : 'is-err'}`}>{permsFb.ok ? <CircleCheck {...ICON} /> : <CircleAlert {...ICON} />}{permsFb.text}</span>
-                  ) : dirty ? <span className="v2-unsaved">{t.unsaved}</span> : null}
+                  ) : dirty ? <L className="v2-unsaved" k="unsaved" /> : null}
                 </span>
                 <div className="v2-savebar-actions">
-                  {dirty && <button type="button" className="v2-btn v2-btn-quiet v2-btn-sm" onClick={() => setPerms(JSON.parse(original))}>{t.discard}</button>}
-                  <button type="button" className="v2-btn v2-btn-primary v2-btn-sm" onClick={savePerms} disabled={!dirty} aria-busy={saving}>
+                  {dirty && <button type="button" className="v2-btn v2-btn-quiet v2-btn-sm" onClick={() => setPerms(JSON.parse(original))}><L k="discard" /></button>}
+                  <button type="button" className="v2-btn v2-btn-primary v2-btn-sm" onClick={() => { if (dirty) savePerms(); }} aria-disabled={!dirty} aria-busy={saving}>
                     {saving ? t.saving : t.savePerms}
                   </button>
                 </div>
@@ -319,6 +384,21 @@ export default function V2Users() {
           )}
         </section>
       </div>
+
+      <Confirm
+        open={!!roleTarget}
+        title={roleTarget ? fmt(roleTarget.to === 'superadmin' ? t.promoteTitle : t.demoteTitle, { name: roleTarget.person.full_name || roleTarget.person.email }) : ''}
+        confirmLabel={roleTarget?.to === 'superadmin' ? t.promote : t.demote}
+        busyLabel={t.saving}
+        cancelLabel={t.cancel}
+        busy={roleBusy}
+        tone="primary"
+        onConfirm={doRole}
+        onCancel={() => setRoleTarget(null)}
+      >
+        <p>{roleTarget?.to === 'superadmin' ? t.promoteText : t.demoteText}</p>
+        {roleErr && <p className="v2-err" role="alert"><CircleAlert {...ICON} />{roleErr}</p>}
+      </Confirm>
 
       <Confirm
         open={!!removeTarget}
@@ -330,7 +410,7 @@ export default function V2Users() {
         onConfirm={doRemove}
         onCancel={() => setRemoveTarget(null)}
       >
-        <p>{t.removeText}</p>
+        <L as="p" k="removeText" />
         {removeErr && <p className="v2-err" role="alert"><CircleAlert {...ICON} />{removeErr}</p>}
       </Confirm>
     </div>

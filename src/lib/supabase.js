@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { stripImageMetadata } from './cleanImage.js';
 
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -20,7 +21,10 @@ export const supabase = createClient(SUPABASE_URL || 'http://localhost:54321', S
 export { SUPABASE_URL };
 
 // Mode demo: només si no hi ha credencials (mai en producció). Permet treballar la UI sense BD.
-const DEMO_MODE = !SUPABASE_URL || !SUPABASE_ANON || SUPABASE_ANON === 'PENDING_REPLACE_WITH_ANON_KEY';
+// Mode demo: sense credencials, i només en desenvolupament o si es demana explícitament
+// (VITE_DEMO=1, per ensenyar la web). Un build de producció mal configurat no accepta denúncies falses.
+const NO_CREDENTIALS = !SUPABASE_URL || !SUPABASE_ANON || SUPABASE_ANON === 'PENDING_REPLACE_WITH_ANON_KEY';
+const DEMO_MODE = NO_CREDENTIALS && (import.meta.env.DEV || import.meta.env.VITE_DEMO === '1');
 const DEMO_ORG  = { id: 'demo-org', name: 'Empresa Demo', slug: 'demo' };
 // Dades de demostració del panell (denúncies, missatges, registre, usuaris). Import dinàmic:
 // només es descarrega en mode demo, mai en producció.
@@ -39,6 +43,8 @@ export const IS_DEMO = DEMO_MODE;
 export async function saveComplaint({ formData, files, organizationId }) {
   const id           = crypto.randomUUID();
   const trackingCode = generateTrackingCode();
+  // En una denúncia anònima, les fotos s'envien sense dades ocultes (ubicació, dispositiu, data)
+  if (formData.isAnonymous && files?.length) files = await Promise.all([...files].map(stripImageMetadata));
 
   if (DEMO_MODE) {
     // En la demo, la denúncia enviada apareix al panell i es pot consultar amb el seu codi
@@ -46,22 +52,23 @@ export async function saveComplaint({ formData, files, organizationId }) {
     return { trackingCode, error: null };
   }
 
-  // 1. Insert complaint record (ID generated client-side to avoid SELECT after INSERT)
+  // 1. Insert complaint record (ID generated client-side to avoid SELECT after INSERT).
+  // El codi de seguiment no surt mai del navegador: només se n'envia el hash (migració 010).
   const { error: dbError } = await supabase
     .from('complaints')
     .insert({
       id,
-      tracking_code:   trackingCode,
+      tracking_hash:   await codeHash(trackingCode),
       organization_id: organizationId ?? null,
       is_anonymous:    formData.isAnonymous,
-      reporter_name:   formData.isAnonymous ? null : formData.name  || null,
-      reporter_email:  formData.isAnonymous ? null : formData.email || null,
-      reporter_phone:  formData.isAnonymous ? null : formData.phone || null,
+      reporter_name:   formData.isAnonymous ? null : clean(formData.name),
+      reporter_email:  formData.isAnonymous ? null : clean(formData.email),
+      reporter_phone:  formData.isAnonymous ? null : clean(formData.phone),
       category:        formData.category,
-      department:      formData.department  || null,
-      description:     formData.description,
+      department:      clean(formData.department),
+      description:     formData.description.trim(),
       incident_date:   formData.incidentDate || null,
-      involved_people: formData.involvedPeople || null,
+      involved_people: clean(formData.involvedPeople),
       language:        formData.language ?? 'ca',
       status:          'received',
       priority:        'normal',
@@ -71,25 +78,29 @@ export async function saveComplaint({ formData, files, organizationId }) {
 
   const complaint = { id };
 
-  // 2. Upload attachments (if any)
-  for (const file of files) {
-    const ext  = file.name.split('.').pop();
-    const path = `${complaint.id}/${Date.now()}-${file.name}`;
+  // 2. Upload attachments (if any). La ruta del bucket no porta el nom original: Storage rebutja
+  // accents i caràcters especials, i el nom pot identificar qui denuncia. El nom es desa a la taula.
+  const failedFiles = [];
+  for (const [i, file] of (files ?? []).entries()) {
+    const ext  = (file.name.includes('.') ? file.name.split('.').pop() : '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
+    const path = `${complaint.id}/${i + 1}-${crypto.randomUUID()}${ext ? `.${ext}` : ''}`;
 
     const { error: uploadError } = await supabase
       .storage
       .from('attachments')
-      .upload(path, file, { upsert: false });
+      .upload(path, file, { upsert: false, contentType: file.type || 'application/octet-stream' });
 
-    if (!uploadError) {
-      await supabase.from('attachments').insert({
-        complaint_id: complaint.id,
-        filename:     file.name,
-        storage_path: path,
-        file_size:    file.size,
-        mime_type:    file.type,
-      });
-    }
+    if (uploadError) { failedFiles.push(file.name); continue; }
+
+    const { error: rowError } = await supabase.from('attachments').insert({
+      complaint_id: complaint.id,
+      // En una denúncia anònima el nom original no es desa: pot identificar qui denuncia
+      filename:     formData.isAnonymous ? neutralName(file.name, i) : file.name,
+      storage_path: path,
+      file_size:    file.size,
+      mime_type:    file.type,
+    });
+    if (rowError) failedFiles.push(file.name);
   }
 
   // 3. Write audit log entry
@@ -100,7 +111,22 @@ export async function saveComplaint({ formData, files, organizationId }) {
     details:         { channel: 'web', language: formData.language ?? 'ca' },
   });
 
-  return { trackingCode, error: null };
+  return { trackingCode, failedFiles, error: null };
+}
+
+const clean = (v) => (typeof v === 'string' ? v.trim() || null : v ?? null);
+
+/** Nom neutre per a un adjunt d'una denúncia anònima: "document-1.pdf" */
+export function neutralName(name, i) {
+  const ext = (name.includes('.') ? name.split('.').pop() : '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
+  return `document-${i + 1}${ext ? `.${ext}` : ''}`;
+}
+
+/** Hash del codi de seguiment, igual que code_hash() de la base de dades (SHA-256 en hexadecimal) */
+async function codeHash(code) {
+  const norm = String(code).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(norm));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**
@@ -109,13 +135,10 @@ export async function saveComplaint({ formData, files, organizationId }) {
  */
 export async function getComplaintByCode(trackingCode) {
   if (DEMO_MODE) {
-    const found = (await demo()).findByCode(trackingCode);
-    if (found) return { complaint: found, error: null };
-    return { complaint: {
-      id: 'demo-complaint', tracking_code: trackingCode.toUpperCase(), status: 'reviewing', category: 'other',
-      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-    }, error: null };
+    // Un codi que no existeix es tracta igual que en producció: no hi ha cap denúncia
+    return { complaint: (await demo()).findByCode(trackingCode) ?? null, error: null };
   }
+  // La funció retorna estat, categoria i dates; mai l'id intern ni l'organització
   const { data, error } = await supabase.rpc('get_complaint_by_tracking_code', {
     p_code: trackingCode.toUpperCase(),
   });
@@ -123,19 +146,51 @@ export async function getComplaintByCode(trackingCode) {
 }
 
 export async function getOrganizationBySlug(slug) {
-  if (DEMO_MODE) return { organization: { ...DEMO_ORG, slug }, error: null };
+  // A la demo només existeix el canal "demo": qualsevol altra adreça es comporta com en producció
+  if (DEMO_MODE) return { organization: slug === DEMO_ORG.slug ? { ...DEMO_ORG, name: (await demo()).getOrganization().name } : null, error: null };
   const { data, error } = await supabase.rpc('get_organization_by_slug', { p_slug: slug });
   return { organization: data?.[0] ?? null, error };
 }
 
+/**
+ * Organització de l'usuari autenticat. Amb la migració 009 inclou el pla (plan, trial_ends_at,
+ * paid_until), la persona responsable del sistema i les dades de facturació.
+ */
 export async function getMyOrganization() {
-  if (DEMO_MODE) return { organization: { ...DEMO_ORG }, error: null };
+  if (DEMO_MODE) return { organization: (await demo()).getOrganization(), error: null };
   const { data, error } = await supabase
     .from('organizations')
-    .select('id, name, slug')
+    .select('*')
     .single();
   return { organization: data ?? null, error };
 }
+
+// Camps que l'administrador pot editar des del panell. El pla, les dates i l'adreça del canal
+// només els canvia Reportia (i la base de dades ho impedeix: migració 009).
+const ORG_EDITABLE = ['name', 'responsible_name', 'responsible_role', 'billing_name', 'billing_tax_id', 'billing_email'];
+
+/** Desa les dades de l'organització pròpia. Returns { organization, error } */
+export async function updateMyOrganization(organizationId, updates) {
+  const clean = Object.fromEntries(
+    Object.entries(updates)
+      .filter(([k]) => ORG_EDITABLE.includes(k))
+      .map(([k, v]) => [k, typeof v === 'string' ? (v.trim() || (k === 'name' ? '' : null)) : v]),
+  );
+  if (DEMO_MODE) return (await demo()).updateOrganization(clean);
+  const { data, error } = await supabase.from('organizations').update(clean).eq('id', organizationId).select('*');
+  if (error) return { organization: null, error };
+  if (!data?.length) return { organization: null, error: new Error('not-allowed') };
+  return { organization: data[0], error: null };
+}
+
+// Columnes de la denúncia que el panell pot llegir (migració 011). No hi ha la identitat de qui
+// informa: només es consulta amb getReporterIdentity, i cada consulta queda al registre d'activitat
+const COMPLAINT_COLUMNS = [
+  'id', 'reference', 'organization_id', 'is_anonymous', 'category', 'department', 'description', 'incident_date',
+  'involved_people', 'status', 'priority', 'language', 'created_at', 'updated_at',
+  'acknowledged_at', 'answered_at', 'extended_until', 'extension_reason', 'anonymized_at',
+  'channel', 'meeting_requested', 'meeting_held_at', 'outcome', 'investigation_started_at', 'fiscal_referral_at',
+].join(', ');
 
 /**
  * Fetch all complaints (for admin panel — requires service role or RLS policy).
@@ -144,7 +199,7 @@ export async function getAllComplaints({ status, page = 1, limit = 20 } = {}) {
   if (DEMO_MODE) return (await demo()).getAllComplaints({ status, page, limit });
   let query = supabase
     .from('complaints')
-    .select('*', { count: 'exact' })
+    .select(COMPLAINT_COLUMNS, { count: 'exact' })
     .order('created_at', { ascending: false })
     .range((page - 1) * limit, page * limit - 1);
 
@@ -173,12 +228,30 @@ export async function getMessages(complaintId) {
  * Send a message. sender = 'reporter' | 'manager'
  * Returns { error }
  */
-export async function sendMessage(complaintId, content, sender = 'reporter') {
-  if (DEMO_MODE) return (await demo()).sendMessage(complaintId, content, sender);
+export async function sendMessage(complaintId, content, sender = 'reporter', actorName = '') {
+  if (DEMO_MODE) return (await demo()).sendMessage(complaintId, content, sender, actorName);
   const { error } = await supabase
     .from('messages')
     .insert({ complaint_id: complaintId, sender, content });
 
+  return { error };
+}
+
+/**
+ * Portal de seguiment: missatges d'una denúncia a partir del codi (sense sessió).
+ * Passa per una funció de la base de dades; la taula de missatges no és llegible sense sessió.
+ * Returns { messages, error }
+ */
+export async function getReporterMessages(trackingCode) {
+  if (DEMO_MODE) return (await demo()).getMessagesByCode(trackingCode);
+  const { data, error } = await supabase.rpc('get_messages_by_tracking_code', { p_code: trackingCode });
+  return { messages: data ?? [], error };
+}
+
+/** Portal de seguiment: qui denuncia envia un missatge amb el seu codi. Returns { error } */
+export async function sendReporterMessage(trackingCode, content) {
+  if (DEMO_MODE) return (await demo()).sendReporterMessage(trackingCode, content);
+  const { error } = await supabase.rpc('send_reporter_message', { p_code: trackingCode, p_content: content });
   return { error };
 }
 
@@ -206,6 +279,69 @@ export async function updateComplaintStatus(id, status, adminNote = null, priori
   return { error };
 }
 
+// ── Gestió d'una denúncia (migració 010) ──────────────────────────────
+// El registre d'activitat dels canvis d'estat, prioritat i missatges l'escriu la base de dades.
+
+/**
+ * Canvia estat i/o prioritat. Si RLS no ho permet no s'actualitza cap fila: es retorna error
+ * (abans es mostrava "Canvis desats" sense haver desat res).
+ */
+export async function updateComplaint(id, { status, priority }, actorName = '') {
+  if (DEMO_MODE) return (await demo()).updateComplaint(id, { status, priority }, actorName);
+  const patch = {};
+  if (status) patch.status = status;
+  if (priority) patch.priority = priority;
+  const { data, error } = await supabase.from('complaints').update(patch).eq('id', id).select('id, status, priority, acknowledged_at, answered_at, updated_at');
+  if (error) return { complaint: null, error };
+  if (!data?.length) return { complaint: null, error: new Error('not-allowed') };
+  return { complaint: data[0], error: null };
+}
+
+/** Nota interna al registre (no la veu qui denuncia). Returns { error } */
+export async function addComplaintNote(complaintId, note, actorName = '') {
+  if (DEMO_MODE) return (await demo()).addNote(complaintId, note, actorName);
+  const { error } = await supabase.from('audit_logs').insert({ complaint_id: complaintId, action: 'note_added', details: { note } });
+  return { error };
+}
+
+/** Marca com a llegits els missatges de qui denuncia */
+export async function markMessagesRead(complaintId) {
+  if (DEMO_MODE) return (await demo()).markRead(complaintId);
+  const { error } = await supabase.from('messages').update({ is_read: true })
+    .eq('complaint_id', complaintId).eq('sender', 'reporter').eq('is_read', false);
+  return { error };
+}
+
+/** Amplia el termini de resposta fins a 6 mesos des de la recepció (art. 9.2 d). Returns { until, error } */
+export async function extendDeadline(complaintId, reason, actorName = '') {
+  if (DEMO_MODE) return (await demo()).extendDeadline(complaintId, reason, actorName);
+  const { data, error } = await supabase.rpc('extend_response_deadline', { p_complaint: complaintId, p_reason: reason });
+  return { until: data ?? null, error };
+}
+
+/**
+ * Suprimeix les dades d'una denúncia (art. 32): primer els arxius del bucket, després el contingut.
+ * La fila es conserva anonimitzada al llibre registre. Returns { error }
+ */
+export async function anonymizeComplaint(complaintId, reason, actorName = '') {
+  if (DEMO_MODE) return (await demo()).anonymize(complaintId, reason, actorName);
+  const { data: files } = await supabase.from('attachments').select('storage_path').eq('complaint_id', complaintId);
+  const paths = (files ?? []).map(f => f.storage_path).filter(Boolean);
+  if (paths.length) {
+    const { error: rmError } = await supabase.storage.from('attachments').remove(paths);
+    if (rmError) return { error: rmError };
+  }
+  const { error } = await supabase.rpc('anonymize_complaint', { p_complaint: complaintId, p_reason: reason });
+  return { error };
+}
+
+/** Denúncies que s'han de suprimir (3 mesos sense investigació, o 10 anys). Només administrador. */
+export async function getRetentionDue() {
+  if (DEMO_MODE) return (await demo()).retentionDue();
+  const { data, error } = await supabase.rpc('retention_due');
+  return { items: data ?? [], error };
+}
+
 /**
  * Fetch a single complaint by ID (admin).
  */
@@ -213,11 +349,21 @@ export async function getComplaintById(id) {
   if (DEMO_MODE) return (await demo()).getComplaintById(id);
   const { data, error } = await supabase
     .from('complaints')
-    .select('*, attachments(*)')
+    .select(`${COMPLAINT_COLUMNS}, attachments(*)`)
     .eq('id', id)
     .single();
 
   return { complaint: data, error };
+}
+
+/**
+ * Identitat de qui informa, en una denúncia identificada. La base de dades comprova el permís i
+ * anota la consulta al registre d'activitat. Returns { identity: { reporter_name, reporter_email, reporter_phone } | null, error }
+ */
+export async function getReporterIdentity(complaintId) {
+  if (DEMO_MODE) return (await demo()).getReporterIdentity(complaintId);
+  const { data, error } = await supabase.rpc('get_reporter_identity', { p_complaint: complaintId });
+  return { identity: error ? null : (data?.[0] ?? null), error };
 }
 
 // ── Panell v2 ──────────────────────────────────────────────────────────
@@ -231,14 +377,21 @@ export async function getComplaintById(id) {
 export async function listComplaints({ categories = null } = {}) {
   if (DEMO_MODE) return (await demo()).listComplaints({ categories });
   if (categories && categories.length === 0) return { complaints: [], error: null };
-  let query = supabase
-    .from('complaints')
-    .select('id, tracking_code, category, status, priority, is_anonymous, department, incident_date, language, created_at, updated_at')
-    .order('created_at', { ascending: false })
-    .limit(1000);
-  if (categories) query = query.in('category', categories);
-  const { data, error } = await query;
-  return { complaints: data ?? [], error };
+  const cols = 'id, reference, category, status, priority, is_anonymous, department, incident_date, language, created_at, updated_at, acknowledged_at, answered_at, extended_until, anonymized_at';
+  // Es llegeix per pàgines: sense límit de 1.000 files
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    let query = supabase.from('complaints').select(cols).order('created_at', { ascending: false }).range(from, from + 999);
+    if (categories) query = query.in('category', categories);
+    const { data, error } = await query;
+    if (error) return { complaints: rows, error };
+    rows.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+  // Missatges de qui denuncia encara no llegits, per marcar-los al llistat
+  const { data: unread } = await supabase.from('messages').select('complaint_id').eq('sender', 'reporter').eq('is_read', false);
+  const counts = (unread ?? []).reduce((m, r) => m.set(r.complaint_id, (m.get(r.complaint_id) ?? 0) + 1), new Map());
+  return { complaints: rows.map(c => ({ ...c, unread: counts.get(c.id) ?? 0 })), error: null };
 }
 
 /** Registre d'activitat d'una denúncia. Returns { logs, error } */
@@ -246,10 +399,11 @@ export async function getAuditLogs(complaintId) {
   if (DEMO_MODE) return (await demo()).getAuditLogs(complaintId);
   const { data, error } = await supabase
     .from('audit_logs')
-    .select('id, action, details, created_at')
+    .select('id, action, details, created_at, actor_id, actor:profiles(full_name)')
     .eq('complaint_id', complaintId)
     .order('created_at', { ascending: true });
-  return { logs: data ?? [], error };
+  // L'autor surt del perfil (actor_id el posa la base de dades), no d'un text del navegador
+  return { logs: (data ?? []).map(l => ({ ...l, details: { ...(l.details ?? {}), actor_name: l.actor?.full_name ?? l.details?.actor_name } })), error };
 }
 
 /**
@@ -265,11 +419,16 @@ export async function logComplaintEvent({ complaintId, organizationId = null, ac
 }
 
 /**
- * Elimina una denúncia (missatges i adjunts en cascada). Si RLS no ho permet, no s'esborra
- * cap fila i es retorna error. Returns { error }
+ * Elimina una denúncia, amb els seus missatges, adjunts i fitxers. Si RLS no ho permet,
+ * no s'esborra cap fila i es retorna error. Returns { error }
  */
 export async function deleteComplaint(id) {
   if (DEMO_MODE) return (await demo()).deleteComplaint(id);
+  // Els fitxers del bucket no s'esborren en cascada: s'eliminen abans, mentre les files
+  // d'adjunts encara existeixen (la política de storage les necessita per autoritzar-ho).
+  const { data: files } = await supabase.from('attachments').select('storage_path').eq('complaint_id', id);
+  const paths = (files ?? []).map(f => f.storage_path).filter(Boolean);
+  if (paths.length) await supabase.storage.from('attachments').remove(paths);
   const { data, error } = await supabase.from('complaints').delete().eq('id', id).select('id');
   if (error) return { error };
   if (!data?.length) return { error: new Error('not-allowed') };
@@ -315,6 +474,32 @@ export async function unenrollMfaFactor(factorId) {
   return { error };
 }
 
+/**
+ * Estat de la verificació en dos passos de la sessió.
+ * Returns { level: 'aal1'|'aal2'|null, needsCode, needsSetup, error }
+ *  needsCode: té un factor verificat però la sessió encara no ha passat el codi
+ *  needsSetup: no té cap factor: ha de configurar-ne un abans de veure denúncies
+ */
+export async function getMfaState() {
+  if (DEMO_MODE) return (await demo()).mfaState();
+  const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (error) return { level: null, needsCode: false, needsSetup: false, error };
+  const needsCode = data.nextLevel === 'aal2' && data.currentLevel !== 'aal2';
+  const needsSetup = data.nextLevel !== 'aal2';
+  return { level: data.currentLevel, needsCode, needsSetup, error: null };
+}
+
+/** Segon pas de l'accés: comprova el codi de 6 xifres amb el factor verificat. Returns { error } */
+export async function verifyLoginCode(code) {
+  if (DEMO_MODE) return (await demo()).verifyLoginCode(code);
+  const { data, error: listError } = await supabase.auth.mfa.listFactors();
+  if (listError) return { error: listError };
+  const factor = (data?.totp ?? []).find(f => f.status === 'verified');
+  if (!factor) return { error: new Error('no-factor') };
+  const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: factor.id, code });
+  return { error };
+}
+
 // ── Auth (admin) ───────────────────────────────────────────────────────
 
 export async function signInAdmin(email, password) {
@@ -338,7 +523,8 @@ export async function signUpOrganization({ companyName, fullName, email, passwor
     email,
     password,
     options: {
-      data: { company_name: companyName, full_name: fullName },
+      // Queda constància de l'acceptació de la política i de la data (es pot consultar a Supabase Auth)
+      data: { company_name: companyName, full_name: fullName, privacy_accepted_at: new Date().toISOString() },
       emailRedirectTo: `${window.location.origin}/admin/login`,
     },
   });
@@ -351,7 +537,7 @@ export async function signUpOrganization({ companyName, fullName, email, passwor
 }
 
 export async function signOutAdmin() {
-  if (DEMO_MODE) { sessionStorage.removeItem(DEMO_SESSION_KEY); return { error: null }; }
+  if (DEMO_MODE) { sessionStorage.removeItem(DEMO_SESSION_KEY); (await demo()).resetAal(); return { error: null }; }
   return supabase.auth.signOut();
 }
 
@@ -421,6 +607,14 @@ export async function getProfile(userId) {
 
 export async function getAllProfiles() {
   if (DEMO_MODE) return (await demo()).getAllProfiles();
+  // Amb la migració 008, el correu i l'últim accés venen d'una funció limitada a l'administrador
+  const members = await supabase.rpc('list_org_members');
+  if (!members.error) {
+    return {
+      profiles: (members.data ?? []).map(m => ({ ...m, email: m.email ?? '', invited: !m.last_sign_in_at })),
+      error: null,
+    };
+  }
   const { data, error } = await supabase
     .from('profiles')
     .select('id, role, full_name, created_at')
@@ -451,52 +645,45 @@ export async function getManagerPermissions(managerId) {
 export async function setManagerPermissions(managerId, permissionsArray) {
   // permissionsArray: [{ category, can_view, can_edit, can_reply, can_delete }]
   if (DEMO_MODE) return (await demo()).setManagerPermissions(managerId, permissionsArray);
-  const rows = permissionsArray.map(p => ({ ...p, manager_id: managerId }));
-
-  // Delete existing and re-insert
-  await supabase.from('manager_permissions').delete().eq('manager_id', managerId);
-
-  if (rows.length === 0) return { error: null };
-
-  const { error } = await supabase.from('manager_permissions').insert(rows);
+  // Una sola transacció a la base de dades: si falla, el gestor conserva els permisos que tenia
+  const { error } = await supabase.rpc('set_manager_permissions', { p_manager: managerId, p_permissions: permissionsArray });
   return { error };
 }
 
 export async function inviteManager(email, fullName) {
   // Uses the Edge Function to send invite email securely
   if (DEMO_MODE) return (await demo()).inviteManager(email, fullName);
-  const { data: { session } } = await supabase.auth.getSession();
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/invite-manager`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({ email, full_name: fullName }),
-  });
-  const result = await res.json();
-  return { userId: result.user?.id, error: result.error ? new Error(result.error) : null };
+  return callFunction('invite-manager', { email, full_name: fullName });
 }
 
 export async function updateProfile(userId, updates) {
   if (DEMO_MODE) return (await demo()).updateProfile(userId, updates);
-  const { error } = await supabase.from('profiles').update(updates).eq('id', userId);
-  return { error };
+  const { data, error } = await supabase.from('profiles').update(updates).eq('id', userId).select('id');
+  if (error) return { error };
+  return { error: data?.length ? null : new Error('not-allowed') };
 }
 
 export async function deleteManager(userId) {
   if (DEMO_MODE) return (await demo()).deleteManager(userId);
-  const { data: { session } } = await supabase.auth.getSession();
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-manager`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({ user_id: userId }),
-  });
-  const result = await res.json();
-  return { error: result.error ? new Error(result.error) : null };
+  return callFunction('delete-manager', { user_id: userId });
+}
+
+/** Crida una funció del servidor amb la sessió actual. Mai llança: retorna { userId, error } */
+async function callFunction(name, body) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return { error: new Error('no-session') };
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify(body),
+    });
+    const result = await res.json().catch(() => ({ error: `http-${res.status}` }));
+    if (!res.ok || result.error) return { error: new Error(result.error || `http-${res.status}`) };
+    return { userId: result.user?.id ?? null, error: null };
+  } catch (err) {
+    return { error: err };
+  }
 }
 
 // ── Stats ──────────────────────────────────────────────────────────────

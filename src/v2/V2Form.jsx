@@ -7,15 +7,29 @@ import {
 } from 'lucide-react';
 import { translations } from '../translations.js';
 import { saveComplaint, IS_DEMO } from '../lib/supabase.js';
-import { ICON, fmt } from './V2Layout.jsx';
+import { ICON, fmt, stableOf, Swap } from './V2Layout.jsx';
+import { EMAIL_RE } from './site/fields.jsx';
 
 const TOTAL_STEPS = 4;
 const MAX_FILES = 5;
 const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB
 const MIN_DESC = 20;
-const NEEDS_CAPTCHA = !IS_DEMO; // en mode demo no es mostra el giny de proves de Cloudflare
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const ACCEPT = 'image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip';
+// Verificació antibot: només amb clau configurada i fora de la demo (sense clau de proves per defecte)
+const NEEDS_CAPTCHA = !IS_DEMO && !!import.meta.env.VITE_TURNSTILE_SITE_KEY;
+// Tipus admesos: els que anuncia el text de límits (PDF, imatges, vídeo, àudio i documents d'oficina)
+const EXTENSIONS = [
+  'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf', 'txt', 'csv',
+  'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'tif', 'tiff', 'bmp',
+  'mp4', 'mov', 'm4v', 'avi', 'webm', '3gp', 'mp3', 'm4a', 'wav', 'ogg', 'aac', 'opus', 'amr',
+  'zip', 'eml', 'msg',
+];
+const ACCEPT = EXTENSIONS.map(e => `.${e}`).join(',');
+const extOf = (name) => (name.includes('.') ? name.split('.').pop().toLowerCase() : '');
+
+// Esborrany en memòria del mòdul, MAI a l'emmagatzematge del navegador (en un equip de l'empresa
+// seria un risc per a l'anonimat). Sobreviu a la navegació dins del canal (enrere i endavant,
+// tornar a l'inici), no a recarregar ni a tancar la pestanya. Clau: l'adreça del canal.
+const drafts = new Map();
 
 const EMPTY_FORM = {
   isAnonymous: true, name: '', email: '', phone: '',
@@ -29,17 +43,30 @@ function formatBytes(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
+const LOCALE = { ca: 'ca-ES', es: 'es-ES', en: 'en-GB' };
+// Data local d'avui en format AAAA-MM-DD (toISOString donaria la d'UTC)
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function longDate(iso, lang) {
+  return new Date(`${iso}T12:00:00`).toLocaleDateString(LOCALE[lang] ?? 'es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 function FieldError({ id, children }) {
   if (!children) return null;
   return <p className="v2-err" id={id}><CircleAlert {...ICON} />{children}</p>;
 }
 
 // ── Progrés: barres + noms de pas + mode actiu (es repeteix als 4 passos) ──
+// Text que reserva l'espai de l'idioma més llarg: en canviar d'idioma, el formulari no es mou
+const S = stableOf(T => T.v2);
+
 function Progress({ t, steps, step, isAnonymous }) {
   return (
     <div className="v2-task-head">
       <div className="v2-task-top">
-        <span className="v2-step-count">{fmt(t.stepOf, { n: step, total: TOTAL_STEPS })}</span>
+        <S className="v2-step-count" pick={x => fmt(x.stepOf, { n: step, total: TOTAL_STEPS })} />
         {isAnonymous
           ? <span className="v2-mode is-anon"><EyeOff {...ICON} />{t.modeAnon}</span>
           : <span className="v2-mode is-ident"><UserRound {...ICON} />{t.modeIdent}</span>}
@@ -49,9 +76,9 @@ function Progress({ t, steps, step, isAnonymous }) {
           {steps.map((label, i) => {
             const n = i + 1;
             return (
-              <li key={label} className={n < step ? 'is-done' : undefined} aria-current={n === step ? 'step' : undefined}>
+              <li key={n} className={n < step ? 'is-done' : undefined} aria-current={n === step ? 'step' : undefined}>
                 <span className="bar" />
-                <span className="lbl"><span className="n">{n}</span>{label}</span>
+                <span className="lbl"><span className="n">{n}</span><S pick={(x, T) => T.steps[i]} /></span>
               </li>
             );
           })}
@@ -64,26 +91,44 @@ function Progress({ t, steps, step, isAnonymous }) {
 // ── Adjunts ──────────────────────────────────────────────────────
 function Files({ t, files, onChange }) {
   const [over, setOver] = useState(false);
-  const [skipped, setSkipped] = useState(false);
+  const [skipped, setSkipped] = useState([]); // [{ name, reason }]
   const inputRef = useRef(null);
+  const pickRef = useRef(null);
+  const listRef = useRef(null);
 
   const addFiles = useCallback((incoming) => {
     const all = [...files];
-    let rejected = false;
+    const rejected = [];
     for (const f of incoming) {
-      if (all.length >= MAX_FILES || f.size > MAX_FILE_BYTES) { rejected = true; continue; }
-      if (!all.find(x => x.name === f.name && x.size === f.size)) all.push(f);
+      const reason = !EXTENSIONS.includes(extOf(f.name)) ? 'rejType'
+        : f.size === 0 ? 'rejEmpty'
+        : f.size > MAX_FILE_BYTES ? 'rejSize'
+        : all.some(x => x.name === f.name && x.size === f.size && x.lastModified === f.lastModified) ? 'rejDup'
+        : all.length >= MAX_FILES ? 'rejMax'
+        : null;
+      if (reason) rejected.push({ name: f.name, reason });
+      else all.push(f);
     }
     setSkipped(rejected);
     onChange(all);
   }, [files, onChange]);
+
+  // En treure un arxiu, el focus passa al següent (o al botó de triar) i no es perd
+  function remove(i) {
+    setSkipped([]);
+    onChange(files.filter((_, j) => j !== i));
+    requestAnimationFrame(() => {
+      const buttons = listRef.current?.querySelectorAll('button') ?? [];
+      (buttons[Math.min(i, buttons.length - 1)] ?? pickRef.current)?.focus();
+    });
+  }
 
   return (
     <>
       <div
         className={`v2-drop${over ? ' is-over' : ''}`}
         onDragOver={e => { e.preventDefault(); setOver(true); }}
-        onDragLeave={() => setOver(false)}
+        onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setOver(false); }}
         onDrop={e => { e.preventDefault(); setOver(false); addFiles(Array.from(e.dataTransfer.files)); }}
       >
         <Upload {...ICON} />
@@ -94,9 +139,11 @@ function Files({ t, files, onChange }) {
           accept={ACCEPT}
           className="v2-vh"
           tabIndex={-1}
+          aria-hidden="true"
           onChange={e => { addFiles(Array.from(e.target.files)); e.target.value = ''; }}
         />
         <button
+          ref={pickRef}
           type="button"
           className="v2-btn v2-btn-secondary icon-lead"
           onClick={() => inputRef.current?.click()}
@@ -104,17 +151,27 @@ function Files({ t, files, onChange }) {
         >
           <Paperclip {...ICON} />{t.pick}
         </button>
-        <p>{t.drop}</p>
+        <p className="v2-drop-hint">{t.drop}</p>
         <p className="v2-limits">{t.limits}</p>
       </div>
 
-      {skipped && <div className="v2-note is-error" role="alert"><CircleAlert {...ICON} /><p>{t.skipped}</p></div>}
+      {skipped.length > 0 && (
+        <div className="v2-note is-error" role="alert">
+          <CircleAlert {...ICON} />
+          <div>
+            <p>{t.skipped}</p>
+            <ul className="v2-rejected">
+              {skipped.map((r, i) => <li key={`${r.name}-${i}`}><span className="v2-rejected-name">{r.name}</span>: {t[r.reason]}</li>)}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {files.length > 0 && (
         <>
-          <ul className="v2-files">
+          <ul className="v2-files" ref={listRef}>
             {files.map((f, i) => (
-              <li key={`${f.name}-${f.size}`} className="v2-file">
+              <li key={`${f.name}-${f.size}-${f.lastModified}`} className="v2-file">
                 <Paperclip {...ICON} />
                 <span className="v2-file-name" title={f.name}>{f.name}</span>
                 <span className="v2-file-size">{formatBytes(f.size)}</span>
@@ -122,7 +179,7 @@ function Files({ t, files, onChange }) {
                   type="button"
                   className="v2-icon-btn"
                   aria-label={fmt(t.remove, { name: f.name })}
-                  onClick={() => { setSkipped(false); onChange(files.filter((_, j) => j !== i)); }}
+                  onClick={() => remove(i)}
                 >
                   <Trash2 {...ICON} />
                 </button>
@@ -139,12 +196,25 @@ function Files({ t, files, onChange }) {
 }
 
 // ── Pantalla d'èxit ──────────────────────────────────────────────
-function Success({ t, code, base, lang, onTrack }) {
+function Success({ t, code, base, lang, failed = 0, onTrack, onHome }) {
   const [copied, setCopied] = useState(false);
+  const [secured, setSecured] = useState(false); // ha copiat o descarregat el codi
   const codeRef = useRef(null);
   const headRef = useRef(null);
 
   useEffect(() => { headRef.current?.focus(); }, []);
+
+  // Fins que no copia o descarrega el codi, tancar o recarregar la pestanya demana confirmació
+  useEffect(() => {
+    if (secured) return undefined;
+    const onBefore = (e) => {
+      if (window.__v2Exiting) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBefore);
+    return () => window.removeEventListener('beforeunload', onBefore);
+  }, [secured]);
 
   async function copy() {
     try {
@@ -159,6 +229,7 @@ function Success({ t, code, base, lang, onTrack }) {
       document.execCommand('copy');
     }
     setCopied(true);
+    setSecured(true);
     setTimeout(() => setCopied(false), 2500);
   }
 
@@ -182,30 +253,38 @@ function Success({ t, code, base, lang, onTrack }) {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    setSecured(true);
   }
 
   return (
     <div className="v2-wrap is-narrow">
       <div className="v2-done">
         <div className="v2-done-icon"><CircleCheck {...ICON} /></div>
-        <h1 className="v2-h1" ref={headRef} tabIndex={-1}>{t.okTitle}</h1>
-        <p className="v2-lead">{t.okLead}</p>
-        <div className="v2-bigcode" ref={codeRef} aria-label={code.split('').join(' ')}>{code}</div>
+        <S as="h1" className="v2-h1" ref={headRef} tabIndex={-1} k="okTitle" />
+        <S as="p" className="v2-lead" k="okLead" />
+        <div className="v2-bigcode" ref={codeRef} aria-hidden="true">{code}</div>
+        <p className="v2-vh">{code.split('').join(' ')}</p>
         <div className="v2-done-actions">
           <button type="button" className="v2-btn v2-btn-primary icon-lead" onClick={copy}>
             {copied ? <Check {...ICON} /> : <Copy {...ICON} />}
-            <span aria-live="polite">{copied ? t.copied : t.copy}</span>
+            <Swap lang={lang} on={copied} pick={T => T.v2.copy} pickOn={T => T.v2.copied} />
           </button>
           <button type="button" className="v2-btn v2-btn-secondary icon-lead" onClick={download}>
             <Download {...ICON} />{t.download}
           </button>
         </div>
         <div className="v2-note"><KeyRound {...ICON} /><p>{t.codeWarn}</p></div>
+        {failed > 0 && (
+          <div className="v2-note is-error" role="alert">
+            <TriangleAlert {...ICON} />
+            <p>{failed === 1 ? t.filesFailedOne : fmt(t.filesFailed, { n: failed })}</p>
+          </div>
+        )}
         <div className="v2-done-links">
           <button type="button" className="v2-btn v2-btn-secondary icon-lead" onClick={onTrack}>
             <Search {...ICON} />{t.trackNow}
           </button>
-          <Link className="v2-btn v2-btn-quiet" to={base}>{t.goHome}</Link>
+          <Link className="v2-btn v2-btn-quiet" to={base} replace onClick={onHome}>{t.goHome}</Link>
         </div>
       </div>
     </div>
@@ -219,20 +298,27 @@ export default function V2Form() {
   const root = translations[lang];
   const t = root.v2;
 
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [errors, setErrors] = useState({});
+  const saved = drafts.get(base);
+  const [step, setStep] = useState(saved?.step ?? 1);
+  const [form, setForm] = useState(saved?.form ?? EMPTY_FORM);
+  const [errors, setErrors] = useState({}); // { camp: clau del text }: es tradueix en pintar, així canvia amb l'idioma
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
+  const [submitError, setSubmitError] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState(null);
-  const [trackingCode, setTrackingCode] = useState(null);
+  const [trackingCode, setTrackingCode] = useState(saved?.trackingCode ?? null);
+  const [failedFiles, setFailedFiles] = useState(saved?.failedFiles ?? 0);
+  const [toSummary, setToSummary] = useState(false); // s'ha entrat a editar des del resum
   const headRef = useRef(null);
   const firstRender = useRef(true);
+
+  // L'esborrany (i el codi, un cop enviada) es guarda en memòria a cada canvi
+  useEffect(() => { drafts.set(base, { step, form, trackingCode, failedFiles }); }, [base, step, form, trackingCode, failedFiles]);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
   const clearError = (key) => setErrors(e => { if (!e[key]) return e; const n = { ...e }; delete n[key]; return n; });
 
-  useEffect(() => { document.title = `${t.ctaSubmit} · ${org.name}`; }, [t, org]);
+  // Títol neutre a la pantalla d'èxit: l'historial no ha de dir que s'ha enviat una denúncia
+  useEffect(() => { document.title = `${trackingCode ? t.channelName : t.ctaSubmit} · ${org.name}`; }, [t, org, trackingCode]);
 
   // En canviar de pas: a dalt de tot i focus al títol (lectors de pantalla)
   useEffect(() => {
@@ -256,12 +342,16 @@ export default function V2Form() {
 
   function validate(s) {
     const errs = {};
-    if (s === 1 && !form.isAnonymous && !EMAIL_RE.test(form.email.trim())) errs.email = t.errEmail;
+    if (s === 1 && !form.isAnonymous && !EMAIL_RE.test(form.email.trim())) errs.email = 'errEmail';
     if (s === 2) {
-      if (!form.category) errs.category = t.errCategory;
-      if (form.description.trim().length < MIN_DESC) errs.description = t.errDescription;
+      if (!form.category) errs.category = 'errCategory';
+      if (form.description.trim().length < MIN_DESC) errs.description = 'errDescription';
+      if (form.incidentDate) {
+        const d = new Date(`${form.incidentDate}T12:00:00`);
+        if (Number.isNaN(d.getTime()) || d.getFullYear() < 1950 || form.incidentDate > todayIso()) errs.date = 'errDate';
+      }
     }
-    if (s === 4 && !form.privacy) errs.privacy = t.consentErr;
+    if (s === 4 && !form.privacy) errs.privacy = 'consentErr';
     setErrors(errs);
     return errs;
   }
@@ -269,22 +359,33 @@ export default function V2Form() {
   function focusFirstError(errs) {
     const first = Object.keys(errs)[0];
     if (!first) return;
-    requestAnimationFrame(() => document.getElementById(`v2-f-${first}`)?.focus());
+    // Al centre de la pantalla: al mòbil, la barra fixa de Tornar / Continuar no el tapa
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`v2-f-${first}`);
+      el?.scrollIntoView({ block: 'center', behavior: 'auto' });
+      el?.focus({ preventScroll: true });
+    });
   }
 
   function next() {
     const errs = validate(step);
     if (Object.keys(errs).length) { focusFirstError(errs); return; }
+    // Si s'ha vingut a editar des del resum, es torna al resum
+    if (toSummary) { setToSummary(false); setStep(4); return; }
     setStep(s => s + 1);
   }
 
   function back() {
     setErrors({});
-    if (step === 1) navigate(base);
+    // Dins del canal es navega substituint l'entrada de l'historial: el canal només n'ocupa una
+    if (step === 1) navigate(base, { replace: true });
     else setStep(s => s - 1);
   }
 
-  function goTo(s) { setErrors({}); setStep(s); }
+  function goTo(s) { setErrors({}); setToSummary(true); setStep(s); }
+
+  // Sortir de la pantalla d'èxit per decisió pròpia esborra el codi de la memòria
+  function forget() { drafts.delete(base); }
 
   async function submit(e) {
     e.preventDefault();
@@ -292,18 +393,18 @@ export default function V2Form() {
     if (Object.keys(errs).length) { focusFirstError(errs); return; }
     if ((NEEDS_CAPTCHA && !turnstileToken) || submitting) return;
     setSubmitting(true);
-    setSubmitError('');
+    setSubmitError(false);
     try {
-      const { trackingCode: code, error } = await saveComplaint({
+      const { trackingCode: code, failedFiles: failed, error } = await saveComplaint({
         formData: { ...form, language: lang },
         files: form.files,
         organizationId: org.id,
       });
-      if (error) { console.error('[Supabase]', error); setSubmitError(t.submitError); }
-      else setTrackingCode(code);
+      if (error) { console.error('[Supabase]', error); setSubmitError(true); }
+      else { setFailedFiles(failed?.length ?? 0); setTrackingCode(code); }
     } catch (err) {
       console.error(err);
-      setSubmitError(t.submitError);
+      setSubmitError(true);
     } finally {
       setSubmitting(false);
     }
@@ -316,7 +417,9 @@ export default function V2Form() {
         code={trackingCode}
         base={base}
         lang={lang}
-        onTrack={() => navigate(`${base}/consulta`, { state: { code: trackingCode } })}
+        failed={failedFiles}
+        onHome={forget}
+        onTrack={() => { forget(); navigate(`${base}/consulta`, { replace: true, state: { code: trackingCode } }); }}
       />
     );
   }
@@ -333,8 +436,8 @@ export default function V2Form() {
         {step === 1 && (
           <>
             <div className="v2-q">
-              <h1 className="v2-h1" ref={headRef} tabIndex={-1}>{t.s1Title}</h1>
-              <p className="v2-lead">{t.s1Lead}</p>
+              <S as="h1" className="v2-h1" ref={headRef} tabIndex={-1} k="s1Title" />
+              <S as="p" className="v2-lead" k="s1Lead" />
             </div>
 
             <div className="v2-options" role="radiogroup" aria-label={t.s1Title}>
@@ -342,11 +445,11 @@ export default function V2Form() {
                 <input type="radio" name="v2-mode" checked={form.isAnonymous} onChange={() => { set('isAnonymous', true); clearError('email'); }} aria-describedby="v2-d-anon" />
                 <span className="v2-radio" aria-hidden="true" />
                 <span>
-                  <span className="v2-opt-head"><span className="v2-opt-title">{t.anonTitle}</span><span className="v2-badge">{t.recommended}</span></span>
-                  <span className="v2-opt-desc">{t.anonDesc}</span>
+                  <span className="v2-opt-head"><S className="v2-opt-title" k="anonTitle" /><span className="v2-badge">{t.recommended}</span></span>
+                  <S block className="v2-opt-desc" k="anonDesc" />
                   <span className="v2-facts" id="v2-d-anon">
-                    <span className="v2-fact"><X {...ICON} /><span>{t.anonF1}</span></span>
-                    <span className="v2-fact"><KeyRound {...ICON} /><span>{t.anonF2}</span></span>
+                    <span className="v2-fact"><X {...ICON} /><S k="anonF1" /></span>
+                    <span className="v2-fact"><KeyRound {...ICON} /><S k="anonF2" /></span>
                   </span>
                 </span>
               </label>
@@ -355,11 +458,11 @@ export default function V2Form() {
                 <input type="radio" name="v2-mode" checked={!form.isAnonymous} onChange={() => set('isAnonymous', false)} aria-describedby="v2-d-ident" />
                 <span className="v2-radio" aria-hidden="true" />
                 <span>
-                  <span className="v2-opt-head"><span className="v2-opt-title">{t.identTitle}</span></span>
-                  <span className="v2-opt-desc">{t.identDesc}</span>
+                  <span className="v2-opt-head"><S className="v2-opt-title" k="identTitle" /></span>
+                  <S block className="v2-opt-desc" k="identDesc" />
                   <span className="v2-facts" id="v2-d-ident">
-                    <span className="v2-fact"><Check {...ICON} /><span>{t.identF1}</span></span>
-                    <span className="v2-fact"><Eye {...ICON} /><span>{t.identF2}</span></span>
+                    <span className="v2-fact"><Check {...ICON} /><S k="identF1" /></span>
+                    <span className="v2-fact"><Eye {...ICON} /><S k="identF2" /></span>
                   </span>
                 </span>
               </label>
@@ -385,7 +488,7 @@ export default function V2Form() {
                       aria-describedby={errors.email ? 'v2-e-email' : undefined}
                       onChange={e => { set('email', e.target.value); clearError('email'); }}
                     />
-                    <FieldError id="v2-e-email">{errors.email}</FieldError>
+                    <FieldError id="v2-e-email">{t[errors.email]}</FieldError>
                   </div>
                   <div className="v2-field">
                     <label htmlFor="v2-f-name">{t.fName} <span className="tag">{t.optionalTag}</span></label>
@@ -405,8 +508,8 @@ export default function V2Form() {
         {step === 2 && (
           <>
             <div className="v2-q">
-              <h1 className="v2-h1" ref={headRef} tabIndex={-1}>{t.s2Title}</h1>
-              <p className="v2-lead">{t.s2Lead}</p>
+              <S as="h1" className="v2-h1" ref={headRef} tabIndex={-1} k="s2Title" />
+              <S as="p" className="v2-lead" k="s2Lead" />
             </div>
 
             {Object.keys(errors).length > 1 && (
@@ -414,15 +517,16 @@ export default function V2Form() {
             )}
 
             <div className="v2-fields">
-              <fieldset className="v2-field">
+              <fieldset className="v2-field" aria-describedby={errors.category ? 'v2-e-category' : undefined}>
                 <legend className="v2-label">{t.category} <span className="tag">{t.requiredTag}</span></legend>
-                <div className={`v2-choices${errors.category ? ' is-invalid' : ''}`} role="radiogroup" aria-describedby={errors.category ? 'v2-e-category' : undefined}>
+                <div className={`v2-choices${errors.category ? ' is-invalid' : ''}`}>
                   {root.categories.map((c, i) => (
                     <label key={c.value} className={`v2-choice${form.category === c.value ? ' is-on' : ''}`}>
                       <input
                         type="radio" name="v2-category" value={c.value}
                         id={i === 0 ? 'v2-f-category' : undefined}
                         checked={form.category === c.value}
+                        aria-invalid={!!errors.category || undefined}
                         onChange={() => { set('category', c.value); clearError('category'); }}
                       />
                       <span className="v2-radio" aria-hidden="true" />
@@ -430,7 +534,7 @@ export default function V2Form() {
                     </label>
                   ))}
                 </div>
-                <FieldError id="v2-e-category">{errors.category}</FieldError>
+                <FieldError id="v2-e-category">{t[errors.category]}</FieldError>
               </fieldset>
 
               <div className="v2-field">
@@ -445,9 +549,9 @@ export default function V2Form() {
                 />
                 <div className="v2-field-meta">
                   <span>{fmt(t.minChars, { n: MIN_DESC })}</span>
-                  <span>{fmt(t.charCount, { n: descLen })}</span>
+                  <span>{descLen === 1 ? t.charCountOne : fmt(t.charCount, { n: descLen })}</span>
                 </div>
-                <FieldError id="v2-e-description">{errors.description}</FieldError>
+                <FieldError id="v2-e-description">{t[errors.description]}</FieldError>
                 {form.isAnonymous && (
                   <div className="v2-note" role="note"><ShieldAlert {...ICON} /><p>{t.anonWarn}<small>{t.anonWarnEx}</small></p></div>
                 )}
@@ -460,7 +564,13 @@ export default function V2Form() {
                 </div>
                 <div className="v2-field">
                   <label htmlFor="v2-f-date">{t.incidentDate} <span className="tag">{t.optionalTag}</span></label>
-                  <input id="v2-f-date" className="v2-input" type="date" max={new Date().toISOString().split('T')[0]} value={form.incidentDate} onChange={e => set('incidentDate', e.target.value)} />
+                  <input
+                    id="v2-f-date" className="v2-input" type="date" min="1950-01-01" max={todayIso()} value={form.incidentDate}
+                    aria-invalid={!!errors.date}
+                    aria-describedby={errors.date ? 'v2-e-date' : undefined}
+                    onChange={e => { set('incidentDate', e.target.value); clearError('date'); }}
+                  />
+                  <FieldError id="v2-e-date">{t[errors.date]}</FieldError>
                 </div>
                 <div className="v2-field">
                   <label htmlFor="v2-f-involved">{t.involved} <span className="tag">{t.optionalTag}</span></label>
@@ -475,8 +585,8 @@ export default function V2Form() {
         {step === 3 && (
           <>
             <div className="v2-q">
-              <h1 className="v2-h1" ref={headRef} tabIndex={-1}>{t.s3Title}</h1>
-              <p className="v2-lead">{t.s3Lead}</p>
+              <S as="h1" className="v2-h1" ref={headRef} tabIndex={-1} k="s3Title" />
+              <S as="p" className="v2-lead" k="s3Lead" />
             </div>
             <Files t={t} files={form.files} onChange={files => set('files', files)} />
           </>
@@ -486,8 +596,8 @@ export default function V2Form() {
         {step === 4 && (
           <>
             <div className="v2-q">
-              <h1 className="v2-h1" ref={headRef} tabIndex={-1}>{t.s4Title}</h1>
-              <p className="v2-lead">{t.s4Lead}</p>
+              <S as="h1" className="v2-h1" ref={headRef} tabIndex={-1} k="s4Title" />
+              <S as="p" className="v2-lead" k="s4Lead" />
             </div>
 
             <dl className="v2-summary">
@@ -496,37 +606,48 @@ export default function V2Form() {
                 <dd>
                   {form.isAnonymous
                     ? <span className="v2-pill"><EyeOff {...ICON} />{t.sumAnon}</span>
-                    : <span className="v2-pill"><UserRound {...ICON} />{t.sumIdent}: {[form.name, form.email, form.phone].filter(Boolean).join(' · ')}</span>}
+                    : <span className="v2-pill"><UserRound {...ICON} />{t.sumIdent}: {[form.name, form.email, form.phone].map(v => v.trim()).filter(Boolean).join(' · ')}</span>}
                 </dd>
-                <button type="button" className="v2-btn v2-btn-quiet" onClick={() => goTo(1)}>{t.edit}</button>
+
+                <dd className="v2-sum-act"><button type="button" className="v2-btn v2-btn-quiet" aria-label={`${t.edit}: ${t.sumMode}`} onClick={() => goTo(1)}>{t.edit}</button></dd>
               </div>
               <div className="v2-sum-row">
                 <dt>{t.sumCategory}</dt>
                 <dd>{categoryLabel}</dd>
-                <button type="button" className="v2-btn v2-btn-quiet" onClick={() => goTo(2)}>{t.edit}</button>
+
+                <dd className="v2-sum-act"><button type="button" className="v2-btn v2-btn-quiet" aria-label={`${t.edit}: ${t.sumCategory}`} onClick={() => goTo(2)}>{t.edit}</button></dd>
               </div>
               <div className="v2-sum-row">
                 <dt>{t.sumDescription}</dt>
                 <dd className="v2-sum-desc">{form.description.trim()}</dd>
+
+                <dd className="v2-sum-act"><button type="button" className="v2-btn v2-btn-quiet" aria-label={`${t.edit}: ${t.sumDescription}`} onClick={() => goTo(2)}>{t.edit}</button></dd>
               </div>
               <div className="v2-sum-row">
                 <dt>{t.sumDepartment}</dt>
-                <dd className={form.department ? undefined : 'is-empty'}>{form.department || t.none}</dd>
+                <dd className={form.department.trim() ? undefined : 'is-empty'}>{form.department.trim() || t.none}</dd>
+
+                <dd className="v2-sum-act"><button type="button" className="v2-btn v2-btn-quiet" aria-label={`${t.edit}: ${t.sumDepartment}`} onClick={() => goTo(2)}>{t.edit}</button></dd>
               </div>
               <div className="v2-sum-row">
                 <dt>{t.sumDate}</dt>
-                <dd className={form.incidentDate ? undefined : 'is-empty'}>{form.incidentDate || t.none}</dd>
+                <dd className={form.incidentDate ? undefined : 'is-empty'}>{form.incidentDate ? longDate(form.incidentDate, lang) : t.none}</dd>
+
+                <dd className="v2-sum-act"><button type="button" className="v2-btn v2-btn-quiet" aria-label={`${t.edit}: ${t.sumDate}`} onClick={() => goTo(2)}>{t.edit}</button></dd>
               </div>
               <div className="v2-sum-row">
                 <dt>{t.sumInvolved}</dt>
-                <dd className={form.involvedPeople ? undefined : 'is-empty'}>{form.involvedPeople || t.none}</dd>
+                <dd className={form.involvedPeople.trim() ? undefined : 'is-empty'}>{form.involvedPeople.trim() || t.none}</dd>
+
+                <dd className="v2-sum-act"><button type="button" className="v2-btn v2-btn-quiet" aria-label={`${t.edit}: ${t.sumInvolved}`} onClick={() => goTo(2)}>{t.edit}</button></dd>
               </div>
               <div className="v2-sum-row">
                 <dt>{t.sumFiles}</dt>
                 <dd className={form.files.length ? undefined : 'is-empty'}>
                   {form.files.length ? form.files.map(f => f.name).join('\n') : t.noFiles}
                 </dd>
-                <button type="button" className="v2-btn v2-btn-quiet" onClick={() => goTo(3)}>{t.edit}</button>
+
+                <dd className="v2-sum-act"><button type="button" className="v2-btn v2-btn-quiet" aria-label={`${t.edit}: ${t.sumFiles}`} onClick={() => goTo(3)}>{t.edit}</button></dd>
               </div>
             </dl>
 
@@ -540,11 +661,14 @@ export default function V2Form() {
               <span className="v2-box" aria-hidden="true"><Check strokeWidth={3} aria-hidden="true" /></span>
               <span>{t.consent}</span>
             </label>
-            <FieldError id="v2-e-privacy">{errors.privacy}</FieldError>
+            <FieldError id="v2-e-privacy">{t[errors.privacy]}</FieldError>
+            <p className="v2-consent-link">
+              <a className="v2-link" href={`${base}/privacidad?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t.privacyRead}</a>
+            </p>
 
             {NEEDS_CAPTCHA && <div className="v2-turnstile" aria-label={t.verifying}>
               <Turnstile
-                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
                 options={{ language: lang }}
                 onSuccess={token => setTurnstileToken(token)}
                 onError={() => setTurnstileToken(null)}
@@ -552,18 +676,18 @@ export default function V2Form() {
               />
             </div>}
 
-            {submitError && <div className="v2-note is-error" role="alert"><CircleAlert {...ICON} /><p>{submitError}</p></div>}
+            {submitError && <div className="v2-note is-error" role="alert"><CircleAlert {...ICON} /><p>{t.submitError}</p></div>}
           </>
         )}
 
         {/* ── Navegació: Tornar sempre visible i a la mateixa altura que Continuar ── */}
         <div className="v2-actionbar">
           <button type="button" className="v2-btn v2-btn-secondary icon-lead" onClick={back}>
-            <ChevronLeft {...ICON} />{t.back}
+            <ChevronLeft {...ICON} /><S k="back" />
           </button>
           {step < 4 ? (
             <button type="submit" className="v2-btn v2-btn-primary icon-trail">
-              {t.next}<ArrowRight {...ICON} />
+              <S k="next" /><ArrowRight {...ICON} />
             </button>
           ) : (
             <button
@@ -572,7 +696,7 @@ export default function V2Form() {
               disabled={NEEDS_CAPTCHA && !turnstileToken}
               aria-busy={submitting}
             >
-              {submitting ? t.submitting : t.submit}<ArrowRight {...ICON} />
+              <S k={submitting ? 'submitting' : 'submit'} /><ArrowRight {...ICON} />
             </button>
           )}
         </div>

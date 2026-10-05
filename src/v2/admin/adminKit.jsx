@@ -4,7 +4,7 @@ import {
   CircleDot, CircleDashed, CircleDotDashed, MessageSquareReply, CircleCheck, CircleCheckBig, Archive,
   SignalHigh, OctagonAlert, CircleAlert, Hourglass, Clock, ChevronDown,
 } from 'lucide-react';
-import { ICON, fmt } from '../V2Layout.jsx';
+import { ICON, fmt, stableOf, Swap } from '../V2Layout.jsx';
 
 // ── Constants ───────────────────────────────────────────────────────────
 export const STATUS_ORDER = ['received', 'reviewing', 'investigating', 'waiting', 'resolved', 'closed', 'archived'];
@@ -23,6 +23,18 @@ const DAY = 86400000;
 
 export const useAdmin = () => useOutletContext();
 
+/**
+ * Text del panell que reserva l'espai de l'idioma més llarg: en canviar d'idioma, capçaleres
+ * i botons no es mouen (vegeu Stable). k = clau de v2admin; pick(textos del panell, tots els
+ * textos, idioma), si el text es compon o ve d'un altre lloc.
+ */
+export const L = stableOf(T => T.v2admin);
+/** Etiqueta d'un botó que canvia en fer l'acció (Copiar → Copiat) sense canviar de mida. */
+export function SwapL({ on, k, kOn }) {
+  const { lang } = useAdmin();
+  return <Swap lang={lang} on={on} pick={T => T.v2admin[k]} pickOn={T => T.v2admin[kOn]} />;
+}
+
 export function localeOf(lang) {
   return lang === 'en' ? 'en-GB' : lang === 'es' ? 'es-ES' : 'ca-ES';
 }
@@ -36,7 +48,13 @@ export function fDateTime(iso, lang) {
   return new Date(iso).toLocaleString(localeOf(lang), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 export function fNum(iso, lang) {
-  // Un sol format curt a tot el panell ("23 jun 2026")
+  // Data curta de columna: "23 jun 2026". En català el format per defecte ("25 de juny del 2026")
+  // no hi cap; es fa amb dia, mes abreujat sense "de" i any
+  if (lang === 'ca') {
+    const d = new Date(iso);
+    const m = d.toLocaleDateString('ca-ES', { month: 'short' }).replace(/^(de |d’|d')/, '').replace(/\.$/, '');
+    return `${d.getDate()} ${m} ${d.getFullYear()}`;
+  }
   return fDate(iso, lang);
 }
 export function fShort(iso, lang) {
@@ -65,30 +83,36 @@ export function relDay(iso, t) {
 }
 
 /**
- * Terminis de la Llei 2/2023 calculats des de la recepció (created_at):
- * acusament de recepció en 7 dies naturals i resposta en un màxim de 3 mesos.
- * L'acusament es dona per fet quan la denúncia surt de "received"; la resposta, quan passa
- * a resolved/closed/archived (data aproximada: updated_at, o la del registre si se li passa).
+ * Terminis de la Llei 2/2023 calculats des de la recepció (created_at), en dies de calendari
+ * (un canvi d'hora no els desplaça): acusament de recepció en 7 dies naturals i resposta en un
+ * màxim de 3 mesos, o fins a la data ampliada (extended_until, art. 9.2 d).
+ * Les dates d'acusament i de resposta les desa la base de dades (acknowledged_at, answered_at,
+ * migració 010); sense elles, es dedueixen de l'estat.
  */
-export function deadlineInfo(c, now = new Date(), { answeredAt: answeredOverride } = {}) {
+export function deadlineInfo(c, now = new Date(), { answeredAt: answeredOverride, ackAt: ackOverride } = {}) {
   const received = new Date(c.created_at);
-  const ackDue = new Date(received.getTime() + ACK_DAYS * DAY);
-  const respDue = addMonths(received, RESP_MONTHS);
-  const acked = c.status !== 'received';
-  const answered = ANSWERED.includes(c.status);
-  const answeredAt = answered ? new Date(answeredOverride || c.updated_at || c.created_at) : null;
+  const ackDue = new Date(received);
+  ackDue.setDate(ackDue.getDate() + ACK_DAYS);
+  const baseDue = addMonths(received, RESP_MONTHS);
+  const respDue = c.extended_until ? new Date(`${c.extended_until}T12:00:00`) : baseDue;
+  const ackAt = c.acknowledged_at ?? ackOverride ?? null;
+  const acked = !!ackAt || c.status !== 'received';
+  const answered = !!c.answered_at || ANSWERED.includes(c.status);
+  const answeredAt = answered ? new Date(c.answered_at || answeredOverride || c.updated_at || c.created_at) : null;
   const ackDays = daysBetween(now, ackDue);
   const respDays = daysBetween(now, respDue);
   const state = (days, soon) => (days < 0 ? 'overdue' : days <= soon ? 'soon' : 'pending');
 
-  const ack = acked ? { state: 'done', due: ackDue } : { state: state(ackDays, SOON_ACK), days: ackDays, due: ackDue };
+  const ack = acked
+    ? { state: 'done', due: ackDue, at: ackAt ? new Date(ackAt) : null, late: ackAt ? daysBetween(ackAt, ackDue) < 0 : false }
+    : { state: state(ackDays, SOON_ACK), days: ackDays, due: ackDue };
   const resp = answered
     ? { state: daysBetween(answeredAt, respDue) >= 0 ? 'met' : 'late', at: answeredAt, due: respDue }
     : { state: state(respDays, SOON_RESP), days: respDays, due: respDue };
   const next = answered ? { kind: 'resp', ...resp } : !acked ? { kind: 'ack', ...ack } : { kind: 'resp', ...resp };
 
   return {
-    received, ackDue, respDue, ack, resp, next,
+    received, ackDue, respDue, baseDue, extended: !!c.extended_until, ack, resp, next,
     totalDays: daysBetween(received, respDue),
     elapsed: daysBetween(received, now),
     // clau d'ordenació: el més urgent primer; les respostes ja donades, al final
@@ -113,13 +137,12 @@ const DL_ICON = { overdue: CircleAlert, soon: Hourglass, pending: Clock, met: Ci
 export function Deadline({ info, t, lang }) {
   const n = info.next;
   const Icon = DL_ICON[n.state];
-  const date = fShort(n.at ?? n.due, lang);
   return (
     <span className={`v2-dl is-${n.state}`}>
       <Icon {...ICON} />
       <span className="v2-dl-txt">
         <b>{dlMain(t, n)}</b>
-        <small>{n.kind === 'ack' ? t.kAckShort : t.kResp}<span aria-hidden="true"> · </span>{date}</small>
+        <small>{n.kind === 'ack' ? t.kAckShort : t.kResp}<span aria-hidden="true"> · </span>{fShort(n.at ?? n.due, lang)}</small>
       </span>
     </span>
   );
@@ -150,6 +173,26 @@ export function Priority({ priority, t }) {
   );
 }
 
+// ── Pla de l'organització ───────────────────────────────────────────────
+/**
+ * Estat del pla a partir de les columnes d'organizations (migració 009).
+ * Retorna null si l'organització encara no té pla (migració pendent): llavors no es mostra res.
+ * { plan, state: trial | trialEnded | active | expired, days, until, renewSoon }
+ */
+export function planInfo(org, now = new Date()) {
+  if (!org?.plan) return null;
+  if (org.plan === 'trial') {
+    if (!org.trial_ends_at) return null;
+    const until = new Date(org.trial_ends_at);
+    const days = daysBetween(now, until);
+    const ended = until.getTime() <= now.getTime();
+    return { plan: 'trial', state: ended ? 'trialEnded' : 'trial', days: Math.max(days, 0), until: org.trial_ends_at, renewSoon: false };
+  }
+  if (!org.paid_until) return { plan: org.plan, state: 'active', days: null, until: null, renewSoon: false };
+  const days = daysBetween(now, new Date(`${org.paid_until}T12:00:00`));
+  return { plan: org.plan, state: days < 0 ? 'expired' : 'active', days: Math.max(days, 0), until: `${org.paid_until}T12:00:00`, renewSoon: days >= 0 && days <= 30 };
+}
+
 // ── Controls ────────────────────────────────────────────────────────────
 /** Desplegable natiu amb l'aspecte del sistema (el menú és el del sistema operatiu) */
 export function Select({ label, hideLabel = false, value, onChange, options, className = '', disabled, id: idProp }) {
@@ -169,7 +212,7 @@ export function Select({ label, hideLabel = false, value, onChange, options, cla
 }
 
 /** Diàleg de confirmació amb <dialog> natiu: focus protegit, Esc tanca */
-export function Confirm({ open, title, children, confirmLabel, busyLabel, cancelLabel, busy = false, onConfirm, onCancel }) {
+export function Confirm({ open, title, children, confirmLabel, busyLabel, cancelLabel, busy = false, tone = 'danger', onConfirm, onCancel }) {
   const ref = useRef(null);
   const titleId = useId();
   useEffect(() => {
@@ -192,7 +235,7 @@ export function Confirm({ open, title, children, confirmLabel, busyLabel, cancel
           <div className="v2-dialog-text">{children}</div>
           <div className="v2-dialog-actions">
             <button type="button" className="v2-btn v2-btn-secondary v2-btn-sm" onClick={onCancel} disabled={busy}>{cancelLabel}</button>
-            <button type="button" className="v2-btn v2-btn-danger v2-btn-sm" onClick={onConfirm} aria-busy={busy}>
+            <button type="button" className={`v2-btn ${tone === 'primary' ? 'v2-btn-primary' : 'v2-btn-danger'} v2-btn-sm`} onClick={onConfirm} aria-busy={busy}>
               {busy ? busyLabel : confirmLabel}
             </button>
           </div>
@@ -236,6 +279,14 @@ export function auditText(t, log) {
     return who ? fmt(t.aPriority, { who, to }) : fmt(t.aPriorityAnon, { to });
   }
   if (log.action === 'message_sent') return who ? fmt(t.aMessage, { who }) : t.aMessageAnon;
+  if (log.action === 'reporter_message') return t.aReporterMsg;
   if (log.action === 'note_added') return who ? fmt(t.aNote, { who }) : t.aNoteAnon;
+  if (log.action === 'deadline_extended') return who ? fmt(t.aExtended, { who }) : t.aExtendedAnon;
+  if (log.action === 'anonymized') return who ? fmt(t.aAnonymized, { who }) : t.aAnonymizedAnon;
+  if (log.action === 'identity_viewed') return who ? fmt(t.aIdentity, { who }) : t.aIdentityAnon;
+  if (log.action === 'registered') return who ? fmt(t.aRegistered, { who }) : t.aRegisteredAnon;
+  if (log.action === 'meeting_held') return who ? fmt(t.aMeeting, { who }) : t.aMeetingAnon;
+  if (log.action === 'fiscal_referral') return who ? fmt(t.aFiscal, { who }) : t.aFiscalAnon;
+  if (log.action === 'outcome_set') return who ? fmt(t.aOutcome, { who }) : t.aOutcomeAnon;
   return t.aOther;
 }

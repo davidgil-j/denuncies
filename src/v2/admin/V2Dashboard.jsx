@@ -3,12 +3,12 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search, FileSpreadsheet, FileText, Scale, ArrowUpRight, ArrowUp, ArrowDown, ChevronsUpDown, ChevronRight,
   ChevronLeft, EyeOff, UserRound, SlidersHorizontal, Inbox, SearchX, Link2, Copy, Check, CircleAlert, LockKeyhole, RotateCw,
+  MessageSquareText, Eraser,
 } from 'lucide-react';
-import { listComplaints } from '../../lib/supabase.js';
-import { exportToExcel, exportSummaryToPDF } from '../lib/exportV2.js';
+import { listComplaints, getRetentionDue } from '../../lib/supabase.js';
 import { ICON, fmt, BOE_URL } from '../V2Layout.jsx';
 import {
-  useAdmin, deadlineInfo, Deadline, StatusPill, Priority, Select, Empty, copyText, catLabel, relDay, fNum,
+  useAdmin, L, SwapL, deadlineInfo, Deadline, StatusPill, Priority, Select, Empty, copyText, catLabel, relDay, fNum,
   STATUS_ORDER, OPEN, ANSWERED, PRIORITIES, PRIO_RANK,
 } from './adminKit.jsx';
 
@@ -27,6 +27,23 @@ const FILTER_KEYS = ['q', 'st', 'cat', 'pr', 'from', 'to'];
 const STATE_KEYS = ['v', ...FILTER_KEYS, 'sort', 'dir', 'p'];
 const norm = (s) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
+// Parametres de l'adreça que no són vàlids s'ignoren (abans deixaven la llista buida sense explicació)
+const SORTS = ['deadline', 'created', 'status', 'priority', 'category'];
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+function cleanState(raw, cats) {
+  const x = { ...raw };
+  if (!VIEWS.includes(x.v)) x.v = '';
+  if (x.st && !STATUS_ORDER.includes(x.st)) x.st = '';
+  if (x.cat && !cats.includes(x.cat)) x.cat = '';
+  if (x.pr && !PRIORITIES.includes(x.pr)) x.pr = '';
+  if (x.from && !ISO_DAY.test(x.from)) x.from = '';
+  if (x.to && !ISO_DAY.test(x.to)) x.to = '';
+  if (x.from && x.to && x.from > x.to) [x.from, x.to] = [x.to, x.from];
+  if (x.sort && !SORTS.includes(x.sort)) x.sort = '';
+  if (x.dir && !['asc', 'desc'].includes(x.dir)) x.dir = '';
+  return x;
+}
+
 export default function V2Dashboard() {
   const { t, tr, lang, org, isSuperadmin, allowedCategories, notify, channelPath } = useAdmin();
   const navigate = useNavigate();
@@ -39,7 +56,16 @@ export default function V2Dashboard() {
 
   // L'estat de la vista viu aquí i es copia a la URL: en tornar del detall es conserven
   // filtres, ordre i pàgina. (setSearchParams no encua canvis; useState sí.)
-  const [s, setS] = useState(() => Object.fromEntries(STATE_KEYS.map(k => [k, params.get(k) ?? ''])));
+  const allCats = tr.categories.map(c => c.value);
+  const [s, setS] = useState(() => cleanState(Object.fromEntries(STATE_KEYS.map(k => [k, params.get(k) ?? ''])), allCats));
+  const [due, setDue] = useState([]);
+
+  // Si l'adreça canvia des de fora (enllaç «Denúncies» del menú, enrere), l'estat la segueix
+  useEffect(() => {
+    const fromUrl = cleanState(Object.fromEntries(STATE_KEYS.map(k => [k, params.get(k) ?? ''])), allCats);
+    setS(prev => (STATE_KEYS.every(k => (prev[k] ?? '') === (fromUrl[k] ?? '')) ? prev : fromUrl));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
   const query = useMemo(() => {
     const next = new URLSearchParams();
     STATE_KEYS.forEach(k => { if (s[k]) next.set(k, s[k]); });
@@ -74,6 +100,13 @@ export default function V2Dashboard() {
     setRows(complaints);
   }
   useEffect(() => { if (!noAccess) load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [catsKey]);
+  // Denúncies que la llei obliga a suprimir (art. 32.4): només les veu l'administrador
+  useEffect(() => {
+    if (!isSuperadmin) return undefined;
+    let alive = true;
+    getRetentionDue().then(({ items }) => { if (alive) setDue(items ?? []); });
+    return () => { alive = false; };
+  }, [isSuperadmin]);
   useEffect(() => { document.title = `${t.dTitle} · ${t.panelName}`; }, [t]);
 
   const enriched = useMemo(() => {
@@ -90,13 +123,14 @@ export default function V2Dashboard() {
     const needle = norm(q);
     const from = f.from ? new Date(`${f.from}T00:00:00`) : null;
     const to = f.to ? new Date(`${f.to}T23:59:59`) : null;
-    const list = enriched.filter(r => IN_VIEW[view](r)
+    // Una cerca per referència busca a totes les denúncies, no només a la vista activa
+    const list = enriched.filter(r => (needle ? true : IN_VIEW[view](r))
       && (!f.st || r.c.status === f.st)
       && (!f.cat || r.c.category === f.cat)
       && (!f.pr || r.c.priority === f.pr)
       && (!from || new Date(r.c.created_at) >= from)
       && (!to || new Date(r.c.created_at) <= to)
-      && (!needle || norm(r.c.tracking_code).includes(needle)));
+      && (!needle || norm(r.c.reference ?? '').includes(needle) || norm((r.c.reference ?? '').replace(/^REF-/, '')).includes(needle)));
     const key = {
       deadline: r => r.dl.sortKey,
       created: r => new Date(r.c.created_at).getTime(),
@@ -123,10 +157,14 @@ export default function V2Dashboard() {
 
   async function doExport(kind) {
     setExporting(kind);
-    const list = filtered.map(r => r.c);
+    // Les exportacions porten la referència interna, mai el codi de qui denuncia
+    const list = filtered.map(r => ({ ...r.c, tracking_code: r.c.reference, organization: org?.name ?? '' }));
     try {
-      if (kind === 'xlsx') await exportToExcel(list, undefined, lang);
-      else await exportSummaryToPDF(list, { status: f.st, category: f.cat, priority: f.pr, dateFrom: f.from, dateTo: f.to, organization: org?.name ?? '' }, lang);
+      // Excel i PDF es carreguen només en exportar (no pesen a la càrrega del panell)
+      const { exportToExcel, exportSummaryToPDF } = await import('../lib/exportV2.js');
+      const filters = { view: q ? '' : t[VIEW_LABEL[view]], status: f.st, category: f.cat, priority: f.pr, dateFrom: f.from, dateTo: f.to, q, organization: org?.name ?? '' };
+      if (kind === 'xlsx') await exportToExcel(list, undefined, lang, filters);
+      else await exportSummaryToPDF(list, filters, lang);
     } catch {
       notify(t.exportErr, 'err');
     }
@@ -160,28 +198,28 @@ export default function V2Dashboard() {
     <div className="v2-page">
       <header className="v2-ph">
         <div className="v2-ph-main">
-          <h1 className="v2-ph-title">{t.dTitle}</h1>
-          <p className="v2-ph-lead">{isSuperadmin ? t.dLeadAll : t.dLeadManager}</p>
+          <L as="h1" className="v2-ph-title" k="dTitle" />
+          <L as="p" className="v2-ph-lead" k={isSuperadmin ? 'dLeadAll' : 'dLeadManager'} />
         </div>
         {!noAccess && (
           <div className="v2-ph-actions">
             <button type="button" className="v2-btn v2-btn-secondary v2-btn-sm icon-lead" onClick={() => doExport('xlsx')} aria-busy={exporting === 'xlsx'} disabled={loading || !filtered.length}>
-              <FileSpreadsheet {...ICON} />{t.exportExcel}
+              <FileSpreadsheet {...ICON} /><L k="exportExcel" />
             </button>
             <button type="button" className="v2-btn v2-btn-secondary v2-btn-sm icon-lead" onClick={() => doExport('pdf')} aria-busy={exporting === 'pdf'} disabled={loading || !filtered.length}>
-              <FileText {...ICON} />{t.exportPdf}
+              <FileText {...ICON} /><L k="exportPdf" />
             </button>
           </div>
         )}
       </header>
 
-      {isSuperadmin && (
+      {isSuperadmin && channelPath && (
         <p className="v2-chanlink">
           <Link2 {...ICON} />
           <span className="v2-vh">{t.channelLink}: </span>
           <a href={channelPath} target="_blank" rel="noopener noreferrer">{channelUrl.replace(/^https?:\/\//, '')}</a>
           <button type="button" className="v2-mini-btn" onClick={copyChannel}>
-            {copied ? <Check {...ICON} /> : <Copy {...ICON} />}{copied ? t.linkCopied : t.copyLink}
+            {copied ? <Check {...ICON} /> : <Copy {...ICON} />}<SwapL on={copied} k="copyLink" kOn="linkCopied" />
           </button>
         </p>
       )}
@@ -190,6 +228,19 @@ export default function V2Dashboard() {
         <Empty icon={LockKeyhole} title={t.noAccessTitle}>{t.noAccessText}</Empty>
       ) : (
         <>
+          {due.length > 0 && (
+            <section className="v2-retention" aria-labelledby="v2-ret-t">
+              <Eraser {...ICON} />
+              <div>
+                <h2 id="v2-ret-t">{due.length === 1 ? t.retTitleOne : fmt(t.retTitle, { n: due.length })}</h2>
+                <L as="p" k="retText" />
+                <ul>
+                  {due.map(d => <li key={d.id}><Link to={`/admin/complaints/${d.id}`} state={{ from }}>{d.reference}</Link></li>)}
+                </ul>
+              </div>
+            </section>
+          )}
+
           {/* Vistes amb recompte real: són filtres, no decoració */}
           <div className="v2-views" role="group" aria-label={t.viewsLabel}>
             {VIEWS.map(v => (
@@ -200,7 +251,7 @@ export default function V2Dashboard() {
                 aria-pressed={view === v}
                 onClick={() => update({ v, st: '' })}
               >
-                <span className="v2-view-label">{t[VIEW_LABEL[v]]}</span>
+                <L className="v2-view-label" k={VIEW_LABEL[v]} />
                 <span className="v2-view-n">{loading ? <span className="v2-skel is-num" /> : counts[v]}</span>
               </button>
             ))}
@@ -209,18 +260,18 @@ export default function V2Dashboard() {
           <div className="v2-legal-note">
             <Scale {...ICON} />
             <div>
-              <p>{t.legalLead}</p>
+              <L as="p" k="legalLead" />
               <details>
-                <summary>{t.legalHow}</summary>
-                <p>{t.legalHowText}</p>
-                <a className="v2-link" href={BOE_URL} target="_blank" rel="noopener noreferrer">{t.lawLink}<ArrowUpRight {...ICON} /></a>
+                <summary><L k="legalHow" /></summary>
+                <L as="p" k="legalHowText" />
+                <a className="v2-link" href={BOE_URL} target="_blank" rel="noopener noreferrer"><L k="lawLink" /><ArrowUpRight {...ICON} /></a>
               </details>
             </div>
           </div>
 
           <div className="v2-toolbar">
             <div className="v2-search">
-              <label htmlFor="v2-q" className="v2-vh">{t.searchLabel}</label>
+              <label htmlFor="v2-q" className="v2-vh"><L k="searchLabel" /></label>
               <Search {...ICON} />
               <input
                 id="v2-q" type="search" value={q} placeholder={t.searchPh}
@@ -254,11 +305,11 @@ export default function V2Dashboard() {
                 options={[{ value: '', label: t.fPriority }, ...PRIORITIES.map(p => ({ value: p, label: t.priority[p] }))]}
               />
               <label className={`v2-date${f.from ? ' is-set' : ''}`}>
-                <span>{t.fFrom}</span>
+                <L k="fFrom" />
                 <input type="date" value={f.from} max={f.to || undefined} onChange={e => update({ from: e.target.value })} />
               </label>
               <label className={`v2-date${f.to ? ' is-set' : ''}`}>
-                <span>{t.fTo}</span>
+                <L k="fTo" />
                 <input type="date" value={f.to} min={f.from || undefined} onChange={e => update({ to: e.target.value })} />
               </label>
             </div>
@@ -266,7 +317,7 @@ export default function V2Dashboard() {
 
           <div className="v2-results">
             <p className="v2-results-n" aria-live="polite">
-              {!loading && <><b>{filtered.length === 1 ? t.resultsOne : fmt(t.resultsMany, { n: filtered.length })}</b> {fmt(t.sortedBy, { col: colName[sort]?.toLowerCase() ?? '' })}</>}
+              {!loading && <><b>{filtered.length === 1 ? t.resultsOne : fmt(t.resultsMany, { n: filtered.length })}</b> {fmt(filtered.length === 1 ? t.sortedByOne : t.sortedBy, { col: colName[sort]?.toLowerCase() ?? '' })}</>}
             </p>
             {hasFilters && (
               <button type="button" className="v2-btn v2-btn-quiet v2-btn-sm" onClick={() => update(Object.fromEntries(FILTER_KEYS.map(k => [k, ''])))}>
@@ -279,7 +330,7 @@ export default function V2Dashboard() {
             <Empty
               icon={CircleAlert}
               title={t.loadErr}
-              actions={<button type="button" className="v2-btn v2-btn-secondary v2-btn-sm icon-lead" onClick={load}><RotateCw {...ICON} />{t.retry}</button>}
+              actions={<button type="button" className="v2-btn v2-btn-secondary v2-btn-sm icon-lead" onClick={load}><RotateCw {...ICON} /><L k="retry" /></button>}
             />
           ) : loading ? (
             <SkeletonTable />
@@ -287,10 +338,10 @@ export default function V2Dashboard() {
             <Empty
               icon={Inbox}
               title={t.emptyNoneTitle}
-              actions={isSuperadmin && (
+              actions={isSuperadmin && channelPath && (
                 <>
-                  <a className="v2-btn v2-btn-primary v2-btn-sm icon-trail" href={channelPath} target="_blank" rel="noopener noreferrer">{t.emptyNoneAction}<ArrowUpRight {...ICON} /></a>
-                  <button type="button" className="v2-btn v2-btn-secondary v2-btn-sm icon-lead" onClick={copyChannel}>{copied ? <Check {...ICON} /> : <Copy {...ICON} />}{copied ? t.linkCopied : t.copyLink}</button>
+                  <a className="v2-btn v2-btn-primary v2-btn-sm icon-trail" href={channelPath} target="_blank" rel="noopener noreferrer"><L k="emptyNoneAction" /><ArrowUpRight {...ICON} /></a>
+                  <button type="button" className="v2-btn v2-btn-secondary v2-btn-sm icon-lead" onClick={copyChannel}>{copied ? <Check {...ICON} /> : <Copy {...ICON} />}<SwapL on={copied} k="copyLink" kOn="linkCopied" /></button>
                 </>
               )}
             >
@@ -301,7 +352,7 @@ export default function V2Dashboard() {
               <Empty
                 icon={SearchX}
                 title={t.emptyFilterTitle}
-                actions={<button type="button" className="v2-btn v2-btn-secondary v2-btn-sm" onClick={() => update(Object.fromEntries(FILTER_KEYS.map(k => [k, ''])))}>{t.clearFilters}</button>}
+                actions={<button type="button" className="v2-btn v2-btn-secondary v2-btn-sm" onClick={() => update(Object.fromEntries(FILTER_KEYS.map(k => [k, ''])))}><L k="clearFilters" /></button>}
               >
                 {t.emptyFilterText}
               </Empty>
@@ -315,7 +366,7 @@ export default function V2Dashboard() {
                 <table className="v2-table">
                   <thead>
                     <tr>
-                      <th className="c-code">{t.cCode}</th>
+                      <th className="c-code"><L k="cCode" /></th>
                       {sortTh('category', t.cCategory, 'c-cat')}
                       {sortTh('status', t.cStatus, 'c-st')}
                       {sortTh('priority', t.cPriority, 'c-pr')}
@@ -332,10 +383,11 @@ export default function V2Dashboard() {
                             className="v2-rowlink" to={`/admin/complaints/${c.id}`}
                             state={{ from }}
                             onClick={e => e.stopPropagation()}
-                            aria-label={fmt(t.open, { code: c.tracking_code })}
+                            aria-label={fmt(t.open, { code: c.reference })}
                           >
-                            {c.tracking_code}
+                            {c.reference}
                           </Link>
+                          {c.unread > 0 && <span className="v2-unread"><MessageSquareText {...ICON} />{c.unread === 1 ? t.unreadOne : fmt(t.unreadMany, { n: c.unread })}</span>}
                           <span className="v2-sub v2-idn">{c.is_anonymous ? <EyeOff {...ICON} /> : <UserRound {...ICON} />}{c.is_anonymous ? t.anon : t.ident}</span>
                           {PRIO_RANK[c.priority] >= 2 && <span className="v2-sub v2-prio-inline"><Priority priority={c.priority} t={t} /></span>}
                         </td>
@@ -363,9 +415,10 @@ export default function V2Dashboard() {
                   <li key={c.id}>
                     <Link className={`v2-card is-${dl.next.state}`} to={`/admin/complaints/${c.id}`} state={{ from }}>
                       <span className="v2-card-top">
-                        <span className="v2-card-code">{c.tracking_code}</span>
+                        <span className="v2-card-code">{c.reference}</span>
                         <StatusPill status={c.status} t={t} />
                       </span>
+                      {c.unread > 0 && <span className="v2-unread"><MessageSquareText {...ICON} />{c.unread === 1 ? t.unreadOne : fmt(t.unreadMany, { n: c.unread })}</span>}
                       <span className="v2-card-cat">{catLabel(tr, c.category)}</span>
                       <span className="v2-card-meta">
                         <span className="v2-idn">{c.is_anonymous ? <EyeOff {...ICON} /> : <UserRound {...ICON} />}{c.is_anonymous ? t.anon : t.ident}</span>
@@ -381,11 +434,11 @@ export default function V2Dashboard() {
               {pages > 1 && (
                 <nav className="v2-pager" aria-label={fmt(t.pageOf, { n: current, total: pages })}>
                   <button type="button" className="v2-btn v2-btn-secondary v2-btn-sm icon-lead" disabled={current <= 1} onClick={() => update({ p: String(current - 1) }, true)}>
-                    <ChevronLeft {...ICON} />{t.pagePrev}
+                    <ChevronLeft {...ICON} /><L k="pagePrev" />
                   </button>
-                  <span className="v2-num">{fmt(t.pageOf, { n: current, total: pages })}</span>
+                  <L className="v2-num" pick={x => fmt(x.pageOf, { n: current, total: pages })} />
                   <button type="button" className="v2-btn v2-btn-secondary v2-btn-sm icon-trail" disabled={current >= pages} onClick={() => update({ p: String(current + 1) }, true)}>
-                    {t.pageNext}<ChevronRight {...ICON} />
+                    <L k="pageNext" /><ChevronRight {...ICON} />
                   </button>
                 </nav>
               )}

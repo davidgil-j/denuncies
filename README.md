@@ -65,7 +65,15 @@ supabase link --project-ref zojrqjmauruishfvgdja
 npm run db:migrate
 ```
 
-Si és la primera vegada, les 7 migracions s'aplicaran en ordre. Si alguna ja existeix al projecte remot, Supabase les saltarà automàticament.
+Si és la primera vegada, totes les migracions s'aplicaran en ordre. Si alguna ja existeix al projecte remot, Supabase les saltarà automàticament.
+
+Abans d'aplicar una migració nova, comprova les regles de seguretat en local (no toca cap base de dades real):
+
+```bash
+npm run db:test
+```
+
+Aplica totes les migracions a un Postgres en memòria i verifica les polítiques RLS (aïllament entre empreses, permisos per categoria, missatges, adjunts, auditoria).
 
 **Alternativa sense CLI**: obre l'editor SQL a [supabase.com/dashboard](https://supabase.com/dashboard) i executa manualment els fitxers de `supabase/migrations/` en ordre numèric.
 
@@ -123,8 +131,12 @@ supabase/migrations/           # Migracions de BD en ordre
 | `/admin/login` | Login administradors |
 | `/admin` | Dashboard denúncies |
 | `/admin/complaints/:id` | Detall denúncia |
+| `/admin/report` | Informe (resum per període) |
 | `/admin/users` | Gestió usuaris (superadmin) |
+| `/admin/integration` | Integrar el canal: enllaç, botó, QR i cartell (superadmin) |
+| `/admin/account` | Compte: pla, organització i facturació (superadmin) |
 | `/admin/mfa` | Configuració 2FA |
+| `/canal/:slug/privacidad` | Política de privacitat dins del canal |
 
 ---
 
@@ -134,4 +146,7 @@ supabase/migrations/           # Migracions de BD en ordre
 - **Tots els textos en 3 idiomes** (ca/es/en) via `src/translations.js`
 - **Totes les crides a BD** passen per `src/lib/supabase.js`
 - **Canvis de BD** → sempre amb fitxer de migració a `supabase/migrations/`
+- **Verificació en dos passos obligatòria** per veure denúncies (també a la base de dades, migració 010)
+- **El codi de seguiment** només el coneix qui denuncia: la base de dades en guarda el hash i el panell usa una referència (REF-XXXXXX)
+- **Mode demo** només en desenvolupament o amb `VITE_DEMO=1`
 - **RLS activat** a totes les taules — mai desactivar ni usar `serviceRole` des del frontend

@@ -1,14 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useOutletContext } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { Search, ChevronLeft, Check, CircleAlert, CircleCheck, Send, MessageSquareReply, ShieldAlert } from 'lucide-react';
 import { translations } from '../translations.js';
-import { getComplaintByCode, getMessages, sendMessage } from '../lib/supabase.js';
-import { ICON } from './V2Layout.jsx';
+import { getComplaintByCode, getReporterMessages, sendReporterMessage } from '../lib/supabase.js';
+import { ICON, fmt, stableOf } from './V2Layout.jsx';
 
-// Format real del codi: 8 caràcters amb guió al mig (A3B7-C9X2). S'accepta enganxat amb o sense guió.
+// Text que reserva l'espai de l'idioma més llarg: en canviar d'idioma, la pantalla no es mou
+const S = stableOf(T => T.v2);
+
+// Format real del codi: 8 caràcters amb guió al mig (A3B7-C9X2). S'accepta enganxat amb o sense guió,
+// amb espais, o dins d'un text com la línia del justificant ("Codi de seguiment: A3B7-C9X2").
 const CODE_CHARS = 8;
+const MAX_MSG = 10000;
 function formatCode(v) {
-  const clean = v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_CHARS);
+  const up = v.toUpperCase();
+  const found = up.match(/[A-Z0-9]{4}\s*[-–]\s*[A-Z0-9]{4}/g);
+  const clean = (found ? found[found.length - 1] : up).replace(/[^A-Z0-9]/g, '').slice(0, CODE_CHARS);
   return clean.length > 4 ? `${clean.slice(0, 4)}-${clean.slice(4)}` : clean;
 }
 // Flux principal que es mostra a la línia de temps; "waiting" i "archived" s'hi col·loquen
@@ -19,7 +26,7 @@ function localeOf(lang) {
   return lang === 'en' ? 'en-GB' : lang === 'es' ? 'es-ES' : 'ca-ES';
 }
 
-function Messages({ t, lang, complaintId, waiting }) {
+function Messages({ t, lang, complaintId, code, waiting }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState('');
@@ -30,11 +37,11 @@ function Messages({ t, lang, complaintId, waiting }) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getMessages(complaintId).then(({ messages: msgs }) => {
+    getReporterMessages(code).then(({ messages: msgs }) => {
       if (!cancelled) { setMessages(msgs); setLoading(false); }
     });
     return () => { cancelled = true; };
-  }, [complaintId]);
+  }, [complaintId, code]);
 
   async function send(e) {
     e.preventDefault();
@@ -42,13 +49,14 @@ function Messages({ t, lang, complaintId, waiting }) {
     if (!text || sending) return;
     setSending(true);
     setFeedback(null);
-    const { error } = await sendMessage(complaintId, text);
+    const { error } = await sendReporterMessage(code, text);
     setSending(false);
     if (error) { setFeedback({ ok: false, text: t.msgErr }); return; }
     setDraft('');
     setFeedback({ ok: true, text: t.msgOk });
-    const { messages: msgs } = await getMessages(complaintId);
+    const { messages: msgs } = await getReporterMessages(code);
     setMessages(msgs);
+    requestAnimationFrame(() => document.getElementById('v2-msg')?.focus());
     requestAnimationFrame(() => endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
     setTimeout(() => setFeedback(null), 3000);
   }
@@ -75,16 +83,20 @@ function Messages({ t, lang, complaintId, waiting }) {
       </div>
 
       <form className="v2-compose" onSubmit={send}>
-        <label className="v2-vh" htmlFor="v2-msg">{t.msgPh}</label>
+        <label className="v2-label" htmlFor="v2-msg">{t.msgPh}</label>
         {waiting && (
           <div className="v2-note is-above"><MessageSquareReply {...ICON} /><p>{t.tWaiting}</p></div>
         )}
         <textarea
           id="v2-msg" className="v2-input" rows={4} placeholder={t.msgPh}
-          value={draft} disabled={sending}
+          value={draft} readOnly={sending} aria-busy={sending} maxLength={MAX_MSG}
+          aria-describedby={draft.length > MAX_MSG * 0.9 ? 'v2-msg-count' : undefined}
           onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send(e); }}
         />
+        {draft.length > MAX_MSG * 0.9 && (
+          <p className="v2-field-meta" id="v2-msg-count"><span />{fmt(t.msgCount, { n: draft.length.toLocaleString(), max: MAX_MSG.toLocaleString() })}</p>
+        )}
         <div className="v2-compose-row">
           <span role="status">
             {feedback && (
@@ -93,7 +105,7 @@ function Messages({ t, lang, complaintId, waiting }) {
               </span>
             )}
           </span>
-          <button type="submit" className="v2-btn v2-btn-primary icon-trail" disabled={!draft.trim()} aria-busy={sending}>
+          <button type="submit" className="v2-btn v2-btn-primary icon-trail" aria-disabled={!draft.trim()} aria-busy={sending}>
             {sending ? t.msgSending : t.msgSend}<Send {...ICON} />
           </button>
         </div>
@@ -105,6 +117,7 @@ function Messages({ t, lang, complaintId, waiting }) {
 export default function V2Track() {
   const { lang, org, base } = useOutletContext();
   const location = useLocation();
+  const navigate = useNavigate();
   const root = translations[lang];
   const t = root.v2;
   // Mateix vocabulari d'estats que el panell; 'waiting' es diu des del punt de vista de l'informant
@@ -113,6 +126,7 @@ export default function V2Track() {
   const [code, setCode] = useState(formatCode(location.state?.code ?? ''));
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [tooShort, setTooShort] = useState(false);
   const [result, setResult] = useState(null);
   const inputRef = useRef(null);
   const resultRef = useRef(null);
@@ -122,7 +136,8 @@ export default function V2Track() {
   async function search(e, override) {
     e?.preventDefault();
     const q = formatCode(override ?? code);
-    if (!q) { inputRef.current?.focus(); return; }
+    if (q.replace('-', '').length < CODE_CHARS) { setTooShort(true); inputRef.current?.focus(); return; }
+    setTooShort(false);
     setLoading(true);
     setNotFound(false);
     setResult(null);
@@ -133,9 +148,13 @@ export default function V2Track() {
     requestAnimationFrame(() => resultRef.current?.focus());
   }
 
-  // Si arriba des de la pantalla d'èxit amb el codi, es consulta directament
+  // Si arriba des de la pantalla d'èxit amb el codi, es consulta directament. Després el codi
+  // s'esborra de l'historial: en un ordinador compartit, «enrere» no l'ha de tornar a mostrar
   useEffect(() => {
-    if (location.state?.code) search(null, location.state.code);
+    const fromState = location.state?.code;
+    if (!fromState) return;
+    search(null, fromState);
+    navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -156,33 +175,32 @@ export default function V2Track() {
     <div className="v2-wrap is-narrow">
       <div className="v2-task">
         <div className="v2-q is-first">
-          <h1 className="v2-h1">{t.tTitle}</h1>
-          {!result && <p className="v2-lead">{t.tLead}</p>}
+          <S as="h1" className="v2-h1" k="tTitle" />
+          {!result && <S as="p" className="v2-lead" k="tLead" />}
         </div>
 
         {!result && (
           <form className="v2-track-form" onSubmit={search} noValidate>
             <div className="v2-field">
-              <label htmlFor="v2-f-code">{t.fCode}</label>
+              <label htmlFor="v2-f-code"><S k="fCode" /></label>
               <input
                 ref={inputRef}
                 id="v2-f-code"
                 className="v2-input v2-codeinput"
                 value={code}
-                maxLength={CODE_CHARS + 1}
                 placeholder="A3B7-C9X2"
                 autoComplete="off" autoCapitalize="characters" autoCorrect="off" spellCheck={false} enterKeyHint="search"
-                aria-invalid={notFound}
-                aria-describedby={notFound ? 'v2-e-code' : undefined}
-                onChange={e => { setCode(formatCode(e.target.value)); setNotFound(false); }}
+                aria-invalid={notFound || tooShort}
+                aria-describedby={notFound || tooShort ? 'v2-e-code' : undefined}
+                onChange={e => { setCode(formatCode(e.target.value)); setNotFound(false); setTooShort(false); }}
               />
             </div>
-            <button type="submit" className="v2-btn v2-btn-primary icon-lead" aria-busy={loading} disabled={code.replace('-', '').length < CODE_CHARS}>
-              <Search {...ICON} />{loading ? t.tSearching : t.tSubmit}
+            <button type="submit" className="v2-btn v2-btn-primary icon-lead" aria-busy={loading}>
+              <Search {...ICON} /><S k={loading ? 'tSearching' : 'tSubmit'} />
             </button>
           </form>
         )}
-        {notFound && <p className="v2-err" id="v2-e-code" role="alert"><CircleAlert {...ICON} />{t.tNotFound}</p>}
+        {(notFound || tooShort) && <p className="v2-err" id="v2-e-code" role="alert"><CircleAlert {...ICON} /><S k={tooShort ? 'tShort' : 'tNotFound'} /></p>}
 
         {result && (
           <>
@@ -196,10 +214,10 @@ export default function V2Track() {
               </div>
               <div className="v2-case-body">
                 <dl>
-                  <div className="v2-sum-row"><dt>{t.sumCategory}</dt><dd>{categoryLabel}</dd></div>
-                  <div className="v2-sum-row"><dt>{t.tReceived}</dt><dd>{date(result.created_at)}</dd></div>
+                  <div className="v2-sum-row"><S as="dt" k="sumCategory" /><dd>{categoryLabel}</dd></div>
+                  <div className="v2-sum-row"><S as="dt" k="tReceived" /><dd>{date(result.created_at)}</dd></div>
                   {result.updated_at && result.updated_at !== result.created_at && (
-                    <div className="v2-sum-row"><dt>{t.tUpdated}</dt><dd>{date(result.updated_at)}</dd></div>
+                    <div className="v2-sum-row"><S as="dt" k="tUpdated" /><dd>{date(result.updated_at)}</dd></div>
                   )}
                 </dl>
               </div>
@@ -210,19 +228,19 @@ export default function V2Track() {
                   return (
                     <li key={s} className={`v2-tl${done ? ' is-done' : ''}${now ? ' is-now' : ''}`} aria-current={now ? 'step' : undefined}>
                       <span className="v2-dot" aria-hidden="true">{done && <Check strokeWidth={3} aria-hidden="true" />}</span>
-                      <span>{statusLabel(s)}</span>
+                      <span>{statusLabel(s)}<span className="v2-vh"> · {done ? t.tlDone : now ? t.tlNow : t.tlNext}</span></span>
                     </li>
                   );
                 })}
               </ol>
-              <p className="v2-case-note"><ShieldAlert {...ICON} />{t.tPrivacy}</p>
+              <p className="v2-case-note"><ShieldAlert {...ICON} /><S k="tPrivacy" /></p>
             </section>
 
-            <Messages t={t} lang={lang} complaintId={result.id} waiting={isWaiting} />
+            <Messages t={t} lang={lang} complaintId={result.tracking_code} code={result.tracking_code} waiting={isWaiting} />
 
             <div className="v2-back-row">
               <button type="button" className="v2-btn v2-btn-secondary icon-lead" onClick={reset}>
-                <Search {...ICON} />{t.tAnother}
+                <Search {...ICON} /><S k="tAnother" />
               </button>
             </div>
           </>
@@ -230,7 +248,7 @@ export default function V2Track() {
 
         {!result && (
           <div className="v2-back-row">
-            <Link className="v2-btn v2-btn-secondary icon-lead" to={base}><ChevronLeft {...ICON} />{t.back}</Link>
+            <Link className="v2-btn v2-btn-secondary icon-lead" to={base} replace><ChevronLeft {...ICON} /><S k="back" /></Link>
           </div>
         )}
       </div>

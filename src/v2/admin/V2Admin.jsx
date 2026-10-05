@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Inbox, Users, ShieldCheck, ArrowUpRight, LogOut, Menu, X, CircleCheck, CircleAlert, UserRoundX } from 'lucide-react';
+import { Inbox, Users, ShieldCheck, Link2, Building2, BarChart3, ArrowUpRight, LogOut, Menu, X, CircleCheck, CircleAlert, UserRoundX } from 'lucide-react';
 import { translations } from '../../translations.js';
 import {
-  getAdminSession, getProfile, getManagerPermissions, getMyOrganization, signOutAdmin, IS_DEMO,
+  getAdminSession, getProfile, getManagerPermissions, getMyOrganization, signOutAdmin, getMfaState, IS_DEMO,
 } from '../../lib/supabase.js';
-import { EuSymbol, EuFlag, ICON, LANGS, detectLang, initials } from '../V2Layout.jsx';
+import { EuSymbol, EuFlag, ICON, LANGS, detectLang, initials, fmt, useLangAnchor } from '../V2Layout.jsx';
+import { planInfo } from './adminKit.jsx';
 import '../v2.css';
 import './admin.css';
 
@@ -27,7 +28,8 @@ export default function V2Admin() {
   const location = useLocation();
   const navigate = useNavigate();
   const [lang, setLangState] = useState(initialLang);
-  const [phase, setPhase] = useState('loading'); // loading | anon | noprofile | ready
+  const [phase, setPhase] = useState('loading'); // loading | anon | code | noprofile | ready
+  const [mfaSetup, setMfaSetup] = useState(false); // sense verificació en dos passos: s'ha de configurar
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [permissions, setPermissions] = useState([]);
@@ -41,7 +43,9 @@ export default function V2Admin() {
   const tr = translations[lang];
   const t = tr.v2admin;
 
+  const holdScroll = useLangAnchor(lang);
   const setLang = (l) => {
+    holdScroll();
     setLangState(l);
     try { localStorage.setItem(LANG_KEY, l); } catch { /* res */ }
   };
@@ -55,6 +59,11 @@ export default function V2Admin() {
   const loadProfile = useCallback(async () => {
     const s = await getAdminSession().catch(() => null);
     if (!s) { setPhase('anon'); return; }
+    // La verificació en dos passos és obligatòria: si en té i no ha posat el codi, torna a l'accés;
+    // si no en té, només pot entrar a Seguretat per configurar-la
+    const mfa = await getMfaState();
+    if (mfa.needsCode) { setPhase('code'); return; }
+    setMfaSetup(!!mfa.needsSetup);
     setSession(s);
     const { profile: p } = await getProfile(s.user.id);
     if (!p) { setPhase('noprofile'); return; }
@@ -70,7 +79,14 @@ export default function V2Admin() {
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
   // El menú del mòbil es tanca en canviar de pàgina i amb Esc; bloqueja el desplaçament del fons
-  useEffect(() => { setMenuOpen(false); window.scrollTo(0, 0); }, [location.pathname]);
+  // En canviar de pàgina: a dalt i el focus al contingut (els lectors de pantalla ho anuncien)
+  const firstPath = useRef(true);
+  useEffect(() => {
+    setMenuOpen(false);
+    window.scrollTo(0, 0);
+    if (firstPath.current) { firstPath.current = false; return; }
+    requestAnimationFrame(() => document.getElementById('v2-main')?.focus({ preventScroll: true }));
+  }, [location.pathname]);
   useEffect(() => {
     if (!menuOpen) return undefined;
     const onKey = (e) => { if (e.key === 'Escape') { setMenuOpen(false); menuBtn.current?.focus(); } };
@@ -103,13 +119,16 @@ export default function V2Admin() {
     return perm ? perm[`can_${action}`] === true : false;
   }, [isSuperadmin, permissions]);
 
-  const channelPath = `/canal/${org?.slug ?? 'demo'}`;
+  // Sense organització carregada no s'inventa cap adreça: els enllaços al canal no es mostren
+  const channelPath = org?.slug ? `/canal/${org.slug}` : '';
   const ctx = {
     lang, t, tr, profile, email: session?.user?.email ?? '', permissions, isSuperadmin, can,
-    allowedCategories, org, notify, channelPath, refreshProfile: loadProfile,
+    allowedCategories, org, notify, channelPath, refreshProfile: loadProfile, mfaSetup,
   };
 
-  if (phase === 'anon') return <Navigate to="/admin/login" replace />;
+  const here = `${location.pathname}${location.search}`;
+  if (phase === 'anon' || phase === 'code') return <Navigate to="/admin/login" replace state={{ from: here }} />;
+  if (phase === 'ready' && mfaSetup && !location.pathname.startsWith('/admin/mfa')) return <Navigate to="/admin/mfa" replace />;
 
   if (phase === 'loading') {
     return (
@@ -140,11 +159,25 @@ export default function V2Admin() {
   }
 
   const path = location.pathname.replace(/\/+$/, '');
-  const nav = [
+  const nav = mfaSetup ? [
+    { to: '/admin/mfa', label: t.navSecurity, icon: ShieldCheck, active: true },
+  ] : [
     { to: '/admin', label: t.navComplaints, icon: Inbox, active: path === '/admin' || path.startsWith('/admin/complaints') },
+    { to: '/admin/report', label: t.navReport, icon: BarChart3, active: path.startsWith('/admin/report') },
     ...(isSuperadmin ? [{ to: '/admin/users', label: t.navUsers, icon: Users, active: path.startsWith('/admin/users') }] : []),
+    ...(isSuperadmin ? [{ to: '/admin/integration', label: t.navIntegrate, icon: Link2, active: path.startsWith('/admin/integration') }] : []),
+    // La pàgina de compte necessita les columnes de la migració 009: sense elles, no es mostra
+    ...(isSuperadmin && org?.plan ? [{ to: '/admin/account', label: t.navAccount, icon: Building2, active: path.startsWith('/admin/account') }] : []),
     { to: '/admin/mfa', label: t.navSecurity, icon: ShieldCheck, active: path.startsWith('/admin/mfa') },
   ];
+  // Avís del pla a la barra lateral: només quan hi ha alguna cosa a fer (prova, venciment o renovació propera)
+  const plan = isSuperadmin ? planInfo(org) : null;
+  const planChip = !plan ? null
+    : plan.state === 'trial' ? { warn: plan.days <= 7, text: plan.days === 0 ? t.chipTrialToday : fmt(plan.days === 1 ? t.chipTrialOne : t.chipTrial, { n: plan.days }) }
+    : plan.state === 'trialEnded' ? { warn: true, text: t.chipTrialEnded }
+    : plan.state === 'expired' ? { warn: true, text: t.chipExpired }
+    : plan.renewSoon ? { warn: plan.days <= 7, text: plan.days === 0 ? t.chipRenewToday : plan.days === 1 ? t.chipRenewOne : fmt(t.chipRenew, { n: plan.days }) }
+    : null;
   const orgName = org?.name ?? '';
   const name = profile.full_name || ctx.email;
 
@@ -180,7 +213,12 @@ export default function V2Admin() {
             <span className="v2-side-sub">{t.panelName}</span>
           </span>
         </div>
-        {IS_DEMO && <span className="v2-side-demo">{t.demoTag}</span>}
+        {(IS_DEMO || planChip) && (
+          <div className="v2-side-tags">
+            {IS_DEMO && <span className="v2-side-demo">{t.demoTag}</span>}
+            {planChip && <Link className={`v2-side-plan${planChip.warn ? ' is-warn' : ''}`} to="/admin/account">{planChip.text}</Link>}
+          </div>
+        )}
 
         <nav className="v2-side-nav" aria-label={t.navLabel}>
           <ul>
@@ -195,9 +233,11 @@ export default function V2Admin() {
         </nav>
 
         <div className="v2-side-foot">
-          <a className="v2-nav-item is-quiet" href={channelPath} target="_blank" rel="noopener noreferrer">
-            <ArrowUpRight {...ICON} />{t.viewChannel}
-          </a>
+          {channelPath && (
+            <a className="v2-nav-item is-quiet" href={channelPath} target="_blank" rel="noopener noreferrer">
+              <ArrowUpRight {...ICON} />{t.viewChannel}
+            </a>
+          )}
 
           <div className="v2-side-lang" role="group" aria-label={t.language}>
             {LANGS.map(l => (
@@ -226,7 +266,8 @@ export default function V2Admin() {
       </aside>
       <div className="v2-scrim" data-open={menuOpen} onClick={() => setMenuOpen(false)} aria-hidden="true" />
 
-      <main id="v2-main" className="v2-amain" tabIndex={-1}>
+      {/* Amb el menú del mòbil obert, el contingut de sota no rep el focus */}
+      <main id="v2-main" className="v2-amain" tabIndex={-1} inert={menuOpen ? '' : undefined}>
         <Outlet context={ctx} />
       </main>
 

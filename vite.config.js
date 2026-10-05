@@ -10,12 +10,10 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
+        // Excel, PDF i Sentry no es fixen en un fragment: així només es descarreguen quan s'usen
         manualChunks: {
           'vendor-react':  ['react', 'react-dom', 'react-router-dom'],
           'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-pdf':    ['jspdf', 'jspdf-autotable'],
-          'vendor-excel':  ['exceljs'],
-          'vendor-sentry': ['@sentry/react'],
         },
       },
     },

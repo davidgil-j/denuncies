@@ -1,16 +1,27 @@
-import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { forwardRef, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { Link, useOutletContext } from 'react-router-dom';
 import { LogOut, Lock } from 'lucide-react';
 import { translations } from '../translations.js';
 import './v2.css';
 
 export const LANGS = ['ca', 'es', 'en'];
 export const BOE_URL = 'https://www.boe.es/buscar/act.php?id=BOE-A-2023-4513';
+// Enllaç a un article de la llei al text consolidat del BOE. Les àncores del BOE no són el
+// número d'article: fins al 9 són a5, a9…; a partir del 10 són a1-2 (art. 10), a3-8 (art. 36)…
+export const boeArt = (n) => `${BOE_URL}#a${n < 10 ? n : `${Math.floor(n / 10)}-${(n % 10) + 2}`}`;
+// Canals externs d'informació (art. 7.2): autoritat estatal i, a Catalunya, l'Oficina Antifrau
+export const AIPI_URL = 'https://www.proteccioninformante.gob.es';
+export const ANTIFRAU_URL = 'https://www.antifrau.cat';
 const EXIT_URL = 'https://www.google.com/';
 
 // Sustitueix {clau} per valors: fmt('Pas {n} de {total}', { n: 1, total: 4 })
+// Si el valor ja acaba en punt («Empresa, S.L.») i el text en posa un altre, no en surten dos
 export function fmt(str, vars = {}) {
-  return str.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+  return str.replace(/\{(\w+)\}(\.?)/g, (m, k, dot) => {
+    if (!(k in vars)) return m;
+    const v = String(vars[k]);
+    return dot && v.endsWith('.') ? v : v + dot;
+  });
 }
 
 export function initials(name = '') {
@@ -26,13 +37,102 @@ export function detectLang() {
   return 'ca';
 }
 
-// Sortir ràpidament: substitueix l'entrada de l'historial perquè "enrere" no torni al canal
+// Sortir ràpidament: substitueix l'entrada de l'historial perquè "enrere" no torni al canal.
+// Funciona perquè dins del canal tota la navegació substitueix l'entrada (replace): el canal
+// només n'ocupa una a l'historial, i és la que es substitueix aquí.
 export function quickExit() {
   window.__v2Exiting = true;
   window.location.replace(EXIT_URL);
 }
 
 export const ICON = { strokeWidth: 1.75, 'aria-hidden': true };
+
+/**
+ * Text que ocupa sempre l'espai de l'idioma més llarg: en canviar d'idioma, res no es mou.
+ * Pinta les tres versions a la mateixa cel·la; només la de l'idioma actiu es veu i es llegeix
+ * (les altres van amb visibility: hidden i aria-hidden). pick rep els textos d'un idioma:
+ *   <Stable lang={lang} pick={T => T.v2.title} />
+ * as = etiqueta de l'element (per defecte span); amb as="h1" o "p" fa de bloc, i amb
+ * block també un span. inner = classe de cada versió (per exemple, una fila d'etiquetes).
+ */
+const ANCHORS = 'h1, h2, h3, h4, p, li, tr, dt, figure, fieldset, label, details, .v2-card';
+/**
+ * En canviar d'idioma, la pàgina no salta: es recorda què hi havia a dalt de la pantalla i,
+ * amb els textos nous ja pintats, es torna a deixar a la mateixa alçada. Retorna la funció
+ * que s'ha de cridar just abans de canviar l'idioma.
+ */
+export function useLangAnchor(lang) {
+  const held = useRef(null);
+  useLayoutEffect(() => {
+    const h = held.current;
+    held.current = null;
+    if (!h || !h.el.isConnected) return;
+    const delta = h.el.getBoundingClientRect().top - h.top;
+    if (Math.abs(delta) >= 1) window.scrollBy({ top: delta, behavior: 'instant' });
+  }, [lang]);
+  return useCallback(() => {
+    held.current = null;
+    if (window.scrollY < 4) return; // a dalt de tot, es queda a dalt
+    const main = document.getElementById('v2-main');
+    if (!main) return;
+    // Sota la capçalera enganxada, si n'hi ha
+    const head = document.querySelector('.v2-site-header, .v2-topbar');
+    const box = head && getComputedStyle(head).position === 'sticky' ? head.getBoundingClientRect() : null;
+    const min = box && box.height ? Math.max(0, box.bottom) : 0;
+    for (const el of main.querySelectorAll(ANCHORS)) {
+      const r = el.getBoundingClientRect();
+      if (!r.height || r.top < min) continue;
+      if (r.top < window.innerHeight) held.current = { el, top: r.top };
+      break;
+    }
+  }, []);
+}
+
+export const Stable = forwardRef(function Stable({ lang, pick, as: Tag = 'span', block = false, inner = '', className = '', ...rest }, ref) {
+  // Dins d'un div hi pot anar qualsevol contingut (paràgrafs, llistes): les versions també són div
+  const V = Tag === 'div' ? 'div' : 'span';
+  return (
+    <Tag ref={ref} className={`v2-stable${block ? ' is-block' : ''}${className ? ` ${className}` : ''}`} {...rest}>
+      {LANGS.map(l => (
+        <V key={l} className={`v2-stable-v${inner ? ` ${inner}` : ''}`} aria-hidden={l === lang ? undefined : true} lang={l === lang ? undefined : l}>
+          {pick(translations[l], l)}
+        </V>
+      ))}
+    </Tag>
+  );
+});
+
+/**
+ * Etiqueta que canvia en fer una acció (Copiar → Copiat) sense que el botó canviï de mida: pinta
+ * els dos textos en els tres idiomes, a la mateixa cel·la, i només ensenya el que toca. El text
+ * que es llegeix (i que s'anuncia en canviar) va en una regió a part, només per a lectors de pantalla.
+ */
+export function Swap({ lang, on, pick, pickOn }) {
+  const text = (state, l) => (state ? pickOn : pick)(translations[l], l);
+  return (
+    <span className="v2-stable">
+      {[false, true].flatMap(state => LANGS.map(l => (
+        <span key={`${state}-${l}`} className="v2-swap-v" aria-hidden="true" data-off={state === !!on && l === lang ? undefined : ''}>
+          {text(state, l)}
+        </span>
+      )))}
+      <span className="v2-vh" aria-live="polite">{text(!!on, lang)}</span>
+    </span>
+  );
+}
+
+/**
+ * Fa el component de text estable d'una pantalla, lligat al seu apartat dels textos i a l'idioma
+ * que li arriba per <Outlet context>:
+ *   const S = stableOf(T => T.v2site.login);   →   <S k="title" as="h1" />
+ * k = clau dins l'apartat. pick(apartat, tots els textos, idioma) quan el text es compon.
+ */
+export function stableOf(scope) {
+  return forwardRef(function StableText({ k, pick, ...rest }, ref) {
+    const { lang } = useOutletContext();
+    return <Stable ref={ref} lang={lang} pick={(T, l) => (pick ? pick(scope(T), T, l) : scope(T)[k])} {...rest} />;
+  });
+}
 
 export function EuSymbol() {
   return (
@@ -58,6 +158,7 @@ export function EuFlag({ className, width, height, label }) {
  * Afegeix .v2-body al <body> mentre està muntat.
  */
 export default function V2Layout({ lang, setLang, org, homeTo, children }) {
+  const holdScroll = useLangAnchor(lang);
   const t = translations[lang].v2;
 
   useEffect(() => {
@@ -72,6 +173,7 @@ export default function V2Layout({ lang, setLang, org, homeTo, children }) {
   return (
     <div className="v2">
       <EuSymbol />
+      <a className="v2-skip" href="#v2-main">{t.skip}</a>
 
       <div className="v2-strip">
         <div className="v2-wrap">
@@ -81,7 +183,7 @@ export default function V2Layout({ lang, setLang, org, homeTo, children }) {
             <a href={BOE_URL} target="_blank" rel="noopener noreferrer">{t.lawShort}</a>
           </span>
           <button type="button" className="v2-exit" onClick={quickExit}>
-            <LogOut {...ICON} />{t.quickExit}
+            <LogOut {...ICON} /><Stable lang={lang} pick={T => T.v2.quickExit} />
           </button>
         </div>
       </div>
@@ -89,11 +191,11 @@ export default function V2Layout({ lang, setLang, org, homeTo, children }) {
       <header className="v2-header">
         <div className="v2-wrap">
           {org ? (
-            <Link className="v2-brand" to={homeTo}>
+            <Link className="v2-brand" to={homeTo} replace>
               <span className="v2-mark" aria-hidden="true">{initials(org.name)}</span>
               <span className="v2-brand-txt">
                 <span className="v2-brand-name">{org.name}</span>
-                <span className="v2-brand-sub">{t.channelName}</span>
+                <Stable lang={lang} pick={T => T.v2.channelName} className="v2-brand-sub" />
               </span>
             </Link>
           ) : <span />}
@@ -105,7 +207,7 @@ export default function V2Layout({ lang, setLang, org, homeTo, children }) {
                 lang={l}
                 aria-pressed={lang === l}
                 aria-label={translations[l].langName}
-                onClick={() => setLang(l)}
+                onClick={() => { holdScroll(); setLang(l); }}
               >
                 {l.toUpperCase()}
               </button>
@@ -114,14 +216,14 @@ export default function V2Layout({ lang, setLang, org, homeTo, children }) {
         </div>
       </header>
 
-      <main>{children}</main>
+      <main id="v2-main" tabIndex={-1}>{children}</main>
 
       <footer className="v2-footer">
         <div className="v2-wrap">
           <span className="grow">{org ? `${org.name} · ${t.channelName}` : t.channelName}</span>
           <span className="secure"><Lock {...ICON} />{t.footerSecure}</span>
           <a href={BOE_URL} target="_blank" rel="noopener noreferrer">{t.footerLaw}</a>
-          <a href={`/privacitat?lang=${lang}`}>{t.privacy}</a>
+          {org ? <Link to={`${homeTo}/privacidad`} replace>{t.privacy}</Link> : <a href={`/privacitat?lang=${lang}`}>{t.privacy}</a>}
         </div>
       </footer>
     </div>

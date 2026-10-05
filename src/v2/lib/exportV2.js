@@ -41,7 +41,11 @@ const argb = rgb => 'FF' + rgb.map(v => v.toString(16).padStart(2, '0')).join(''
 // ── Textos ──────────────────────────────────────────────────────────
 
 function fmt(str, vars = {}) {
-  return String(str).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
+  return String(str).replace(/\{(\w+)\}(\.?)/g, (m, k, dot) => {
+    if (!(k in vars)) return m;
+    const v = String(vars[k]);
+    return dot && v.endsWith('.') ? v : v + dot;
+  });
 }
 
 function dict(lang) {
@@ -220,7 +224,9 @@ export async function buildExcelWorkbook(complaints = [], lang = 'es', { now = n
     { key: 'dept',     header: t.cDept },
     { key: 'incident', header: t.cIncident,      date: true },
     { key: 'received', header: t.cReceivedLong,  date: true },
+    { key: 'acked',    header: t.cAcked,         date: true },
     { key: 'deadline', header: t.cDeadline,      date: true },
+    { key: 'answered', header: t.cAnswered,      date: true },
     { key: 'lang',     header: t.cLang },
   ];
   const colIndex = Object.fromEntries(cols.map((c, i) => [c.key, i + 1]));
@@ -239,7 +245,10 @@ export async function buildExcelWorkbook(complaints = [], lang = 'es', { now = n
         dept:     c.department ?? '',
         incident: xlDate(toDate(c.incident_date)),
         received: xlDate(toDate(c.created_at)),
-        deadline: dl ? xlDate(dl.reply) : null,
+        // Dates del llibre registre (art. 26): acusament, termini (ampliat si escau) i resposta
+        acked:    xlDate(toDate(c.acknowledged_at)),
+        deadline: c.extended_until ? xlDate(toDate(c.extended_until)) : dl ? xlDate(dl.reply) : null,
+        answered: xlDate(toDate(c.answered_at)),
         lang:     D.langName(c.language),
       },
     };
@@ -597,6 +606,7 @@ function filterParts(filters, D) {
   const f = filters ?? {};
   const { t } = D;
   const parts = [];
+  if (f.view)     parts.push(`${t.fView}: ${f.view}`);
   if (f.status)   parts.push(`${t.fStatus}: ${D.status(f.status)}`);
   if (f.category) parts.push(`${t.fCategory}: ${D.category(f.category)}`);
   if (f.priority) parts.push(`${t.fPriority}: ${D.priority(f.priority)}`);
@@ -795,7 +805,7 @@ export async function buildComplaintPDF(complaint, messages = [], lang = 'es', {
     if (c.reporter_name)  data.push([t.name, c.reporter_name]);
     if (c.reporter_email) data.push([t.email, c.reporter_email]);
     if (c.reporter_phone) data.push([t.phone, c.reporter_phone]);
-    if (!data.length) data.push([t.identity, t.notStated]);
+    if (!data.length) data.push([t.identity, c.identityWithheld ? t.identityWithheld : t.notStated]);
   } else {
     data.push([t.identity, t.identityNone]); // anònima: mai es llegeixen els camps reporter_*
   }
@@ -823,12 +833,23 @@ export async function buildComplaintPDF(complaint, messages = [], lang = 'es', {
   if (dl) {
     sectionTitle(ctx, ++n, t.sDeadlines);
     const closedText = fmt(t.dClosed, { status: D.status(c.status) });
-    const ackLate = dl.firstManagerMsg ? startOfDay(dl.firstManagerMsg) > dl.ack : dl.open && dl.ackLeft < 0;
-    const ackState = dl.firstManagerMsg
+    let ackLate = dl.firstManagerMsg ? startOfDay(dl.firstManagerMsg) > dl.ack : dl.open && dl.ackLeft < 0;
+    let ackState = dl.firstManagerMsg
       ? fmt(t.dFirstMsg, { date: fDate(dl.firstManagerMsg, locale) })
       : dl.open ? countdown(t, dl.ackLeft) : closedText;
-    const replyLate = dl.open && dl.replyLeft < 0;
-    const replyState = dl.open ? countdown(t, dl.replyLeft) : closedText;
+    let replyLate = dl.open && dl.replyLeft < 0;
+    let replyState = dl.open ? countdown(t, dl.replyLeft) : closedText;
+    // El panell passa els terminis ja calculats (mateix criteri que la pantalla): s'usen tal qual
+    const P = c.deadline;
+    if (P) {
+      dl.ack = P.ackDue;
+      dl.reply = P.respDue;
+      ackLate = P.ack.state === 'done' ? !!P.ack.late : P.ack.state === 'overdue';
+      ackState = P.ack.state === 'done' ? (P.ack.at ? fmt(t.dFirstMsg, { date: fDate(P.ack.at, locale) }) : closedText) : countdown(t, P.ack.days);
+      const answered = ['met', 'late'].includes(P.resp.state);
+      replyLate = answered ? P.resp.state === 'late' : P.resp.state === 'overdue';
+      replyState = answered ? fmt(t.dReplied, { date: fDate(P.resp.at, locale) }) : countdown(t, P.resp.days);
+    }
     const late = [ackLate, replyLate];
     table(ctx, {
       head: [[t.dStep, t.dTerm, t.dDate, t.dState]],
@@ -920,4 +941,133 @@ export async function exportComplaintToPDF(complaint, messages = [], lang = 'es'
   const { t } = dict(lang);
   const doc = await buildComplaintPDF(complaint, messages, lang);
   doc.save(`${t.fileDetail}_${complaint?.tracking_code ?? ''}_${isoDay(new Date())}.pdf`);
+}
+
+// ── Cartell del canal (A4 vertical, per a taulers d'anuncis) ─────────
+
+/** Parteix una adreça llarga per les barres perquè no surti del marc */
+function breakUrl(doc, url, maxW) {
+  if (doc.getTextWidth(url) <= maxW) return [url];
+  const lines = [];
+  let line = '';
+  for (const part of url.split(/(?<=\/)/)) {
+    if (line && doc.getTextWidth(line + part) > maxW) { lines.push(line); line = part; }
+    else line += part;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+export async function buildChannelPoster({ orgName = '', url, lang = 'es' }) {
+  const D = dict(lang);
+  const t = D.t;
+  const ctx = await createDoc('portrait', D);
+  const { doc, W, H } = ctx;
+  const M = 20;
+  const CW = W - M * 2;
+  const { default: QRCode } = await import('qrcode');
+  const qr = await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 0, width: 960, color: { dark: '#0A1830', light: '#ffffff' } });
+  const shown = url.replace(/^https?:\/\//, '');
+
+  // Banda superior: organització (fins a dues línies) i marc legal
+  font(ctx, { bold: true, size: 14, color: C.white });
+  const nameLines = doc.splitTextToSize(orgName, CW).slice(0, 2);
+  if (doc.splitTextToSize(orgName, CW).length > 2) nameLines[1] = fit(doc, `${nameLines[1]} …`, CW);
+  const bandH = 36 + (nameLines.length - 1) * 6.5;
+  doc.setFillColor(...C.navy);
+  doc.rect(0, 0, W, bandH, 'F');
+  font(ctx, { bold: true, size: 14, color: C.white });
+  doc.text(nameLines, M, 17, { lineHeightFactor: 1.3 });
+  font(ctx, { size: 9.5, color: [179, 192, 210] });
+  doc.text(t.posterBand, M, 25 + (nameLines.length - 1) * 6.5);
+
+  // Títol, promesa i explicació
+  let y = 66 + (nameLines.length - 1) * 6.5;
+  font(ctx, { kind: 'display', size: 36, color: C.navy });
+  const title = doc.splitTextToSize(t.posterTitle, CW);
+  doc.text(title, M, y, { lineHeightFactor: 1.12 });
+  y += title.length * 14.2 + 2;
+  font(ctx, { kind: 'display', size: 19, color: C.accent });
+  const promise = doc.splitTextToSize(t.posterPromise, CW);
+  doc.text(promise, M, y, { lineHeightFactor: 1.2 });
+  y += promise.length * 8 + 5;
+  font(ctx, { size: 12.5, color: C.ink2 });
+  const lead = doc.splitTextToSize(fmt(t.posterLead, { org: orgName }), CW - 24);
+  doc.text(lead, M, y, { lineHeightFactor: 1.45 });
+  y += lead.length * 6.4 + 10;
+
+  // Marc amb el codi QR, l'adreça i el que cal saber. L'alçada surt del text (un nom d'empresa
+  // llarg allarga les frases): primer es mesura, després es dibuixa
+  const QS = 70;
+  const PAD = 12;
+  const xText = M + PAD + QS + 14;
+  const colWidth = W - M - PAD - xText;
+  font(ctx, { size: 10.5 });
+  const scanLines = doc.splitTextToSize(t.posterScan, colWidth);
+  font(ctx, { bold: true, size: 13 });
+  const urlLinesPre = breakUrl(doc, shown, colWidth);
+  font(ctx, { size: 10.5 });
+  const pointLines = t.posterPoints.map(pt => doc.splitTextToSize(fmt(pt, { org: orgName }), colWidth - 8));
+  const textH = 4 + scanLines.length * 5.2 + 3 + urlLinesPre.length * 6 + 5 + 4 + pointLines.reduce((h, l) => h + l.length * 5.2 + 3.2, 0);
+  const panelH = Math.max(QS + PAD * 2, textH + PAD * 2);
+  doc.setFillColor(...C.bg);
+  doc.setDrawColor(...C.line);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(M, y, CW, panelH, 4, 4, 'FD');
+  doc.setFillColor(...C.white);
+  doc.roundedRect(M + PAD - 4, y + PAD - 4, QS + 8, QS + 8, 2.5, 2.5, 'FD');
+  doc.addImage(qr, 'PNG', M + PAD, y + PAD, QS, QS);
+
+  const x = M + PAD + QS + 14;
+  const colW = W - M - PAD - x;
+  let ty = y + PAD + 4;
+  font(ctx, { size: 10.5, color: C.ink2 });
+  const scan = doc.splitTextToSize(t.posterScan, colW);
+  doc.text(scan, x, ty, { lineHeightFactor: 1.4 });
+  ty += scan.length * 5.2 + 3;
+  font(ctx, { bold: true, size: 13, color: C.navy });
+  const urlLines = breakUrl(doc, shown, colW);
+  doc.text(urlLines, x, ty, { lineHeightFactor: 1.3 });
+  ty += urlLines.length * 6 + 5;
+  doc.setDrawColor(...C.line);
+  doc.line(x, ty - 3, x + colW, ty - 3);
+  ty += 4;
+  for (const point of t.posterPoints) {
+    // marca de verificació dibuixada (la tipografia incrustada no porta el glif)
+    doc.setDrawColor(...C.accent);
+    doc.setLineWidth(0.55);
+    doc.setLineCap('round');
+    doc.setLineJoin('round');
+    doc.lines([[1.3, 1.3], [2.6, -3]], x + 0.4, ty - 1.2, [1, 1], 'S', false);
+    font(ctx, { size: 10.5, color: C.ink });
+    const lines = doc.splitTextToSize(fmt(point, { org: orgName }), colW - 8);
+    doc.text(lines, x + 8, ty, { lineHeightFactor: 1.4 });
+    ty += lines.length * 5.2 + 3.2;
+  }
+  doc.setLineWidth(0.3);
+  y += panelH + 12;
+
+  // Consell de privacitat i protecció legal
+  font(ctx, { size: 11, color: C.ink2 });
+  const tip = doc.splitTextToSize(t.posterTip, CW - 24);
+  doc.text(tip, M, y, { lineHeightFactor: 1.45 });
+  y += tip.length * 5.8 + 4;
+  font(ctx, { bold: true, size: 11, color: C.navy });
+  doc.text(doc.splitTextToSize(t.posterLaw, CW - 24), M, y, { lineHeightFactor: 1.45 });
+
+  // Peu
+  doc.setDrawColor(...C.line);
+  doc.line(M, H - 20, W - M, H - 20);
+  font(ctx, { size: 8.5, color: C.ink3 });
+  doc.text(fit(doc, `${orgName} · ${t.posterTitle}`, CW * 0.6), M, H - 13.5);
+  doc.text(t.posterBand, W - M, H - 13.5, { align: 'right' });
+
+  doc.setProperties({ title: `${t.posterTitle} · ${orgName}`, author: orgName });
+  return doc;
+}
+
+export async function exportChannelPoster({ orgName, url, lang = 'es', slug = '' }) {
+  const doc = await buildChannelPoster({ orgName, url, lang });
+  const D = dict(lang);
+  downloadBlob(doc.output('blob'), `${D.t.posterFile}${slug ? `-${slug}` : ''}.pdf`);
 }
