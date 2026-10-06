@@ -12,8 +12,6 @@ import { BOE_URL, ICON, boeArt, fmt, Stable, stableOf, Swap } from '../V2Layout.
 import { PLANS, TRIAL_DAYS, CONTACT_EMAIL, formatPrice } from './plans.js';
 
 const DEMO_PATH = '/canal/demo';
-const REPORTER_ICONS = [EyeOff, Paperclip, KeyRound, Languages];
-const MANAGER_ICONS = [ListChecks, MessagesSquare, UsersRound, History, ShieldCheck, FileSpreadsheet];
 const STATUS_FLOW = ['received', 'investigating', 'resolved'];
 const WHAT_ICONS = [Megaphone, ShieldCheck, Building2];
 const WHAT_TONES = ['pop', 'navy', 'soft'];
@@ -22,16 +20,10 @@ const CAT_ICONS = {
   fraud: HandCoins, harassment: UserRoundX, discrimination: Scale, safety: HardHat,
   data: DatabaseZap, conflict: Handshake, accounting: Calculator, environmental: Leaf,
 };
-// Les rajoles alternen els tres tons de la pàgina, com un tauler
-const TILE_TONES = ['pop', 'soft', 'navy', 'soft', 'soft', 'navy', 'soft', 'pop'];
-// El recorregut: qui actua a cada pas (rep = qui denuncia, co = l'empresa) i quines captures s'ensenyen
-const HOW = [
-  { who: 'rep', shots: [['canal', 'alt']] },
-  { who: 'rep', shots: [['formulario', 'alt']] },
-  { who: 'rep', shots: [['codigo', 'alt'], ['seguimiento', 'alt2']] },
-  { who: 'co', shots: [['plazos', 'alt']] },
-];
-const STEP_MS = 5600;
+// Les vuit categories en dues files, per a la franja d'exemples
+const CAT_ROWS = [['fraud', 'harassment', 'discrimination', 'safety'], ['data', 'conflict', 'accounting', 'environmental']];
+// El recorregut: qui actua a cada pas (rep = qui denuncia, co = l'empresa) i quina pantalla s'ensenya
+const HOW = [['rep', 'canal'], ['rep', 'formulario'], ['rep', 'codigo'], ['co', 'panel']];
 
 /**
  * Captura real del producte en l'idioma de la pàgina. Les imatges són a public/landing i es
@@ -67,85 +59,30 @@ const Tx = stableOf(T => T.v2site.landing);
 const Lp = stableOf(T => T.v2site.lp);
 
 /**
- * El recorregut en quatre passos. Avança sol mentre és a la pantalla i ningú hi té el ratolí o el
- * focus a sobre; quan la persona tria un pas, s'atura i mana ella. Amb el moviment reduït no avança.
- * Els quatre textos i les quatre captures ocupen la mateixa cel·la: l'alçada no canvia en passar de pas.
+ * Xifra que puja fins al seu valor quan arriba a la pantalla. Sense l'observador, o amb el moviment
+ * reduït, es queda en el valor final, que és el que hi ha escrit des del principi.
  */
-function HowItWorks({ lang, tl }) {
-  const [active, setActive] = useState(0);
-  const [auto, setAuto] = useState(true);
-  const [seen, setSeen] = useState(false);
-  const [held, setHeld] = useState(false);
-  const box = useRef(null);
-  const calm = useRef(typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches).current;
-
+function CountUp({ to, ms = 900 }) {
+  const ref = useRef(null);
   useEffect(() => {
-    if (!box.current || !('IntersectionObserver' in window)) return undefined;
-    const io = new IntersectionObserver(([e]) => setSeen(e.isIntersecting), { threshold: 0.4 });
-    io.observe(box.current);
-    return () => io.disconnect();
-  }, []);
-
-  const playing = auto && seen && !held && !calm;
-  useEffect(() => {
-    if (!playing) return undefined;
-    const id = setTimeout(() => setActive(a => (a + 1) % HOW.length), STEP_MS);
-    return () => clearTimeout(id);
-  }, [playing, active]);
-
-  // El detall que es destaca a cada pas, amb textos que ja són al producte
-  const tips = [T => T.v2site.lp.facts[2], T => T.v2.anonF1, T => T.v2site.lp.codeNote, T => T.v2site.lp.deadLead];
-
-  return (
-    <div
-      className="v2-lp-how-box" ref={box} data-rv=""
-      onMouseEnter={() => setHeld(true)} onMouseLeave={() => setHeld(false)}
-      onFocus={() => setHeld(true)} onBlur={() => setHeld(false)}
-    >
-      <ol className="v2-lp-tabs">
-        {HOW.map((h, i) => (
-          <li key={i}>
-            <button
-              type="button" className="v2-lp-tab" aria-current={i === active ? 'step' : undefined} aria-controls="v2-lp-how-view"
-              onClick={() => { setActive(i); setAuto(false); }}
-            >
-              <span className="v2-lp-tab-n" aria-hidden="true">{i + 1}</span>
-              <Lp className="v2-lp-tab-t" pick={x => x.howShort[i]} />
-              <span className="v2-lp-tab-bar" aria-hidden="true">
-                <i
-                  key={`${active}-${playing}`}
-                  className={i < active ? 'is-full' : i === active ? (playing ? 'is-run' : 'is-full') : undefined}
-                  style={{ animationDuration: `${STEP_MS}ms` }}
-                />
-              </span>
-            </button>
-          </li>
-        ))}
-      </ol>
-
-      <div className="v2-lp-how-view" id="v2-lp-how-view">
-        <div className="v2-lp-how-copy">
-          {HOW.map((h, i) => (
-            <div key={i} className="v2-lp-how-item" data-on={i === active ? '' : undefined} aria-hidden={i === active ? undefined : true}>
-              <span className={`v2-lp-who is-${h.who}`}>{h.who === 'co' ? tl.whoCompany : tl.whoReporter}</span>
-              <Lp as="div" pick={x => <><h3>{x.how[i].t}</h3><p>{x.how[i].d}</p></>} />
-              <p className="v2-lp-how-tip"><Check {...ICON} /><Stable lang={lang} pick={tips[i]} /></p>
-            </div>
-          ))}
-        </div>
-        <div className={`v2-lp-how-stage is-${HOW[active].who}`}>
-          <span className="v2-lp-disc" aria-hidden="true" />
-          {HOW.map((h, i) => (
-            <div key={i} className={`v2-lp-how-shot${h.shots.length > 1 ? ' is-pair' : ''}`} data-on={i === active ? '' : undefined} aria-hidden={i === active ? undefined : true}>
-              {h.shots.map(([name, altKey]) => (
-                <Shot key={name} name={name} kind={name === 'plazos' ? 'card' : 'phone'} lang={lang} alt={name === 'plazos' ? tl.plazosAlt : tl.how[i][altKey]} />
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+    const el = ref.current;
+    if (!el || !('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+    let raf = 0;
+    const io = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      io.disconnect();
+      const start = performance.now();
+      const tick = (now) => {
+        const k = Math.min(1, (now - start) / ms);
+        el.textContent = String(Math.round(to * (1 - (1 - k) ** 3)));
+        if (k < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    }, { threshold: 0.6 });
+    io.observe(el);
+    return () => { io.disconnect(); cancelAnimationFrame(raf); };
+  }, [to, ms]);
+  return <span ref={ref}>{to}</span>;
 }
 
 /** Codi QR real del canal d'exemple. Si no es pot generar, la peça simplement no surt. */
@@ -242,27 +179,32 @@ export default function V2Landing() {
         </div>
       </section>
 
-      {/* ── Què és: la definició a l'esquerra, les tres idees a la dreta ── */}
+      {/* ── Què és: una foto a l'esquerra; a la dreta, la definició i les tres idees ── */}
       <section className="v2-lp-what" id="que-es" aria-labelledby="v2-lp-what-t">
-        <div className="v2-wrap v2-lp-split">
-          <div className="v2-lp-head" data-rv="">
-            <Lp as="p" className="v2-lp-eb" k="ebWhat" />
-            <Lp as="h2" className="v2-sec-title" id="v2-lp-what-t" k="whatTitle" />
-            <Lp as="p" className="v2-lead" k="whatLead" />
+        <div className="v2-wrap v2-lp-what-grid">
+          <figure className="v2-lp-photo" data-rv="">
+            <img src="/landing/foto-manos.webp" alt="" width="1200" height="1500" loading="lazy" decoding="async" />
+          </figure>
+          <div>
+            <div className="v2-lp-head" data-rv="">
+              <Lp as="p" className="v2-lp-eb" k="ebWhat" />
+              <Lp as="h2" className="v2-sec-title" id="v2-lp-what-t" k="whatTitle" />
+              <Lp as="p" className="v2-lead" k="whatLead" />
+            </div>
+            <ul className="v2-lp-points">
+              {WHAT_ICONS.map((Icon, i) => (
+                <li key={i} data-rv="" style={{ '--d': `${i * 70}ms` }}>
+                  <span className={`v2-lp-ico is-${WHAT_TONES[i]}`} aria-hidden="true"><Icon {...ICON} /></span>
+                  {/* títol i text en una sola peça: cada idioma flueix seguit i l'espai sobrant queda a baix */}
+                  <Lp as="div" pick={x => <><h3>{x.what[i].t}</h3><p>{x.whatShort[i]}</p></>} />
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul className="v2-lp-points">
-            {WHAT_ICONS.map((Icon, i) => (
-              <li key={i} data-rv="" style={{ '--d': `${i * 90}ms` }}>
-                <span className={`v2-lp-ico is-${WHAT_TONES[i]}`} aria-hidden="true"><Icon {...ICON} /></span>
-                {/* títol i text en una sola peça: cada idioma flueix seguit i l'espai sobrant queda a baix */}
-                <Lp as="div" pick={x => <><h3>{x.what[i].t}</h3><p>{x.what[i].d}</p></>} />
-              </li>
-            ))}
-          </ul>
         </div>
       </section>
 
-      {/* ── Com funciona: el recorregut sencer, pas a pas, amb captures reals ── */}
+      {/* ── Com funciona: els quatre passos a la vista, cadascun amb la seva pantalla real ── */}
       <section className="v2-lp-how" id="funciona" aria-labelledby="v2-lp-how-t">
         <div className="v2-wrap">
           <div className="v2-lp-head is-center" data-rv="">
@@ -270,11 +212,20 @@ export default function V2Landing() {
             <Lp as="h2" className="v2-sec-title" id="v2-lp-how-t" k="howTitle" />
             <Lp as="p" className="v2-lead" k="howLead" />
           </div>
-          <HowItWorks lang={lang} tl={tl} />
         </div>
+        <ol className="v2-lp-film">
+          {HOW.map(([who, shot], i) => (
+            <li key={shot} className={`is-${who}`} data-rv="" style={{ '--d': `${i * 70}ms` }}>
+              <div className="v2-lp-film-stage"><Shot name={shot} lang={lang} alt={tl.how[i].alt} /></div>
+              <p className="v2-lp-film-rail" aria-hidden="true"><b>{i + 1}</b><i /></p>
+              <span className={`v2-lp-who is-${who}`}>{who === 'co' ? tl.whoCompany : tl.whoReporter}</span>
+              <Lp as="div" pick={x => <><h3>{x.howShort[i]}</h3><p>{x.howLine[i]}</p></>} />
+            </li>
+          ))}
+        </ol>
       </section>
 
-      {/* ── Què es pot comunicar: les categories reals del formulari, amb un exemple de cadascuna ── */}
+      {/* ── Què es pot comunicar: exemples que passen sols, un per categoria ── */}
       <section className="v2-lp-cat" aria-labelledby="v2-lp-cat-t">
         <div className="v2-wrap">
           <div className="v2-lp-head" data-rv="">
@@ -282,21 +233,33 @@ export default function V2Landing() {
             <Lp as="h2" className="v2-sec-title" id="v2-lp-cat-t" k="catTitle" />
             <Lp as="p" className="v2-lead" k="catLead" />
           </div>
-          <ul className="v2-lp-tiles">
-            {Object.entries(CAT_ICONS).map(([value, Icon], i) => (
-              <li key={value} className={`is-${TILE_TONES[i]}`} data-rv="" style={{ '--d': `${(i % 4) * 70}ms` }}>
-                <span className="v2-lp-tile-ico" aria-hidden="true"><Icon {...ICON} /></span>
-                <Stable as="h3" lang={lang} pick={T => T.categories.find(c => c.value === value)?.label ?? value} />
-                <Lp as="p" pick={x => <><span className="v2-lp-eg">{x.catEg}</span>{x.catEx[value]}</>} />
-              </li>
-            ))}
-          </ul>
+        </div>
+        {/* Cada fila es pinta tres vegades seguides perquè la cinta no s'acabi mai; les còpies no es llegeixen */}
+        <div className="v2-lp-wall" data-rv="">
+          {CAT_ROWS.map((row, r) => (
+            <div className={`v2-lp-row is-${r}`} key={r}>
+              {[0, 1, 2].map(copy => (
+                <ul className="v2-lp-track" key={copy} aria-hidden={copy ? true : undefined}>
+                  {row.map((value) => {
+                    const Icon = CAT_ICONS[value];
+                    return (
+                      <li className="v2-lp-say" key={value}>
+                        <p className="v2-lp-say-cat"><Icon {...ICON} /><Stable lang={lang} pick={T => T.categories.find(c => c.value === value)?.label ?? value} /></p>
+                        <Lp as="p" className="v2-lp-say-q" pick={(x, T, l) => (l === 'en' ? `“${x.catSay[value]}”` : `«${x.catSay[value]}»`)} />
+                      </li>
+                    );
+                  })}
+                </ul>
+              ))}
+            </div>
+          ))}
         </div>
       </section>
 
       {/* ── Terminis legals: la línia de temps de l'article 9 ── */}
       <section className="v2-lp-dead" aria-labelledby="v2-lp-dead-t">
         <div className="v2-wrap">
+          <div className="v2-lp-dead-top">
           <div className="v2-lp-head" data-rv="">
             <Lp as="p" className="v2-lp-eb" k="ebDead" />
             <Lp as="h2" className="v2-sec-title" id="v2-lp-dead-t" k="deadTitle" />
@@ -304,6 +267,10 @@ export default function V2Landing() {
             <a className="v2-lp-dead-ref" href={boeArt(9)} target="_blank" rel="noopener noreferrer">
               <Lp k="deadRef" /><span className="v2-vh"> {t.opensBoe}</span><ArrowUpRight {...ICON} />
             </a>
+          </div>
+            <figure className="v2-lp-dead-shot" data-rv="" style={{ '--d': '140ms' }}>
+              <Shot kind="card" name="plazos" lang={lang} alt={tl.plazosAlt} />
+            </figure>
           </div>
           <ol className="v2-lp-line">
             {tl.dead.map((d, i) => (
@@ -318,10 +285,15 @@ export default function V2Landing() {
 
       {/* ── Obligació legal ── */}
       <section className="v2-land-obl" aria-labelledby="v2-land-obl-t">
+        {/* La xifra que decideix l'obligació, en gran i sobre la foto: el text de sota ja la diu */}
+        <div className="v2-wrap">
+          <figure className="v2-lp-banner" data-rv="">
+            <img src="/landing/foto-reunion.webp" alt="" width="2000" height="860" loading="lazy" decoding="async" />
+            <p className="v2-lp-big" aria-hidden="true"><CountUp to={50} /><i>+</i></p>
+          </figure>
+        </div>
         <div className="v2-wrap v2-land-obl-grid">
           <div className="v2-land-obl-main" data-rv="">
-            {/* La xifra que decideix l'obligació, en gran: el text del costat ja la diu */}
-            <p className="v2-lp-big" aria-hidden="true">50<i>+</i></p>
             {st(x => x.oblTitle, { as: 'h2', className: 'v2-sec-title', id: 'v2-land-obl-t' })}
             {st(x => x.oblAnswer, { as: 'p', className: 'v2-land-answer' })}
             {st(x => x.oblText, { as: 'p', className: 'v2-land-obl-text' })}
@@ -344,79 +316,25 @@ export default function V2Landing() {
         </div>
       </section>
 
-      {/* ── Dues parts: qui denuncia i qui gestiona, unides pel codi ── */}
-      <section className="v2-land-two v2-wrap" id="funciones" aria-labelledby="v2-land-two-t">
-        <Tx as="h2" className="v2-sec-title" id="v2-land-two-t" k="twoTitle" />
-        <Tx as="p" className="v2-lead v2-land-two-lead" k="twoLead" />
-
-        <div className="v2-land-pair" data-rv="">
-          <div className="v2-land-side">
-            <div className="v2-land-side-head">
-              <span className="v2-land-badge" aria-hidden="true"><UserRound {...ICON} /></span>
-              <div>
-                <Tx as="h3" k="reporterTitle" />
-                <Tx as="p" k="reporterSub" />
-              </div>
-            </div>
-            <ul className="v2-land-caps">
-              {t.reporterItems.map((item, i) => {
-                const Icon = REPORTER_ICONS[i];
-                return <li key={i}><Icon {...ICON} /><Tx pick={x => x.reporterItems[i]} /></li>;
-              })}
-            </ul>
-          </div>
-
-          <div className="v2-land-seam">
-            <span className="v2-land-seam-icon" aria-hidden="true"><MessagesSquare {...ICON} /></span>
-            <Tx className="v2-land-seam-label" k="seamLabel" />
-          </div>
-
-          <div className="v2-land-side is-private">
-            <div className="v2-land-side-head">
-              <span className="v2-land-badge" aria-hidden="true"><LayoutDashboard {...ICON} /></span>
-              <div>
-                <Tx as="h3" k="managerTitle" />
-                <Tx as="p" k="managerSub" />
-              </div>
-            </div>
-            <ul className="v2-land-caps">
-              {t.managerItems.map((item, i) => {
-                const Icon = MANAGER_ICONS[i];
-                return <li key={i}><Icon {...ICON} /><Tx pick={x => x.managerItems[i]} /></li>;
-              })}
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* ── La llei, punt per punt: què exigeix i com ho cobreix el producte ── */}
+      {/* ── La llei, punt per punt: cada exigència es desplega; plegada, només es veu què demana ── */}
       <section className="v2-land-law v2-wrap" id="ley" aria-labelledby="v2-land-law-t">
         <Tx as="h2" className="v2-sec-title" id="v2-land-law-t" k="lawTitle" />
         <Tx as="p" className="v2-lead v2-land-two-lead" k="lawLead" />
 
         <div className="v2-land-law-grid" data-rv="">
-          <table className="v2-land-table">
-            <thead>
-              <tr>
-                <th scope="col"><Tx k="lawColReq" /></th>
-                <th scope="col"><Tx k="lawColArt" /></th>
-                <th scope="col"><Tx k="lawColHow" /></th>
-              </tr>
-            </thead>
-            <tbody>
-              {t.lawRows.map((r, i) => (
-                <tr key={i}>
-                  <th scope="row"><Tx pick={x => x.lawRows[i].req} /></th>
-                  <td className="v2-land-art">
-                    <a href={boeArt(r.n)} target="_blank" rel="noopener noreferrer">
-                      <span className="v2-land-art-pre">{t.lawColArt} </span>{r.art}<span className="v2-vh"> {t.opensBoe}</span><ArrowUpRight {...ICON} />
-                    </a>
-                  </td>
-                  <td><Tx pick={x => x.lawRows[i].how} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="v2-lp-reqs">
+            {t.lawRows.map((r, i) => (
+              <details className="v2-land-q" key={i}>
+                <summary><Tx pick={x => x.lawRows[i].req} /><span className="v2-lp-art">{r.art}</span><Plus {...ICON} /></summary>
+                <Tx as="p" pick={x => x.lawRows[i].how} />
+                <p className="v2-lp-req-ref">
+                  <a className="v2-link" href={boeArt(r.n)} target="_blank" rel="noopener noreferrer">
+                    {t.lawColArt} {r.art}<span className="v2-vh"> {t.opensBoe}</span>
+                  </a>
+                </p>
+              </details>
+            ))}
+          </div>
 
           <aside className="v2-land-own" aria-labelledby="v2-land-own-t">
             <span className="v2-land-badge" aria-hidden="true"><Building2 {...ICON} /></span>
@@ -555,6 +473,9 @@ export default function V2Landing() {
       {/* ── Contacte: el correu sempre a la vista; copiar-lo confirma que s'ha copiat ── */}
       <section className="v2-lp-contact v2-wrap" id="contacto" aria-labelledby="v2-lp-contact-t">
         <div className="v2-lp-contact-box" data-rv="">
+          <figure className="v2-lp-photo">
+            <img src="/landing/foto-mesa.webp" alt="" width="1200" height="1200" loading="lazy" decoding="async" />
+          </figure>
           <div>
             <Lp as="h2" className="v2-sec-title" id="v2-lp-contact-t" k="contactTitle" />
             <Lp as="p" className="v2-lp-contact-text" k="contactText" />
@@ -574,6 +495,8 @@ export default function V2Landing() {
 
       {/* ── Tancament ── */}
       <section className="v2-land-end" aria-labelledby="v2-land-end-t">
+        {/* Algú davant d'un finestral: es veu que hi és, no qui és */}
+        <img className="v2-lp-end-photo" src="/landing/foto-silueta.webp" alt="" width="1800" height="1200" loading="lazy" decoding="async" />
         <div className="v2-wrap v2-land-end-grid" data-rv="">
           <div>
             <Tx as="h2" className="v2-sec-title" id="v2-land-end-t" k="endTitle" />

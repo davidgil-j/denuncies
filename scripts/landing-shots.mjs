@@ -54,13 +54,6 @@ for (const lang of ['ca', 'es', 'en']) {
   await p.evaluate(() => window.scrollTo(0, 0));
   await shot(p, 'codigo', lang);
 
-  await p.goto(`${BASE}/canal/demo/consulta?lang=${lang}`, { waitUntil: 'networkidle' });
-  await p.locator('#v2-f-code').fill('W2LC-9PXA');
-  await p.locator('.v2-track-form button[type=submit]').click();
-  await p.waitForSelector('.v2-tl');
-  await p.locator('.v2-tl').first().scrollIntoViewIfNeeded();
-  await p.evaluate(() => window.scrollBy(0, -140));
-  await shot(p, 'seguimiento', lang);
   await phone.close();
 
   // ── Panel de gestión: la ficha con sus plazos, a tamaño legible ──
@@ -75,5 +68,18 @@ for (const lang of ['ca', 'es', 'en']) {
   await d.waitForTimeout(700);
   await shot(d, 'plazos', lang, '.v2-exp');
   await desk.close();
+
+  // ── La misma ficha en un móvil: el cuarto paso del recorrido ──
+  const hand = await browser.newContext({ viewport: { width: 390, height: 800 }, deviceScaleFactor: 2, locale: lang });
+  await hand.addInitScript((l) => {
+    sessionStorage.setItem('reportia-demo-session', '1');
+    sessionStorage.setItem('reportia-demo-aal', '2');
+    localStorage.setItem('reportia-panel-lang', l);
+  }, lang);
+  const h = await hand.newPage();
+  await h.goto(`${BASE}/admin/complaints/c-vk7p2mqa`, { waitUntil: 'networkidle' });
+  await h.waitForTimeout(700);
+  await shot(h, 'panel', lang);
+  await hand.close();
 }
 await browser.close();

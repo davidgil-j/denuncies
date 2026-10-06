@@ -363,6 +363,9 @@ export const translations = {
 
       lp: {
         eyebrow: 'Canal intern de denúncies · Llei 2/2023',
+        howLine: ['Des de l’enllaç, el botó del seu web o un codi QR.', 'Amb el seu nom o sense, i amb documents si vol.', 'Amb ell consulta el seu cas i respon, sense dir qui és.', 'Acusa recepció, investiga i respon dins de termini.'],
+        whatShort: ['Per a la plantilla, i també per a proveïdors i clients.', 'Sense donar el nom, i amb les represàlies prohibides per llei.', 'L’exigeix la Llei 2/2023. No tenir-lo és una infracció molt greu.'],
+        catSay: { fraud: 'S’inflen les factures d’un proveïdor amic.', harassment: 'Un responsable humilia dues companyes davant de l’equip.', discrimination: 'Als més grans de 50 mai els toquen els torns bons.', safety: 'La premsa del torn de nit treballa sense protecció.', data: 'S’envien dades de clients a una altra empresa sense permís.', conflict: 'Compres contracta sempre l’empresa d’un familiar.', accounting: 'Hi ha despeses personals passades com a dietes.', environmental: 'Els residus s’aboquen al desguàs a la nit.' },
         titleA: 'Canal de denúncies',
         titleB: 'per a la seva empresa',
         ebWhat: 'En poques paraules',
@@ -383,14 +386,14 @@ export const translations = {
         heroPanelAlt: 'Panell de gestió de Reportia amb el llistat de denúncies i els seus terminis',
         heroPhoneAlt: 'Formulari de denúncia de Reportia en un mòbil',
         whatTitle: 'Què és un canal de denúncies',
-        whatLead: 'És la via que una empresa posa a disposició de la seva gent per avisar d’alguna cosa que no està bé, amb garanties per a qui avisa.',
+        whatLead: 'La via per avisar d’alguna cosa que no està bé, amb garanties per a qui avisa.',
         what: [
           { t: 'Una pàgina de la seva empresa', d: 'Qualsevol persona de la plantilla, i també proveïdors o clients, pot comunicar una infracció: frau, assetjament, riscos de seguretat, ús indegut de dades.' },
           { t: 'Amb protecció per a qui avisa', d: 'Pot comunicar sense donar el nom. La llei prohibeix les represàlies i obliga a tractar cada comunicació amb confidencialitat.' },
           { t: 'Obligatori a partir de 50 treballadors', d: 'La Llei 2/2023 l’exigeix a les empreses privades amb 50 o més treballadors. No tenir-lo és una infracció molt greu.' },
         ],
         howTitle: 'Com funciona, pas a pas',
-        howLead: 'Des que algú veu alguna cosa fins que la seva empresa respon. Les imatges són del producte real.',
+        howLead: 'Quatre passos, de principi a fi. Les imatges són del producte real.',
         how: [
           { t: 'Algú veu alguna cosa que no està bé', d: 'Entra al canal de la seva empresa des de l’enllaç, el botó del web o el codi QR. No necessita compte ni instal·lar res.', alt: 'Pàgina d’inici del canal d’una empresa' },
           { t: 'Ho explica, amb el seu nom o sense', d: 'Tria si es vol identificar, descriu el que ha passat i pot adjuntar documents. Si és anònima, no es desa nom, correu ni telèfon.', alt: 'Primer pas del formulari: denúncia anònima o identificada' },
@@ -401,7 +404,7 @@ export const translations = {
         whoReporter: 'Qui denuncia',
         whoCompany: 'La seva empresa',
         catTitle: 'Què es pot comunicar',
-        catLead: 'Són les categories que veu qui entra al canal, amb un exemple de cadascuna.',
+        catLead: 'Exemples del que algú pot explicar, un per categoria.',
         deadTitle: 'Els terminis de la llei, sempre a la vista',
         deadLead: 'El panell calcula cada termini des de la data de recepció i avisa dels que estan a punt de vèncer.',
         dead: [
@@ -1699,6 +1702,9 @@ export const translations = {
 
       lp: {
         eyebrow: 'Canal interno de denuncias · Ley 2/2023',
+        howLine: ['Desde el enlace, el botón de su web o un código QR.', 'Con su nombre o sin él, y con documentos si quiere.', 'Con él consulta su caso y responde, sin decir quién es.', 'Acusa recibo, investiga y responde dentro de plazo.'],
+        whatShort: ['Para la plantilla, y también para proveedores y clientes.', 'Sin dar su nombre, y con las represalias prohibidas por ley.', 'Lo exige la Ley 2/2023. No tenerlo es una infracción muy grave.'],
+        catSay: { fraud: 'Se inflan las facturas de un proveedor amigo.', harassment: 'Un responsable humilla a dos compañeras delante del equipo.', discrimination: 'A los mayores de 50 nunca les tocan los turnos buenos.', safety: 'La prensa del turno de noche trabaja sin protección.', data: 'Se envían datos de clientes a otra empresa sin permiso.', conflict: 'Compras contrata siempre a la empresa de un familiar.', accounting: 'Hay gastos personales pasados como dietas.', environmental: 'Los residuos se vierten al desagüe por la noche.' },
         titleA: 'Canal de denuncias',
         titleB: 'para su empresa',
         ebWhat: 'En pocas palabras',
@@ -1719,14 +1725,14 @@ export const translations = {
         heroPanelAlt: 'Panel de gestión de Reportia con el listado de denuncias y sus plazos',
         heroPhoneAlt: 'Formulario de denuncia de Reportia en un móvil',
         whatTitle: 'Qué es un canal de denuncias',
-        whatLead: 'Es la vía que una empresa pone a disposición de su gente para avisar de algo que no está bien, con garantías para quien avisa.',
+        whatLead: 'La vía para avisar de algo que no está bien, con garantías para quien avisa.',
         what: [
           { t: 'Una página de su empresa', d: 'Cualquier persona de la plantilla, y también proveedores o clientes, puede comunicar una infracción: fraude, acoso, riesgos de seguridad, uso indebido de datos.' },
           { t: 'Con protección para quien avisa', d: 'Puede comunicar sin dar su nombre. La ley prohíbe las represalias y obliga a tratar cada comunicación con confidencialidad.' },
           { t: 'Obligatorio desde 50 trabajadores', d: 'La Ley 2/2023 lo exige a las empresas privadas con 50 o más trabajadores. No tenerlo es una infracción muy grave.' },
         ],
         howTitle: 'Cómo funciona, paso a paso',
-        howLead: 'Desde que alguien ve algo hasta que su empresa responde. Las imágenes son del producto real.',
+        howLead: 'Cuatro pasos, de principio a fin. Las imágenes son del producto real.',
         how: [
           { t: 'Alguien ve algo que no está bien', d: 'Entra en el canal de su empresa desde el enlace, el botón de la web o el código QR. No necesita cuenta ni instalar nada.', alt: 'Página de inicio del canal de una empresa' },
           { t: 'Lo cuenta, con su nombre o sin él', d: 'Elige si quiere identificarse, describe lo ocurrido y puede adjuntar documentos. Si es anónima, no se guarda nombre, correo ni teléfono.', alt: 'Primer paso del formulario: denuncia anónima o identificada' },
@@ -1737,7 +1743,7 @@ export const translations = {
         whoReporter: 'Quien denuncia',
         whoCompany: 'Su empresa',
         catTitle: 'Qué se puede comunicar',
-        catLead: 'Son las categorías que ve quien entra en el canal, con un ejemplo de cada una.',
+        catLead: 'Ejemplos de lo que alguien puede contar, uno por categoría.',
         deadTitle: 'Los plazos de la ley, siempre a la vista',
         deadLead: 'El panel calcula cada plazo desde la fecha de recepción y avisa de los que están a punto de vencer.',
         dead: [
@@ -3029,6 +3035,9 @@ export const translations = {
 
       lp: {
         eyebrow: 'Internal reporting channel · Law 2/2023',
+        howLine: ['From the link, the button on your website or a QR code.', 'With or without their name, and with documents if they wish.', 'With it they check their case and reply, without saying who they are.', 'It acknowledges receipt, investigates and replies on time.'],
+        whatShort: ['For staff, and for suppliers and customers too.', 'Without giving their name, and with retaliation prohibited by law.', 'Law 2/2023 requires it. Not having one is a very serious breach.'],
+        catSay: { fraud: 'Invoices from a friendly supplier are being inflated.', harassment: 'A manager humiliates two colleagues in front of the team.', discrimination: 'People over 50 never get the good shifts.', safety: 'The night-shift press runs with no guard.', data: 'Customer data is sent to another company without consent.', conflict: 'Purchasing always hires a relative’s company.', accounting: 'Personal expenses are being claimed as allowances.', environmental: 'Waste is poured down the drain at night.' },
         titleA: 'A reporting channel',
         titleB: 'for your company',
         ebWhat: 'In short',
@@ -3049,14 +3058,14 @@ export const translations = {
         heroPanelAlt: 'Reportia management panel with the list of reports and their deadlines',
         heroPhoneAlt: 'Reportia report form on a phone',
         whatTitle: 'What a reporting channel is',
-        whatLead: 'It is the route a company gives its people to flag something that is not right, with safeguards for whoever speaks up.',
+        whatLead: 'The route for flagging something that is not right, with safeguards for whoever speaks up.',
         what: [
           { t: 'A page of your company', d: 'Anyone on staff, and suppliers or customers too, can report a breach: fraud, harassment, safety risks, misuse of data.' },
           { t: 'With protection for the reporter', d: 'They can report without giving their name. The law prohibits retaliation and requires every report to be handled confidentially.' },
           { t: 'Mandatory from 50 employees', d: 'Law 2/2023 requires it of private companies with 50 or more employees. Not having one is a very serious breach.' },
         ],
         howTitle: 'How it works, step by step',
-        howLead: 'From the moment someone sees something to your company’s reply. The images show the real product.',
+        howLead: 'Four steps, start to finish. The images show the real product.',
         how: [
           { t: 'Someone sees something that is not right', d: 'They open your company’s channel from the link, the website button or the QR code. No account and nothing to install.', alt: 'Home page of a company’s channel' },
           { t: 'They report it, with or without their name', d: 'They choose whether to identify themselves, describe what happened and can attach documents. If it is anonymous, no name, email or phone is stored.', alt: 'First step of the form: anonymous or identified report' },
@@ -3067,7 +3076,7 @@ export const translations = {
         whoReporter: 'The reporter',
         whoCompany: 'Your company',
         catTitle: 'What can be reported',
-        catLead: 'These are the categories people see when they open the channel, with an example of each.',
+        catLead: 'Examples of what someone might report, one per category.',
         deadTitle: 'The legal deadlines, always in view',
         deadLead: 'The panel works out each deadline from the date of receipt and flags the ones about to expire.',
         dead: [
