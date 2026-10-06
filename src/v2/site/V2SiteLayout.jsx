@@ -24,7 +24,7 @@ const LANG_KEY = 'reportia-panel-lang';
 // Per sota d'aquesta amplada la navegació va al menú (a sobre cap en una línia, amb seccions i botó)
 const DESKTOP = 1160;
 // Seccions de la portada accessibles des de la navegació
-const SECTIONS = [['ley', 'navLaw'], ['precios', 'navPricing'], ['preguntas', 'navFaq']];
+const SECTIONS = [['funciona', 'navHow'], ['ley', 'navLaw'], ['precios', 'navPricing'], ['preguntas', 'navFaq']];
 
 /**
  * Marc comú del web públic de Reportia (/v2): franja legal, capçalera amb navegació, peu.

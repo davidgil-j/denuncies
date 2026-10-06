@@ -188,6 +188,9 @@ export default function V2Layout({ lang, setLang, org, homeTo, children }) {
         </div>
       </div>
 
+      {/* Canal d'exemple de la web de Reportia: s'avisa que res del que s'hi envia arriba enlloc */}
+      {org?.is_example && <Stable as="p" lang={lang} className="v2-example" pick={T => T.v2.exampleNote} />}
+
       <header className="v2-header">
         <div className="v2-wrap">
           {org ? (

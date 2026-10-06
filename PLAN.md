@@ -129,3 +129,24 @@ Comprobado en producción: pendiente
 - **Fuentes** servidas desde la propia web. **Imágenes** de denuncias anónimas sin metadatos.
 - **Migración 011 (escrita y probada en local, no aplicada).** De su interfaz está hecho: columnas explícitas e identidad del informante solo bajo consulta, anotada en el registro. Pendiente de interfaz: solicitud de reunión presencial, resultado de la investigación, registro manual de comunicaciones, remisión a Fiscalía y autoridad autonómica en Cuenta.
 - **Comprobado:** 59 de 60 combinaciones pantalla × ancho sin movimiento (la restante es la línea de metadatos de las tarjetas en tableta), 139 pruebas de base de datos, 25 + 17 de recorrido y barrido de rutas sin desbordes ni errores de consola.
+
+## Portada de Reportia (rondas 5 a 7, 5 oct 2026)
+
+Motivo: la dirección dijo que no quedaba claro qué es el producto y que era poco visual. Versión vigente: la de la ronda 6 (azul noche con acento azul). David pidió volver a ella después de ver la ronda 7.
+
+- **Paleta.** Azul noche, blanco y un solo acento: un azul más vivo (`--pop`). Ningún color cálido. Vive en `.v2-lp` (`src/v2/site/site.css`); el resto del producto no cambia.
+- **Mensaje.** Titular «Canal de denuncias / para su empresa», una frase que lo explica y dos botones. Primero qué es; la ley, después.
+- **Primera pantalla.** Texto a la izquierda y, a la derecha, el funcionamiento en tres piezas legibles hechas con los textos reales del producto (alguien lo cuenta, recibe su código, su empresa responde).
+- **Orden.** Portada → Qué es (tres ideas) → Cómo funciona (recorrido de cuatro pasos con capturas reales) → Qué se puede comunicar (las ocho categorías del formulario, con un ejemplo de cada una) → Plazos del artículo 9 → ¿Está obligada? → Dos partes → Ley punto por punto → Puesta en marcha e integración → Precios → Preguntas → Contacto → cierre.
+- **Movimiento.** Las piezas entran al llegar a la pantalla; el recorrido avanza solo y se para cuando la persona elige un paso; las tres piezas de la portada se destacan por turnos. Con «reducir movimiento» no se esconde nada y nada avanza solo.
+- **Capturas reales.** 15 imágenes en `public/landing/` (canal, formulario, código, seguimiento y plazos, en ca/es/en), hechas con `scripts/landing-shots.mjs`. Hay que repetirlas cuando cambie la interfaz.
+- **Canal de ejemplo.** `/canal/demo` funciona en cualquier compilación, también publicada, sin tocar la base de datos real. Pendiente: reservar el identificador `demo`.
+- **Contacto.** El correo a la vista, con botón de copiar que confirma y botón de escribir. Abierto para la dirección: formulario o agenda de citas.
+- **Comprobado tras restaurarla:** sin movimiento al cambiar de idioma a 1440, 1280, 768 y 390 px; sin desbordes; 25 + 17 pruebas de recorrido; el recorrido interactivo mantiene su alto en los cuatro pasos.
+
+**Descartado (no volver a proponer sin que David lo pida):**
+- Ronda 5: web de producto en azul grisáceo con una captura pequeña del panel («pobre», «proporciones horribles», «colores muy similares», «sin dinamismo»).
+- Ronda 6, primera paleta: marino con dorado y crema («amarillo?», «mezclando colores»).
+- Ronda 7: blanco y negro con titulares en serif y el nombre tachado con una barra. David pidió borrarla y volver a la anterior.
+
+**Cerrado por David (5 oct 2026):** al verla restaurada dijo «está perfecto, continúa». La versión vigente queda aprobada; lo que sigue es repasar el resto de la página con este mismo diseño, sin cambiarle el estilo.

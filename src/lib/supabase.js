@@ -34,6 +34,12 @@ const DEMO_USER = { id: 'demo-user', email: 'admin@empresa-demo.es' };
 const DEMO_SESSION = { user: DEMO_USER, access_token: 'demo' };
 export const IS_DEMO = DEMO_MODE;
 
+// El canal d'exemple (/canal/demo) funciona sempre, també a la web publicada: viu en dades de mostra
+// dins del navegador (demoStore) i mai no arriba a la base de dades real. Només afecta les funcions
+// públiques del canal (enviar, consultar i missatges de qui informa); el panell no hi entra.
+let exampleChannel = false;
+const channelDemo = () => DEMO_MODE || exampleChannel;
+
 // ── Complaints ─────────────────────────────────────────────────────────
 
 /**
@@ -46,7 +52,7 @@ export async function saveComplaint({ formData, files, organizationId }) {
   // En una denúncia anònima, les fotos s'envien sense dades ocultes (ubicació, dispositiu, data)
   if (formData.isAnonymous && files?.length) files = await Promise.all([...files].map(stripImageMetadata));
 
-  if (DEMO_MODE) {
+  if (channelDemo()) {
     // En la demo, la denúncia enviada apareix al panell i es pot consultar amb el seu codi
     (await demo()).addComplaint({ id, trackingCode, formData, files: files ?? [] });
     return { trackingCode, error: null };
@@ -134,7 +140,7 @@ async function codeHash(code) {
  * Returns { complaint, error }
  */
 export async function getComplaintByCode(trackingCode) {
-  if (DEMO_MODE) {
+  if (channelDemo()) {
     // Un codi que no existeix es tracta igual que en producció: no hi ha cap denúncia
     return { complaint: (await demo()).findByCode(trackingCode) ?? null, error: null };
   }
@@ -147,7 +153,8 @@ export async function getComplaintByCode(trackingCode) {
 
 export async function getOrganizationBySlug(slug) {
   // A la demo només existeix el canal "demo": qualsevol altra adreça es comporta com en producció
-  if (DEMO_MODE) return { organization: slug === DEMO_ORG.slug ? { ...DEMO_ORG, name: (await demo()).getOrganization().name } : null, error: null };
+  exampleChannel = slug === DEMO_ORG.slug;
+  if (channelDemo()) return { organization: exampleChannel ? { ...DEMO_ORG, name: (await demo()).getOrganization().name, is_example: true } : null, error: null };
   const { data, error } = await supabase.rpc('get_organization_by_slug', { p_slug: slug });
   return { organization: data?.[0] ?? null, error };
 }
@@ -243,14 +250,14 @@ export async function sendMessage(complaintId, content, sender = 'reporter', act
  * Returns { messages, error }
  */
 export async function getReporterMessages(trackingCode) {
-  if (DEMO_MODE) return (await demo()).getMessagesByCode(trackingCode);
+  if (channelDemo()) return (await demo()).getMessagesByCode(trackingCode);
   const { data, error } = await supabase.rpc('get_messages_by_tracking_code', { p_code: trackingCode });
   return { messages: data ?? [], error };
 }
 
 /** Portal de seguiment: qui denuncia envia un missatge amb el seu codi. Returns { error } */
 export async function sendReporterMessage(trackingCode, content) {
-  if (DEMO_MODE) return (await demo()).sendReporterMessage(trackingCode, content);
+  if (channelDemo()) return (await demo()).sendReporterMessage(trackingCode, content);
   const { error } = await supabase.rpc('send_reporter_message', { p_code: trackingCode, p_content: content });
   return { error };
 }

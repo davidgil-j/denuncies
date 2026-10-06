@@ -15,7 +15,7 @@ const MAX_FILES = 5;
 const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB
 const MIN_DESC = 20;
 // Verificació antibot: només amb clau configurada i fora de la demo (sense clau de proves per defecte)
-const NEEDS_CAPTCHA = !IS_DEMO && !!import.meta.env.VITE_TURNSTILE_SITE_KEY;
+const HAS_CAPTCHA = !IS_DEMO && !!import.meta.env.VITE_TURNSTILE_SITE_KEY;
 // Tipus admesos: els que anuncia el text de límits (PDF, imatges, vídeo, àudio i documents d'oficina)
 const EXTENSIONS = [
   'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf', 'txt', 'csv',
@@ -294,6 +294,8 @@ function Success({ t, code, base, lang, failed = 0, onTrack, onHome }) {
 // ── Formulari ────────────────────────────────────────────────────
 export default function V2Form() {
   const { lang, org, base } = useOutletContext();
+  // El canal d'exemple no envia res a cap servidor: no cal la comprovació contra robots
+  const needsCaptcha = HAS_CAPTCHA && !org.is_example;
   const navigate = useNavigate();
   const root = translations[lang];
   const t = root.v2;
@@ -391,7 +393,7 @@ export default function V2Form() {
     e.preventDefault();
     const errs = validate(4);
     if (Object.keys(errs).length) { focusFirstError(errs); return; }
-    if ((NEEDS_CAPTCHA && !turnstileToken) || submitting) return;
+    if ((needsCaptcha && !turnstileToken) || submitting) return;
     setSubmitting(true);
     setSubmitError(false);
     try {
@@ -666,7 +668,7 @@ export default function V2Form() {
               <a className="v2-link" href={`${base}/privacidad?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t.privacyRead}</a>
             </p>
 
-            {NEEDS_CAPTCHA && <div className="v2-turnstile" aria-label={t.verifying}>
+            {needsCaptcha && <div className="v2-turnstile" aria-label={t.verifying}>
               <Turnstile
                 siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
                 options={{ language: lang }}
@@ -693,7 +695,7 @@ export default function V2Form() {
             <button
               type="submit"
               className="v2-btn v2-btn-primary icon-trail"
-              disabled={NEEDS_CAPTCHA && !turnstileToken}
+              disabled={needsCaptcha && !turnstileToken}
               aria-busy={submitting}
             >
               <S k={submitting ? 'submitting' : 'submit'} /><ArrowRight {...ICON} />

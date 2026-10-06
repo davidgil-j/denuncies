@@ -633,3 +633,6 @@ h1.v2-stable, h2.v2-stable, h3.v2-stable, p.v2-stable, div.v2-stable, dt.v2-stab
 @media (prefers-reduced-motion: reduce) {
   .v2-center[role="status"] > .v2-spinner { opacity: 1; animation: none; border-top-color: var(--accent); }
 }
+
+/* Avís del canal d'exemple */
+.v2-example { padding: 8px var(--gutter); background: var(--accent-tint); box-shadow: inset 0 -1px 0 var(--accent-line); color: var(--navy-900); font-size: 13px; font-weight: 500; line-height: 1.4; text-align: center; }
