@@ -22,7 +22,7 @@ const DEMO_PATH = '/canal/demo';
 // L'idioma triat a la web es recorda i el panell el fa servir (mateixa clau)
 const LANG_KEY = 'reportia-panel-lang';
 // Per sota d'aquesta amplada la navegació va al menú (a sobre cap en una línia, amb seccions i botó)
-const DESKTOP = 1160;
+const DESKTOP = 1200;
 // Seccions de la portada accessibles des de la navegació
 const SECTIONS = [['funciona', 'navHow'], ['ley', 'navLaw'], ['precios', 'navPricing'], ['preguntas', 'navFaq']];
 
@@ -119,10 +119,19 @@ export default function V2SiteLayout() {
     if (!hash) document.getElementById('v2-main')?.focus({ preventScroll: true });
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isHome = pathname === '/';
   // Etiquetes de la capçalera amb l'amplada de l'idioma més llarg: el menú no es desplaça
   const st = (key) => <Stable lang={lang} pick={T => T.v2site[key]} />;
   const navClass = ({ isActive }) => `v2-site-navlink${isActive ? ' is-current' : ''}`;
+  // El selector d'idioma surt dues vegades: a la capçalera (ordinador) i dins del menú (mòbil)
+  const langGroup = (cls) => (
+    <div className={`v2-lang ${cls}`} role="group" aria-label={tv.langGroup}>
+      {LANGS.map(l => (
+        <button key={l} type="button" lang={l} aria-pressed={lang === l} aria-label={translations[l].langName} onClick={() => setLang(l)}>
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className="v2 v2-site">
@@ -131,7 +140,8 @@ export default function V2SiteLayout() {
         <div className="v2-wrap">
           <SiteEuFlag label={tv.euFlag} />
           <span className="v2-strip-text">
-            <span className="v2-only-wide"><b>{t.stripLead}</b> {t.stripConform} </span>
+            {/* En mòbil queda «Conforme a la Llei 2/2023»: la primera lletra es posa en majúscula amb CSS */}
+            <span className="v2-only-wide"><b>{t.stripLead}</b> </span>{t.stripConform}{' '}
             <a href={BOE_URL} target="_blank" rel="noopener noreferrer">{tv.lawShort}</a>
           </span>
         </div>
@@ -149,25 +159,13 @@ export default function V2SiteLayout() {
               <Link className="v2-site-navlink is-section" key={id} to={{ pathname: '/', hash: `#${id}` }} onClick={sectionClick(id)}>{st(key)}</Link>
             ))}
             <NavLink className={navClass} to={`${DEMO_PATH}?lang=${lang}`}>{st('navDemoShort')}</NavLink>
+            <span className="v2-site-sep" aria-hidden="true" />
             <NavLink className={navClass} to="/admin/login" end>{st('navLogin')}</NavLink>
-            {/* A la portada el botó ja és al titular: aquí no es repeteix */}
-            {!isHome && <Link className="v2-btn v2-btn-primary v2-site-cta" to="/crear-compte">{st('navSignup')}</Link>}
           </nav>
 
-          <div className="v2-lang" role="group" aria-label={tv.langGroup}>
-            {LANGS.map(l => (
-              <button
-                key={l}
-                type="button"
-                lang={l}
-                aria-pressed={lang === l}
-                aria-label={translations[l].langName}
-                onClick={() => setLang(l)}
-              >
-                {l.toUpperCase()}
-              </button>
-            ))}
-          </div>
+          {/* L'acció principal és sempre a la capçalera, també a la portada i en mòbil */}
+          <Link className="v2-btn v2-btn-primary v2-site-cta" to="/crear-compte">{st('navSignup')}</Link>
+          {langGroup('v2-site-lang')}
 
           <button
             ref={menuBtnRef}
@@ -183,13 +181,14 @@ export default function V2SiteLayout() {
         </div>
 
         <div className="v2-site-menu" id="v2-site-menu" data-open={menuOpen}>
+          {/* En mòbil l'idioma es tria aquí dins, a dalt de tot */}
+          {langGroup('v2-site-menu-lang')}
           <nav aria-label={t.navLabel}>
             {SECTIONS.map(([id, key]) => (
               <Link className="v2-site-menu-row" key={id} to={{ pathname: '/', hash: `#${id}` }} onClick={sectionClick(id)}>{t[key]}<ArrowRight {...ICON} /></Link>
             ))}
             <Link className="v2-site-menu-row" to={`${DEMO_PATH}?lang=${lang}`}>{t.navDemo}<ArrowRight {...ICON} /></Link>
             <Link className="v2-site-menu-row" to="/admin/login">{t.navLogin}<ArrowRight {...ICON} /></Link>
-            <Link className="v2-btn v2-btn-primary" to="/crear-compte">{t.navSignup}</Link>
           </nav>
         </div>
       </header>

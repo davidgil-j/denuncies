@@ -130,28 +130,19 @@ Comprobado en producción: pendiente
 - **Migración 011 (escrita y probada en local, no aplicada).** De su interfaz está hecho: columnas explícitas e identidad del informante solo bajo consulta, anotada en el registro. Pendiente de interfaz: solicitud de reunión presencial, resultado de la investigación, registro manual de comunicaciones, remisión a Fiscalía y autoridad autonómica en Cuenta.
 - **Comprobado:** 59 de 60 combinaciones pantalla × ancho sin movimiento (la restante es la línea de metadatos de las tarjetas en tableta), 139 pruebas de base de datos, 25 + 17 de recorrido y barrido de rutas sin desbordes ni errores de consola.
 
-## Portada de Reportia (rondas 5 a 7, 5 oct 2026)
+## Portada de Reportia (rediseño por encargo, 6 oct 2026)
 
-Motivo: la dirección dijo que no quedaba claro qué es el producto y que era poco visual. Versión vigente: la de la ronda 6 (azul noche con acento azul). David pidió volver a ella después de ver la ronda 7.
+Encargo escrito de David: `~/Documents/Canal de denuncias SAAS/PROMPT_rediseno_portada.md`. Sustituye a todas las rondas anteriores. Hecho de una vez (fases 1 a 6) por su «aplícalo y dale caña de forma autónoma».
 
-- **Paleta.** Azul noche, blanco y un solo acento: un azul más vivo (`--pop`). Ningún color cálido. Vive en `.v2-lp` (`src/v2/site/site.css`); el resto del producto no cambia.
-- **Mensaje.** Titular «Canal de denuncias / para su empresa», una frase que lo explica y dos botones. Primero qué es; la ley, después.
-- **Primera pantalla.** Texto a la izquierda y, a la derecha, el funcionamiento en tres piezas legibles hechas con los textos reales del producto (alguien lo cuenta, recibe su código, su empresa responde).
-- **Orden.** Portada → Qué es (tres ideas, una línea cada una) → Cómo funciona → Qué se puede comunicar → Plazos del artículo 9 → ¿Está obligada? → Ley punto por punto → Puesta en marcha e integración → Precios → Preguntas → Contacto → cierre.
-- **Cómo funciona.** Los cuatro pasos a la vista, cada uno con su pantalla real en un móvil, unidos por un raíl numerado que se va rellenando. En móvil es una cinta que se pasa con el dedo y deja ver el paso siguiente. (Antes eran pestañas y solo se veía un paso: David lo señaló el 6 oct 2026.)
-- **Qué se puede comunicar.** Dos cintas de ejemplos que pasan solas en sentidos contrarios, una tarjeta por categoría con una frase de ejemplo; todas iguales, sin colores. (Antes eran ocho casillas de tres colores: distraían.)
-- **Menos texto.** Fuera la sección «Dos partes» (repetía lo que ya dicen «Cómo funciona» y «Todos los planes incluyen»). La tabla de la ley queda plegada: se ve qué exige y el «cómo» se abre al pulsar. Descripciones recortadas a una línea.
-- **Movimiento.** Las piezas entran al llegar a la pantalla, con 70 ms de escalón; el raíl de los pasos y la línea de plazos se dibujan; las cintas de ejemplos se paran al pasar el ratón; la cifra «50+» cuenta hasta su valor; las tres piezas de la portada se destacan por turnos. Solo `transform` y `opacity`. Con «reducir movimiento» no se esconde nada, la cinta queda quieta y se puede recorrer a mano.
-- **Fotos.** Cuatro, de Unsplash (licencia de uso libre, sin atribución obligatoria), bajadas a través de picsum.photos, que las sirve por número sin bloquear el acceso automático; guardadas en `public/landing/foto-*.webp`. Todas en blanco y negro con un velo azul noche, para que no desentonen. Dónde va cada una: manos con el móvil (Alejandro Escamilla, id 3) junto a «Qué es»; reunión en una mesa (Alejandro Escamilla, id 7) como cabecera de «¿Está obligada?», con el «50+» encima; mesa de trabajo (Craig Garner, id 201) en el contacto; silueta ante un ventanal (Thong Vo, id 331) en el cierre.
-- **Capturas reales.** 15 imágenes en `public/landing/` (canal, formulario, código, panel en móvil y plazos, en ca/es/en), hechas con `scripts/landing-shots.mjs`. Hay que repetirlas cuando cambie la interfaz.
-- **Canal de ejemplo.** `/canal/demo` funciona en cualquier compilación, también publicada, sin tocar la base de datos real. Pendiente: reservar el identificador `demo`.
-- **Contacto.** El correo a la vista, con botón de copiar que confirma y botón de escribir. Abierto para la dirección: formulario o agenda de citas.
-- **Skills usadas el 6 oct 2026:** auditoría de rediseño, búsqueda de animaciones y construcción de animaciones (más las reglas de diseño de gama alta ya leídas). No se usaron las de estilo cerrado (minimalista, brutalista), porque cambiarían el diseño aprobado, ni las que generan imágenes.
-- **Comprobado tras restaurarla:** sin movimiento al cambiar de idioma a 1440, 1280, 768 y 390 px; sin desbordes; 25 + 17 pruebas de recorrido; el recorrido interactivo mantiene su alto en los cuatro pasos.
-
-**Descartado (no volver a proponer sin que David lo pida):**
-- Ronda 5: web de producto en azul grisáceo con una captura pequeña del panel («pobre», «proporciones horribles», «colores muy similares», «sin dinamismo»).
-- Ronda 6, primera paleta: marino con dorado y crema («amarillo?», «mezclando colores»).
-- Ronda 7: blanco y negro con titulares en serif y el nombre tachado con una barra. David pidió borrarla y volver a la anterior.
-
-**Cerrado por David (5 oct 2026):** al verla restaurada dijo «está perfecto, continúa». La versión vigente queda aprobada; lo que sigue es repasar el resto de la página con este mismo diseño, sin cambiarle el estilo.
+- **Siete bloques:** inicio · cómo funciona (`#funciona`) · qué se puede comunicar (`#ejemplos`) · cumplimiento (`#ley`) · precios (`#precios`) · preguntas (`#preguntas`) · cierre (`#contacto`).
+- **Medidas:** 5.846 px a 1440 × 900 (antes 10.080) y 8.413 px a 375 × 812 (antes 13.858). Sin desbordamiento horizontal de 320 a 1440 px.
+- **Sistema visual:** un solo azul de acción, el `--accent` del producto (`#1C4C96`); sobre azul marino, `--accent-on-navy` (`#9DB7FF`). Tres fondos alternos: azul marino (inicio y cierre), blanco y `#F5F7FA`. Un solo contenedor (`.v2-wrap`, 1.136 px). Radios de 12, 16 y 20 px; pastillas y círculos, redondos. Todas las cabeceras de sección a la izquierda: etiqueta, título y entradilla.
+- **Inicio:** texto a la izquierda y, a la derecha, tres piezas apiladas unidas por una línea numerada. Cabe en la primera pantalla (acaba en 768 px). En móvil se ven la primera y la tercera.
+- **Cómo funciona:** cuatro capturas reales recortadas a lo que importa y, debajo, la puesta en marcha en tres pasos con el enlace, el botón y el QR.
+- **Cumplimiento:** cabecera, cuatro cifras con su artículo, línea de tiempo de plazos en claro, la ley punto por punto (desplegable) y «Lo que corresponde a su empresa».
+- **Movimiento:** ninguno de entrada. Todo es visible desde el principio. Solo quedan las transiciones de botones y enlaces, el giro del «+» y «Correo copiado».
+- **Imágenes:** solo capturas del producto (15, en `public/landing/`), hechas con `scripts/landing-shots.mjs` en una pantalla de 360 px y recortadas. Las cuatro fotos de banco están borradas.
+- **Cabecera:** «Crear cuenta» siempre visible. Menú en fila desde 1.200 px; por debajo, logotipo, «Crear cuenta» y menú desplegable, con el idioma dentro. En móvil la franja dice «Conforme a la Ley 2/2023».
+- **Decidido sin David:** la cuarta cifra (1.000.000 €); el artículo 36 queda en una línea bajo la cabecera de cumplimiento; la pregunta 7 de las frecuentes remite a cumplimiento en vez de repetirlo; el corte del menú a 1.200 px (a 960 no cabe); el titular baja de 36 px en pantallas de menos de 420 px para que ocupe las mismas líneas en catalán.
+- **Pendiente de David:** la nota de la AIPI (9 de febrero de 2026), sin poner hasta que la confirme; ver la portada en un móvil real; él hace el commit y el push.
+- **Canal de ejemplo:** `/canal/demo` funciona en cualquier compilación sin tocar la base de datos real. Pendiente: reservar el identificador `demo`.
