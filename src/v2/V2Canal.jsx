@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { translations } from '../translations.js';
 import { getOrganizationBySlug } from '../lib/supabase.js';
-import V2Layout, { detectLang, LANGS } from './V2Layout.jsx';
+import V2Layout, { detectLang, savedLang, LANGS, Stable } from './V2Layout.jsx';
 
 /**
  * Ruta pare del canal v2 (/v2/canal/:slug). Carrega l'organització un sol cop i
@@ -16,8 +16,9 @@ export default function V2Canal() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const urlLang = params.get('lang');
-  // L'idioma viu a l'adreça (?lang=): sobreviu a recarregar i no deixa rastre al navegador
-  const [lang, setLang] = useState(() => (LANGS.includes(urlLang) ? urlLang : detectLang()));
+  // L'idioma viu a l'adreça (?lang=): sobreviu a recarregar i no deixa rastre al navegador.
+  // Sense ?lang= es manté el que la persona ja feia servir a Reportia i, si no n'hi ha, el del navegador
+  const [lang, setLang] = useState(() => (LANGS.includes(urlLang) ? urlLang : savedLang() ?? detectLang()));
   const [org, setOrg] = useState(null);
   const [status, setStatus] = useState('loading'); // loading | ready | notfound
   const t = translations[lang].v2;
@@ -33,6 +34,9 @@ export default function V2Canal() {
     });
     return () => { cancelled = true; };
   }, [slug]);
+
+  // Si el canal no existeix, la pestanya ho diu (les pàgines del canal posen el seu propi títol)
+  useEffect(() => { if (status === 'notfound') document.title = t.notFoundDoc; }, [status, t]);
 
   // Cada pàgina comença a dalt, amb el focus al contingut (els lectors de pantalla ho anuncien)
   const firstPath = React.useRef(true);
@@ -61,8 +65,13 @@ export default function V2Canal() {
       {status === 'notfound' && (
         <div className="v2-center">
           <div>
-            <h1 className="v2-sec-title">{t.notFoundTitle}</h1>
-            <p>{t.notFoundDesc}</p>
+            <Stable as="h1" className="v2-sec-title" lang={lang} pick={T => T.v2.notFoundTitle} />
+            <Stable as="p" lang={lang} pick={T => T.v2.notFoundDesc} />
+            {/* Una sortida: la web de Reportia i, per a una empresa, l'alta */}
+            <div className="v2-lost">
+              <Link className="v2-btn v2-btn-secondary" to={`/?lang=${lang}`}><Stable lang={lang} pick={T => T.v2.notFoundHome} /></Link>
+              <Stable as="p" lang={lang} pick={T => <>{T.v2.notFoundCompany} <Link className="v2-link" to={`/crear-compte?lang=${lang}`}>{T.v2.notFoundCreate}</Link></>} />
+            </div>
           </div>
         </div>
       )}

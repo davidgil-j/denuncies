@@ -6,18 +6,6 @@ import { LANGS, BOE_URL, ICON, detectLang, Stable, useLangAnchor } from '../V2La
 import { CONTACT_EMAIL } from './plans.js';
 import './site.css';
 
-// Bandera de la UE. Còpia del símbol del canal amb un id propi perquè el web no depengui del canal.
-const EU_STARS = 'M15.000 2.222L15.249 2.990L16.057 2.990L15.404 3.464L15.653 4.232L15.000 3.758L14.347 4.232L14.596 3.464L13.943 2.990L14.751 2.990ZM18.333 3.115L18.583 3.883L19.390 3.883L18.737 4.358L18.986 5.125L18.333 4.651L17.680 5.125L17.930 4.358L17.277 3.883L18.084 3.883ZM20.774 5.556L21.023 6.323L21.830 6.323L21.177 6.798L21.427 7.566L20.774 7.091L20.120 7.566L20.370 6.798L19.717 6.323L20.524 6.323ZM21.667 8.889L21.916 9.657L22.723 9.657L22.070 10.131L22.320 10.899L21.667 10.424L21.014 10.899L21.263 10.131L20.610 9.657L21.417 9.657ZM20.774 12.222L21.023 12.990L21.830 12.990L21.177 13.464L21.427 14.232L20.774 13.758L20.120 14.232L20.370 13.464L19.717 12.990L20.524 12.990ZM18.333 14.662L18.583 15.430L19.390 15.430L18.737 15.905L18.986 16.672L18.333 16.198L17.680 16.672L17.930 15.905L17.277 15.430L18.084 15.430ZM15.000 15.556L15.249 16.323L16.057 16.323L15.404 16.798L15.653 17.566L15.000 17.091L14.347 17.566L14.596 16.798L13.943 16.323L14.751 16.323ZM11.667 14.662L11.916 15.430L12.723 15.430L12.070 15.905L12.320 16.672L11.667 16.198L11.014 16.672L11.263 15.905L10.610 15.430L11.417 15.430ZM9.226 12.222L9.476 12.990L10.283 12.990L9.630 13.464L9.880 14.232L9.226 13.758L8.573 14.232L8.823 13.464L8.170 12.990L8.977 12.990ZM8.333 8.889L8.583 9.657L9.390 9.657L8.737 10.131L8.986 10.899L8.333 10.424L7.680 10.899L7.930 10.131L7.277 9.657L8.084 9.657ZM9.226 5.556L9.476 6.323L10.283 6.323L9.630 6.798L9.880 7.566L9.226 7.091L8.573 7.566L8.823 6.798L8.170 6.323L8.977 6.323ZM11.667 3.115L11.916 3.883L12.723 3.883L12.070 4.358L12.320 5.125L11.667 4.651L11.014 5.125L11.263 4.358L10.610 3.883L11.417 3.883Z';
-
-function SiteEuFlag({ label }) {
-  return (
-    <svg className="v2-flag" width={24} height={16} viewBox="0 0 30 20" role="img" aria-label={label}>
-      <rect width="30" height="20" fill="#0B3D91" />
-      <path fill="#FFD23F" d={EU_STARS} />
-    </svg>
-  );
-}
-
 const DEMO_PATH = '/canal/demo';
 // L'idioma triat a la web es recorda i el panell el fa servir (mateixa clau)
 const LANG_KEY = 'reportia-panel-lang';
@@ -27,7 +15,8 @@ const DESKTOP = 1200;
 const SECTIONS = [['funciona', 'navHow'], ['ley', 'navLaw'], ['precios', 'navPricing'], ['preguntas', 'navFaq']];
 
 /**
- * Marc comú del web públic de Reportia (/v2): franja legal, capçalera amb navegació, peu.
+ * Marc comú del web públic de Reportia: capçalera fina amb navegació i peu. A la portada, mentre
+ * es veu la foto de l'inici, la capçalera és transparent i va a sobre de la foto.
  * L'idioma viu aquí i es passa a les pàgines amb <Outlet context>. Respecta ?lang= (ca|es|en).
  */
 export default function V2SiteLayout() {
@@ -40,9 +29,12 @@ export default function V2SiteLayout() {
     return detectLang();
   });
   const [menuOpen, setMenuOpen] = useState(false);
+  const { pathname, hash } = useLocation();
+  // A la portada la capçalera va a sobre de la foto de l'inici fins que la foto queda enrere
+  const isHome = pathname === '/';
+  const [over, setOver] = useState(isHome);
   const headerRef = useRef(null);
   const menuBtnRef = useRef(null);
-  const { pathname, hash } = useLocation();
   const t = translations[lang].v2site;
   const tv = translations[lang].v2;
 
@@ -66,6 +58,19 @@ export default function V2SiteLayout() {
   }, []);
 
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
+
+  useEffect(() => {
+    if (!isHome) { setOver(false); return undefined; }
+    const check = () => {
+      const hero = document.querySelector('.v2-lp-hero');
+      const h = headerRef.current?.offsetHeight ?? 64;
+      setOver(hero ? hero.getBoundingClientRect().bottom > h : window.scrollY < 8);
+    };
+    check();
+    window.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('resize', check);
+    return () => { window.removeEventListener('scroll', check); window.removeEventListener('resize', check); };
+  }, [isHome]);
 
   // Cada pàgina comença a dalt (excepte si l'enllaç apunta a una secció)
   useEffect(() => {
@@ -136,19 +141,8 @@ export default function V2SiteLayout() {
   return (
     <div className="v2 v2-site">
       <a className="v2-skip" href="#v2-main">{tv.skip}</a>
-      <aside className="v2-strip v2-site-strip" aria-label={t.stripLabel}>
-        <div className="v2-wrap">
-          <SiteEuFlag label={tv.euFlag} />
-          <span className="v2-strip-text">
-            {/* En mòbil queda «Conforme a la Llei 2/2023»: la primera lletra es posa en majúscula amb CSS */}
-            <span className="v2-only-wide"><b>{t.stripLead}</b> </span>{t.stripConform}{' '}
-            <a href={BOE_URL} target="_blank" rel="noopener noreferrer">{tv.lawShort}</a>
-          </span>
-        </div>
-      </aside>
-
       <header
-        className="v2-site-header" ref={headerRef}
+        className={`v2-site-header${over && !menuOpen ? ' is-over' : ''}`} ref={headerRef}
         onBlur={e => { if (menuOpen && !headerRef.current?.contains(e.relatedTarget)) setMenuOpen(false); }}
       >
         <div className="v2-wrap">
@@ -197,13 +191,21 @@ export default function V2SiteLayout() {
         <Outlet context={{ lang, setLang }} />
       </main>
 
-      <footer className="v2-footer">
+      <footer className="v2-site-foot">
         <div className="v2-wrap">
-          <span className="grow">{t.footerName}</span>
-          <span className="secure"><Lock {...ICON} />{tv.footerSecure}</span>
-          <a href={BOE_URL} target="_blank" rel="noopener noreferrer">{tv.footerLaw}</a>
-          <Link to="/privacitat">{tv.privacy}</Link>
-          <a href={`mailto:${CONTACT_EMAIL}`}>{t.footerContact}</a>
+          <Link className="v2-site-foot-brand" to="/" aria-label={t.homeLabel}>Reportia</Link>
+          <nav className="v2-site-foot-nav" aria-label={t.footerNav}>
+            {SECTIONS.map(([id, key]) => (
+              <Link key={id} to={{ pathname: '/', hash: `#${id}` }} onClick={sectionClick(id)}>{st(key)}</Link>
+            ))}
+            <a href={BOE_URL} target="_blank" rel="noopener noreferrer"><Stable lang={lang} pick={T => T.v2.footerLaw} /></a>
+            <Link to="/privacitat"><Stable lang={lang} pick={T => T.v2.privacy} /></Link>
+            <a href={`mailto:${CONTACT_EMAIL}`}>{st('footerContact')}</a>
+          </nav>
+          <p className="v2-site-foot-note">
+            <span>{t.footerName}</span>
+            <span className="secure"><Lock {...ICON} />{tv.footerSecure}</span>
+          </p>
         </div>
       </footer>
     </div>

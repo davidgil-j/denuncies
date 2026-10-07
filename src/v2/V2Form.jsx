@@ -12,7 +12,9 @@ import { EMAIL_RE } from './site/fields.jsx';
 
 const TOTAL_STEPS = 4;
 const MAX_FILES = 5;
-const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB
+// Límit per arxiu, en MB. El marca el pla de Supabase (50 al gratuït) i es canvia amb VITE_MAX_FILE_MB
+const MAX_FILE_MB = Number(import.meta.env.VITE_MAX_FILE_MB) > 0 ? Number(import.meta.env.VITE_MAX_FILE_MB) : 50;
+const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
 const MIN_DESC = 20;
 // Verificació antibot: només amb clau configurada i fora de la demo (sense clau de proves per defecte)
 const HAS_CAPTCHA = !IS_DEMO && !!import.meta.env.VITE_TURNSTILE_SITE_KEY;
@@ -152,7 +154,7 @@ function Files({ t, files, onChange }) {
           <Paperclip {...ICON} />{t.pick}
         </button>
         <p className="v2-drop-hint">{t.drop}</p>
-        <p className="v2-limits">{t.limits}</p>
+        <p className="v2-limits">{fmt(t.limits, { mb: MAX_FILE_MB })}</p>
       </div>
 
       {skipped.length > 0 && (
@@ -161,7 +163,7 @@ function Files({ t, files, onChange }) {
           <div>
             <p>{t.skipped}</p>
             <ul className="v2-rejected">
-              {skipped.map((r, i) => <li key={`${r.name}-${i}`}><span className="v2-rejected-name">{r.name}</span>: {t[r.reason]}</li>)}
+              {skipped.map((r, i) => <li key={`${r.name}-${i}`}><span className="v2-rejected-name">{r.name}</span>: {fmt(t[r.reason], { mb: MAX_FILE_MB })}</li>)}
             </ul>
           </div>
         </div>

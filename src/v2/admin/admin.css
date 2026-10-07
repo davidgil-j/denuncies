@@ -826,6 +826,8 @@ a.v2-mini-btn { text-decoration: none; }
 .v2-msg.is-new { box-shadow: inset 0 0 0 1.5px var(--accent-line); }
 .v2-unread { display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 600; line-height: 18px; white-space: nowrap; }
 .v2-unread svg { width: 13px; height: 13px; }
+/* a la fitxa del mòbil és una etiqueta, no una franja de tota l'amplada */
+.v2-card .v2-unread { justify-self: start; margin-top: 0; }
 .v2-retention { display: grid; grid-template-columns: 22px minmax(0,1fr); gap: var(--s-3); margin-top: var(--s-5); padding: var(--s-4) var(--s-5) var(--s-4) var(--s-4); border-radius: var(--r); background: var(--warn-tint); box-shadow: inset 0 0 0 1px var(--warn-line); }
 .v2-retention > svg { width: 22px; height: 22px; color: var(--warn); }
 .v2-retention h2 { font-size: 15px; font-weight: 600; line-height: 1.4; color: var(--ink); }

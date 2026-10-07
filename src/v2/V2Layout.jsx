@@ -1,6 +1,6 @@
 import React, { forwardRef, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
-import { LogOut, Lock } from 'lucide-react';
+import { ArrowLeft, LogOut, Lock } from 'lucide-react';
 import { translations } from '../translations.js';
 import './v2.css';
 
@@ -30,6 +30,11 @@ export function initials(name = '') {
 }
 
 // Idioma inicial: el del navegador si és un dels tres, si no català
+/** Idioma triat a la web de Reportia o al panell, si n'hi ha. Només es llegeix: el canal no hi escriu res. */
+export function savedLang() {
+  try { const l = localStorage.getItem('reportia-panel-lang'); return LANGS.includes(l) ? l : null; } catch { return null; }
+}
+
 export function detectLang() {
   const nav = (typeof navigator !== 'undefined' && navigator.language || '').toLowerCase();
   if (nav.startsWith('es')) return 'es';
@@ -189,7 +194,12 @@ export default function V2Layout({ lang, setLang, org, homeTo, children }) {
       </div>
 
       {/* Canal d'exemple de la web de Reportia: s'avisa que res del que s'hi envia arriba enlloc */}
-      {org?.is_example && <Stable as="p" lang={lang} className="v2-example" pick={T => T.v2.exampleNote} />}
+      {org?.is_example && (
+        <p className="v2-example">
+          <Link to={`/?lang=${lang}`}><ArrowLeft {...ICON} /><Stable lang={lang} pick={T => T.v2.exampleBack} /></Link>
+          <Stable lang={lang} pick={T => T.v2.exampleNote} />
+        </p>
+      )}
 
       <header className="v2-header">
         <div className="v2-wrap">

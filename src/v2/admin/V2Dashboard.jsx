@@ -421,8 +421,9 @@ export default function V2Dashboard() {
                       {c.unread > 0 && <span className="v2-unread"><MessageSquareText {...ICON} />{c.unread === 1 ? t.unreadOne : fmt(t.unreadMany, { n: c.unread })}</span>}
                       <span className="v2-card-cat">{catLabel(tr, c.category)}</span>
                       <span className="v2-card-meta">
-                        <span className="v2-idn">{c.is_anonymous ? <EyeOff {...ICON} /> : <UserRound {...ICON} />}{c.is_anonymous ? t.anon : t.ident}</span>
-                        <span>{relDay(c.created_at, t)}</span>
+                        {/* textos que reserven l'amplada de l'idioma més llarg: la prioritat no es mou en canviar d'idioma */}
+                        <span className="v2-idn">{c.is_anonymous ? <EyeOff {...ICON} /> : <UserRound {...ICON} />}<L pick={x => (c.is_anonymous ? x.anon : x.ident)} /></span>
+                        <L pick={x => relDay(c.created_at, x)} />
                         <Priority priority={c.priority} t={t} />
                       </span>
                       <span className="v2-card-dl"><Deadline info={dl} t={t} lang={lang} /></span>

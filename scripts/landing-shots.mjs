@@ -5,13 +5,16 @@
 // Necesita Playwright (npx playwright install chromium) y cwebp (brew install webp).
 //
 // Los cuatro pasos de «Cómo funciona» se capturan en una pantalla estrecha (360 px) y recortados
-// a la parte que importa (360 × 450), para que el texto se lea dentro de una tarjeta de la portada.
+// a la parte que importa (360 × 640, la proporción de un móvil), porque se enseñan dentro de un móvil.
+// «panel-lista» es la lista de denuncias en un ordenador (1280 × 800): la imagen grande bajo los pasos.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3000';
 const OUT = new URL('../public/landing/', import.meta.url).pathname;
+// La dirección que se lee en la captura del panel: la pública, no la del ordenador donde se hace la captura
+const PUBLIC_HOST = process.env.PUBLIC_HOST || 'reportia-canal.vercel.app';
 mkdirSync(OUT, { recursive: true });
 
 const TEXT = {
@@ -20,12 +23,12 @@ const TEXT = {
   en: 'For weeks, a shift supervisor has been making degrading remarks to two members of the team in front of everyone.',
 };
 // Lo que no debe salir en una captura: avisos de demo y animaciones a medias
-const CLEAN = '.v2-example, .v2-side-tags { display: none !important; } *, *::before, *::after { animation: none !important; transition: none !important; }';
-const CROP = { width: 360, height: 450 };
+const CLEAN = '.v2-example, .v2-side-tags, .v2-retention { display: none !important; } *, *::before, *::after { animation: none !important; transition: none !important; }';
+const CROP = { width: 360, height: 640 };
 
 const browser = await chromium.launch();
 /** Guarda una captura. target: selector de la pieza a recortar, o la altura (px) desde la que se recorta la pantalla. */
-async function shot(page, name, lang, target) {
+async function shot(page, name, lang, target, crop = CROP) {
   await page.addStyleTag({ content: CLEAN });
   await page.waitForTimeout(250);
   const png = `${OUT}${name}-${lang}.png`;
@@ -33,9 +36,9 @@ async function shot(page, name, lang, target) {
   else {
     await page.evaluate(y => window.scrollTo(0, y), target);
     await page.waitForTimeout(150);
-    await page.screenshot({ path: png, clip: { x: 0, y: 0, ...CROP } });
+    await page.screenshot({ path: png, clip: { x: 0, y: 0, ...crop } });
   }
-  execFileSync('cwebp', ['-quiet', '-q', '84', png, '-o', png.replace(/\.png$/, '.webp')]);
+  execFileSync('cwebp', ['-quiet', '-q', '82', png, '-o', png.replace(/\.png$/, '.webp')]);
   rmSync(png);
   console.log(`${name}-${lang}.webp`);
 }
@@ -50,10 +53,10 @@ for (const lang of ['ca', 'es', 'en']) {
   const phone = await browser.newContext({ viewport: { width: 360, height: 720 }, deviceScaleFactor: 2.25, locale: lang });
   const p = await phone.newPage();
   await p.goto(`${BASE}/canal/demo?lang=${lang}`, { waitUntil: 'networkidle' });
-  await shot(p, 'canal', lang, 150);
+  await shot(p, 'canal', lang, 0);
 
   await p.goto(`${BASE}/canal/demo/denuncia?lang=${lang}`, { waitUntil: 'networkidle' });
-  await shot(p, 'formulario', lang, 196);
+  await shot(p, 'formulario', lang, 118);
 
   const next = () => p.locator('.v2-actionbar button[type=submit]').click();
   await next();
@@ -76,13 +79,14 @@ for (const lang of ['ca', 'es', 'en']) {
   await shot(h, 'panel', lang, 64);
   await hand.close();
 
-  // ── Cumplimiento: los dos plazos de la ficha, recortados y a tamaño legible ──
-  const desk = await browser.newContext({ viewport: { width: 360, height: 720 }, deviceScaleFactor: 2.25, locale: lang });
-  await desk.addInitScript(session(lang), lang);
-  const d = await desk.newPage();
-  await d.goto(`${BASE}/admin/complaints/c-vk7p2mqa`, { waitUntil: 'networkidle' });
-  await d.waitForTimeout(700);
-  await shot(d, 'plazos', lang, '.v2-dls');
-  await desk.close();
+  // ── «Así lo ve su empresa»: la lista de denuncias en un ordenador ──
+  const wide = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2, locale: lang });
+  await wide.addInitScript(session(lang), lang);
+  const w = await wide.newPage();
+  await w.goto(`${BASE}/admin`, { waitUntil: 'networkidle' });
+  await w.waitForTimeout(700);
+  await w.evaluate((host) => { document.querySelectorAll('a[href^="/canal/"]').forEach(a => { a.textContent = a.textContent.replace(location.host, host); }); }, PUBLIC_HOST);
+  await shot(w, 'panel-lista', lang, 0, { width: 1280, height: 800 });
+  await wide.close();
 }
 await browser.close();

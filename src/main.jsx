@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
+import { watchShareMeta } from './v2/site/origin.js';
 // Tipografies allotjades al mateix lloc (abans es demanaven a Google Fonts)
 import '@fontsource/wix-madefor-display/latin-600.css';
 import '@fontsource/wix-madefor-display/latin-ext-600.css';
@@ -26,6 +27,9 @@ if (DSN && !window.location.pathname.startsWith('/canal')) {
     });
   });
 }
+
+// La vista prèvia en compartir un enllaç segueix l'idioma i el títol de la pàgina
+watchShareMeta();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
