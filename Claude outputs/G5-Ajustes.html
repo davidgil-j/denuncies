@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Gestionar · Equipo y ajustes</title>
+
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+@media (max-width: 640px) {
+  [data-strip] { display: none !important; }
+  [data-card], [data-card] div, [data-card] label { min-width: 0 !important; }
+  input:not([type=checkbox]):not([type=radio]), textarea { width: 100%; min-width: 0; box-sizing: border-box; }
+  header { padding-left: 16px !important; padding-right: 16px !important; }
+  [data-card] { padding: 22px !important; border-radius: 24px !important; min-height: 0 !important; }
+  [data-hero] { font-size: 54px !important; }
+  h1 { font-size: 34px !important; }
+}
+a{color:#1F3FC4}a:hover{color:#16309A}
+</style>
+</helmet>
+<div style="min-height: 900px; box-sizing: border-box; display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; background: #F2F4F8; font-family: 'Manrope', system-ui, sans-serif; color: #0D1530">
+  <a href="00-Entrada.html" aria-label="Ver el canal público" data-strip="" style="flex: 0 0 76px; box-sizing: border-box; border-radius: 32px; background: #2F54EB; color: #FFFFFF; text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px 0">
+    <span style="width: 40px; height: 40px; border-radius: 20px; background: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0D1530" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg></span>
+    <span style="writing-mode: vertical-rl; transform: rotate(180deg); font-size: 17px; font-weight: 800; letter-spacing: -0.02em">Ver el canal</span>
+  </a>
+
+  <section data-card="" style="flex: 999 1 640px; min-width: 0; box-sizing: border-box; border-radius: 32px; background: #FFFFFF; padding: 24px 32px 32px; display: flex; flex-direction: column; gap: 24px">
+    <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px">
+        <div style="display: flex; align-items: center; gap: 10px"><div style="width: 40px; height: 40px; border-radius: 12px; background: #0D1530; color: #FFFFFF; font-size: 14px; font-weight: 800; display: flex; align-items: center; justify-content: center">ED</div><span style="font-size: 16px; font-weight: 800">Empresa Demo</span></div>
+        <nav aria-label="Panel" style="display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 24px; background: #F2F4F8">
+          <a href="G2-Tablero.html" style="padding: 12px 18px; border-radius: 22px; color: #4D5672; font-size: 14px; font-weight: 700; text-decoration: none">Tablero</a>
+          <a href="G6-Informe.html" style="padding: 12px 18px; border-radius: 22px; color: #4D5672; font-size: 14px; font-weight: 700; text-decoration: none">Informe</a>
+          <a href="G4-Compartir.html" style="padding: 12px 18px; border-radius: 22px; color: #4D5672; font-size: 14px; font-weight: 700; text-decoration: none">Compartir el canal</a>
+          <a href="G5-Ajustes.html" style="padding: 12px 18px; border-radius: 22px; background: #0D1530; color: #FFFFFF; font-size: 14px; font-weight: 800; text-decoration: none">Equipo y ajustes</a>
+        </nav>
+      </div>
+      <div style="width: 44px; height: 44px; border-radius: 22px; background: #FFD8C2; font-size: 14px; font-weight: 800; display: flex; align-items: center; justify-content: center">LP</div>
+    </div>
+
+    <h1 style="margin: 0; font-size: 48px; line-height: 1; font-weight: 800; letter-spacing: -0.04em">Equipo y ajustes</h1>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+     <div style="flex: 3 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+      <div style="border-radius: 24px; background: #F2F4F8; padding: 22px; display: flex; flex-direction: column; gap: 12px">
+        <span style="font-size: 18px; font-weight: 800">Responsable del Sistema</span>
+        <span style="font-size: 14px; line-height: 1.5; color: #4D5672">La ley obliga a nombrar a una persona y comunicarlo a la autoridad en 10 días hábiles.</span>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; color: #4D5672">Nombre<input type="text" value="Laura Puig Ferrer" style="height: 44px; padding: 0 12px; border: none; border-radius: 12px; font-family: inherit; font-size: 15px; font-weight: 700; color: #0D1530"></label>
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; color: #4D5672">Cargo<input type="text" value="Directora de Cumplimiento" style="height: 44px; padding: 0 12px; border: none; border-radius: 12px; font-family: inherit; font-size: 15px; font-weight: 700; color: #0D1530"></label>
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; color: #4D5672">Nombrada el<input type="text" value="1 oct 2026" style="height: 44px; padding: 0 12px; border: none; border-radius: 12px; font-family: inherit; font-size: 15px; font-weight: 700; color: #0D1530"></label>
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; color: #4D5672">Comunicado a la AIPI<input type="text" placeholder="Pendiente" style="height: 44px; padding: 0 12px; border: 2px solid #F3C27A; border-radius: 12px; font-family: inherit; font-size: 15px; font-weight: 700; color: #0D1530"><span style="font-size: 12px; font-weight: 800; color: #7A4100">Quedan 6 días hábiles</span></label>
+        </div>
+        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; color: #4D5672">Autoridad autonómica que se muestra en el canal<select style="height: 44px; padding: 0 12px; border: none; border-radius: 12px; background: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 700; color: #0D1530"><option>Oficina Antifrau de Catalunya</option></select></label>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding-top: 4px"><a href="https://www.proteccioninformante.gob.es" style="font-size: 14px; font-weight: 800">Cómo comunicarlo a la AIPI</a><button type="button" style="height: 44px; padding: 0 20px; border: none; border-radius: 22px; background: #0D1530; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 800">Guardar</button></div>
+      </div>
+
+      <div style="border-radius: 24px; background: #F2F4F8; padding: 22px; display: flex; flex-direction: column; gap: 12px">
+        <span style="font-size: 18px; font-weight: 800">Plan</span>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border-radius: 16px; background: #FFFFFF"><span style="display: flex; flex-direction: column"><span style="font-size: 15px; font-weight: 800">Prueba gratuita</span><span style="font-size: 13px; color: #4D5672">Quedan 21 días · el canal sigue abierto aunque acabe</span></span><button type="button" style="height: 40px; padding: 0 14px; border: none; border-radius: 20px; background: #0D1530; color: #FFFFFF; font-family: inherit; font-size: 13px; font-weight: 800">Contratar</button></div>
+        <div style="display: flex; flex-wrap: wrap; gap: 16px; font-size: 14px; font-weight: 800"><a href="#">Datos de facturación</a><a href="#">Contrato de encargado del tratamiento</a></div>
+      </div>
+
+     </div>
+     <div style="flex: 2 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+      <div style="border-radius: 24px; background: #F2F4F8; padding: 22px; display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; justify-content: space-between; align-items: center"><span style="font-size: 18px; font-weight: 800">Quién gestiona</span><button type="button" style="height: 40px; padding: 0 14px; border: none; border-radius: 20px; background: #2F54EB; color: #FFFFFF; font-family: inherit; font-size: 13px; font-weight: 800">+ Invitar</button></div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; background: #FFFFFF"><span style="width: 38px; height: 38px; flex: none; border-radius: 19px; background: #FFD8C2; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center">LP</span><span style="flex: 1; display: flex; flex-direction: column"><span style="font-size: 15px; font-weight: 800">Laura Puig <span style="font-weight: 600; color: #4D5672">· tú</span></span><span style="font-size: 13px; color: #4D5672">Administradora · ve todo</span></span></div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; background: #FFFFFF"><span style="width: 38px; height: 38px; flex: none; border-radius: 19px; background: #D8E4FF; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center">DO</span><span style="flex: 1; display: flex; flex-direction: column"><span style="font-size: 15px; font-weight: 800">Daniel Ortega</span><span style="font-size: 13px; color: #4D5672">Gestor · Fraude, Contabilidad, Conflictos</span></span><a href="#" style="font-size: 13px; font-weight: 800">Cambiar</a></div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; background: #FFFFFF"><span style="width: 38px; height: 38px; flex: none; border-radius: 19px; background: #D6F0E4; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center">NS</span><span style="flex: 1; display: flex; flex-direction: column"><span style="font-size: 15px; font-weight: 800">Núria Soler</span><span style="font-size: 13px; color: #4D5672">Gestora · Acoso, Discriminación</span></span><a href="#" style="font-size: 13px; font-weight: 800">Cambiar</a></div>
+      </div>
+
+      <div style="border-radius: 24px; background: #F2F4F8; padding: 22px; display: flex; flex-direction: column; gap: 12px">
+        <span style="font-size: 18px; font-weight: 800">Tu seguridad</span>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border-radius: 16px; background: #FFFFFF"><span style="display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 800"><span style="width: 10px; height: 10px; border-radius: 5px; background: #12805A"></span>Verificación en dos pasos activada</span><a href="#" style="font-size: 13px; font-weight: 800">Gestionar</a></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border-radius: 16px; background: #FFFFFF"><span style="font-size: 15px; font-weight: 800">Contraseña</span><a href="#" style="font-size: 13px; font-weight: 800">Cambiar</a></div>
+      </div>
+     </div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
