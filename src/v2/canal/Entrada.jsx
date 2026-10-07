@@ -42,7 +42,7 @@ export function EntryReport({ lang, base }) {
         <Tc as="h1" className="ds-hero" lang={lang} k="report" />
         <Tc as="p" className="ds-lead entry-lead" lang={lang} k="reportLead" />
         <Chips size="lg" className="entry-chips">
-          {[EyeOff, Clock, Shield].map((Icon, i) => <Chip key={i} tone="shade" size="lg" icon={ico(Icon)}><Tc lang={lang} pick={c => c.trust[i]} /></Chip>)}
+          {[EyeOff, Clock, Shield].map((Icon, i) => <Chip key={i} tone="shade" size="lg" icon={ico(Icon)}>{t.trust[i]}</Chip>)}
         </Chips>
       </div>
       <div className="entry-foot">
@@ -65,7 +65,7 @@ export function EntryManage({ lang, org, to }) {
           <Tc as="h2" className="ds-hero" lang={lang} k="manage" />
           <Tc as="p" className="ds-lead entry-lead" lang={lang} k="manageLead" vars={vars} />
           <Chips size="lg" className="entry-chips">
-            {[CalendarDays, FileText, Lock].map((Icon, i) => <Chip key={i} size="lg" icon={ico(Icon)}><Tc lang={lang} pick={c => c.manageTrust[i]} /></Chip>)}
+            {[CalendarDays, FileText, Lock].map((Icon, i) => <Chip key={i} size="lg" icon={ico(Icon)}>{t.manageTrust[i]}</Chip>)}
           </Chips>
         </div>
         <div className="entry-foot">
@@ -100,16 +100,16 @@ export function EntryBottom({ lang, org, base }) {
   ];
   return (
     <>
-      <span className="entry-legal"><Tc lang={lang} k="footSystem" vars={{ org: org.name }} /></span>
+      <span className="entry-legal">{fmt(t.footSystem, { org: org.name })}</span>
       <span className="entry-links">
-        <Link to={`${base}/privacidad`} replace><Tc lang={lang} k="footPrivacy" /></Link>
+        <Link to={`${base}/privacidad`} replace>{t.footPrivacy}</Link>
         <button type="button" className="entry-linkbtn" onClick={() => setPanel('ext')}>
-          <Tc lang={lang} className="ds-wide" pick={c => (regional ? fmt(c.footExtWith, { name: regional.name }) : c.footExt)} />
-          <Tc lang={lang} className="ds-narrow" k="footExtShort" />
+          <span className="ds-wide">{regional ? fmt(t.footExtWith, { name: regional.name }) : t.footExt}</span>
+          <span className="ds-narrow">{t.footExtShort}</span>
         </button>
-        <button type="button" className="entry-linkbtn" onClick={() => setPanel('kept')}><Tc lang={lang} k="footKept" /></button>
-        <a href={BOE_URL} target="_blank" rel="noopener noreferrer" className="ds-narrow"><Tc lang={lang} k="law" /></a>
-        <Link to={`/?lang=${lang}`}><Tc lang={lang} k="footBy" /></Link>
+        <button type="button" className="entry-linkbtn" onClick={() => setPanel('kept')}>{t.footKept}</button>
+        <a href={BOE_URL} target="_blank" rel="noopener noreferrer" className="ds-narrow">{t.law}</a>
+        <Link to={`/?lang=${lang}`}>{t.footBy}</Link>
       </span>
 
       <Dialog side open={panel === 'ext'} onClose={() => setPanel(null)} title={v.extTitle} closeLabel={t.close}>

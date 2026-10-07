@@ -1,6 +1,7 @@
 import React from 'react';
 import { Chip } from './Chip.jsx';
-import { Txt } from './text.jsx';
+import { translations } from '../../translations.js';
+import { fmt } from '../V2Layout.jsx';
 
 // A partir de cuántos días un plazo se considera cercano (ámbar)
 const SOON = { ack: 6, meeting: 6, resp: 14 };
@@ -26,14 +27,11 @@ export function deadlineLook(kind, days, { soon = SOON[kind] } = {}) {
 export default function DeadlineChip({ lang, kind = 'resp', days, short = false, soon, onBg = false, size }) {
   const { tone, k, kShort, n } = deadlineLook(kind, days, { soon });
   const same = short || k === kShort;
+  // Los chips se ajustan a su texto: no reservan el ancho de los otros idiomas
+  const text = (key) => fmt(translations[lang].ds[key], { n });
   return (
     <Chip tone={tone === 'neutral' && onBg ? 'white' : tone} size={size}>
-      {same ? <Txt lang={lang} k={short ? kShort : k} vars={{ n }} /> : (
-        <>
-          <Txt lang={lang} k={k} vars={{ n }} className="ds-wide" />
-          <Txt lang={lang} k={kShort} vars={{ n }} className="ds-narrow" />
-        </>
-      )}
+      {same ? text(short ? kShort : k) : <><span className="ds-wide">{text(k)}</span><span className="ds-narrow">{text(kShort)}</span></>}
     </Chip>
   );
 }

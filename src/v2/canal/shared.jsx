@@ -65,7 +65,7 @@ export function CanalHead({ lang, org, anon = false, children }) {
       <div className="flow-brand">
         <OrgMark name={org.name} />
         <b>{org.name}</b>
-        {anon && <Chip tone="shade" size="md" icon={<EyeOff size={14} strokeWidth={2} aria-hidden="true" />}><Tc lang={lang} k="anonMode" /></Chip>}
+        {anon && <Chip tone="shade" size="md" icon={<EyeOff size={14} strokeWidth={2} aria-hidden="true" />}>{translations[lang].canal.anonMode}</Chip>}
       </div>
       <div className="flow-tools">
         {children}

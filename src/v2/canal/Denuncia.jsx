@@ -70,17 +70,21 @@ export default function Denuncia() {
     return () => window.removeEventListener('beforeunload', onBefore);
   }, [dirty]);
 
-  if (sent) return <Enviada />;
-
-  function focusError(errs) {
-    const k = Object.keys(errs)[0];
+  // El foco va al primer campo con error en cuanto el aviso está pintado. No se aplaza a un fotograma
+  // posterior: si se retrasara, podría quitarle el foco al campo en el que la persona ya está escribiendo.
+  const errorFocus = useRef(null);
+  function focusError(errs) { errorFocus.current = Object.keys(errs)[0] ?? null; }
+  useEffect(() => {
+    const k = errorFocus.current;
+    errorFocus.current = null;
     if (!k) return;
-    requestAnimationFrame(() => {
-      const el = document.getElementById(`dn-${k}`);
-      el?.scrollIntoView({ block: 'center' });
-      el?.focus({ preventScroll: true });
-    });
-  }
+    const el = document.getElementById(`dn-${k}`);
+    el?.scrollIntoView({ block: 'center' });
+    el?.focus({ preventScroll: true });
+  }, [errors]);
+
+  // (Todos los hooks van antes de este punto: a partir de aquí la pantalla puede ser otra)
+  if (sent) return <Enviada />;
 
   function back() {
     setErrors({});
@@ -98,22 +102,21 @@ export default function Denuncia() {
       if (!draft.isAnonymous && !EMAIL_RE.test(draft.email.trim())) errs.email = 'errEmail';
       if (!draft.privacy) errs.privacy = 'consentErr';
     }
+    if (Object.keys(errs).length) { focusError(errs); setErrors(errs); return; }
     setErrors(errs);
-    if (Object.keys(errs).length) { focusError(errs); return; }
     if (step < 3) { set({ step: step + 1 }); return; }
     if ((needsCaptcha && !token) || submitting) return;
 
     setSubmitting(true);
     setSubmitError(false);
     try {
-      // El «cuándo» es texto libre («desde septiembre»). Hasta que exista su columna (migración 012)
-      // se guarda al final de la descripción, para que quien gestiona lo lea igualmente.
-      const when = draft.when.trim();
-      const description = when ? `${draft.description.trim()}\n\n${t.when}: ${when}` : draft.description.trim();
+      // El «cuándo» viaja aparte: va a su columna o, si aún no existe, una sola vez al final de la
+      // descripción (lo decide supabase.js al guardar)
       const { trackingCode, failedFiles, error } = await saveComplaint({
         formData: {
           isAnonymous: draft.isAnonymous, name: draft.name, email: draft.email, phone: draft.phone,
-          category: draft.category, department: draft.department, description, incidentDate: '',
+          category: draft.category, department: draft.department, description: draft.description.trim(), incidentDate: '',
+          when: draft.when, whenLabel: t.when,
           involvedPeople: draft.involvedPeople, language: lang, meetingRequested: draft.meeting,
         },
         files: draft.files,
@@ -186,7 +189,7 @@ export default function Denuncia() {
         {step === 2 && (
           <>
             <div className="flow-q is-tight">
-              <Chip tone="shade" size="md"><Tc lang={lang} pick={c => c.cats[draft.category][0]} /></Chip>
+              <Chip tone="shade" size="md">{t.cats[draft.category][0]}</Chip>
               <Tc as="h1" className="ds-h1" lang={lang} k="q2" ref={headRef} tabIndex={-1} />
             </div>
             <div className="tell">
@@ -200,7 +203,7 @@ export default function Denuncia() {
                   <Tc lang={lang} k="help" />
                   {done.map((ok, i) => (
                     <Chip key={i} size="md" tone={ok ? 'ok' : 'neutral'} icon={ok ? <Check size={13} strokeWidth={3} aria-hidden="true" /> : null}>
-                      <Tc lang={lang} pick={c => c.helps[i]} /><span className="ds-vh">: {ok ? t.helpDone : t.helpTodo}</span>
+                      {t.helps[i]}<span className="ds-vh">: {ok ? t.helpDone : t.helpTodo}</span>
                     </Chip>
                   ))}
                 </p>
@@ -242,7 +245,7 @@ export default function Denuncia() {
                     <span className="opt-dot" aria-hidden="true" />
                     <Tc
                       lang={lang} className="opt-txt" inner="opt-txt-v"
-                      pick={c => <><span className="opt-t">{c.anonT}<Chip tone="report">{c.recommended}</Chip></span><span className="opt-d">{c.anonD}</span></>}
+                      pick={c => <><span className="opt-t">{c.anonT}<Chip tone="report" className="opt-chip">{c.recommended}</Chip></span><span className="opt-d">{c.anonD}</span></>}
                     />
                   </label>
                   <label className="opt">
@@ -277,20 +280,15 @@ export default function Denuncia() {
 
               <Card className="ident-side">
                 <Tc lang={lang} k="review" className="ds-card-title is-sm" />
-                {/* El resumen entero se pinta en los tres idiomas: reserva el alto del más largo y no deja huecos entre filas */}
-                <Tc
-                  as="div" lang={lang}
-                  pick={c => (
-                    <dl className="review">
-                      <div><dt>{c.rTopic}</dt><dd>{c.cats[draft.category][0]}</dd></div>
-                      <div className="is-block"><dt>{c.rTold}</dt><dd>{cut(draft.description.trim())}</dd></div>
-                      <div><dt>{c.rProof}</dt><dd>{nFiles === 0 ? c.rProof0 : nFiles === 1 ? c.rProof1 : c.rProofN.replace('{n}', nFiles)}</dd></div>
-                      <div><dt>{c.rIdentity}</dt><dd>{draft.isAnonymous ? c.rAnon : c.rIdent}</dd></div>
-                      {draft.meeting && <div><dt>{c.rMeeting}</dt><dd>{c.rMeetingYes}</dd></div>}
-                    </dl>
-                  )}
-                />
-                <button type="button" className="linkbtn" onClick={() => { setErrors({}); set({ step: 2 }); }}><Tc lang={lang} k="change" /></button>
+                <dl className="review">
+                  <div><dt>{t.rTopic}</dt><dd>{t.cats[draft.category][0]}</dd></div>
+                  <div className="is-block"><dt>{t.rTold}</dt><dd>{cut(draft.description.trim())}</dd></div>
+                  {draft.when.trim() && <div><dt>{t.when}</dt><dd>{draft.when.trim()}</dd></div>}
+                  <div><dt>{t.rProof}</dt><dd>{nFiles === 0 ? t.rProof0 : nFiles === 1 ? t.rProof1 : t.rProofN.replace('{n}', nFiles)}</dd></div>
+                  <div><dt>{t.rIdentity}</dt><dd>{draft.isAnonymous ? t.rAnon : t.rIdent}</dd></div>
+                  {draft.meeting && <div><dt>{t.rMeeting}</dt><dd>{t.rMeetingYes}</dd></div>}
+                </dl>
+                <button type="button" className="linkbtn" onClick={() => { setErrors({}); set({ step: 2 }); }}>{t.change}</button>
                 <label className={cx('consent', errors.privacy && 'is-invalid')}>
                   <input
                     id="dn-privacy" type="checkbox" checked={draft.privacy} aria-invalid={errors.privacy ? true : undefined}

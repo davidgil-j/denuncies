@@ -129,11 +129,10 @@
 }
 
 /* Paso 2: cuéntalo */
-.tell { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; }
+.tell { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
 .tell-main { flex: 999 1 420px; }
-/* El texto ocupa todo el alto de la tarjeta */
-.tell-main > .ds-field { flex: 1; }
-.tell-main textarea.ds-input { flex: 1; min-height: 240px; }
+/* La caja de texto mide unos 300 px; la tarjeta no se estira hasta el alto de la columna de al lado */
+.tell-main textarea.ds-input { height: 300px; }
 .tell-side { flex: 1 1 300px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .tell-opt { font-weight: 600; color: var(--muted); }
 .tell-more { display: none; }
@@ -156,7 +155,7 @@
 @media (max-width: 640px) {
   .tell { gap: 12px; }
   .tell-main { padding: 16px; border-radius: 22px; }
-  .tell-main textarea { min-height: 150px; }
+  .tell-main textarea.ds-input { height: 190px; }
   .tell-more {
     display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 54px; border: 2px dashed rgba(255, 255, 255, .65); border-radius: 22px;
     background: transparent; color: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 800; cursor: pointer;
@@ -175,6 +174,7 @@
 .opt-dot { width: 26px; height: 26px; flex: none; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .7); }
 .opt-txt { min-width: 0; }
 .opt-txt-v { display: flex; flex-direction: column; gap: 6px; }
+.opt-chip { font-size: 12px; }
 .opt-t { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 19px; font-weight: 800; line-height: 1.2; }
 .opt-d { font-size: 15px; line-height: 1.45; color: var(--on-report-muted); }
 .opt:has(input:checked) { background: #FFFFFF; color: var(--ink); box-shadow: var(--shadow-picked); }

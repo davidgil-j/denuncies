@@ -63,6 +63,10 @@ function dict(lang) {
     priority: p => t.priorities[p] ?? p ?? '',
     mode: c => (isIdentified(c) ? t.identified : t.anonymous),
     langName: l => t.langNames[l] ?? (l ? String(l).toUpperCase() : ''),
+    // Columnas del rediseño: vía de entrada, reunión presencial y resultado (arts. 7.2 y 26)
+    x: tr.panel?.xl ?? {},
+    via: c => (c?.channel && c.channel !== 'web' ? tr.panel?.chan?.[c.channel] ?? c.channel : tr.panel?.xl?.web ?? ''),
+    outcome: o => (o ? tr.panel?.outcomes?.[o] ?? o : ''),
   };
 }
 
@@ -228,6 +232,11 @@ export async function buildExcelWorkbook(complaints = [], lang = 'es', { now = n
     { key: 'deadline', header: t.cDeadline,      date: true },
     { key: 'answered', header: t.cAnswered,      date: true },
     { key: 'lang',     header: t.cLang },
+    { key: 'via',      header: D.x.channel ?? 'Vía de entrada' },
+    { key: 'when',     header: D.x.when ?? 'Cuándo' },
+    { key: 'meetReq',  header: D.x.meetingReq ?? 'Reunión pedida',     date: true },
+    { key: 'meetHeld', header: D.x.meetingHeld ?? 'Reunión celebrada', date: true },
+    { key: 'outcome',  header: D.x.outcome ?? 'Resultado' },
   ];
   const colIndex = Object.fromEntries(cols.map((c, i) => [c.key, i + 1]));
 
@@ -250,6 +259,12 @@ export async function buildExcelWorkbook(complaints = [], lang = 'es', { now = n
         deadline: c.extended_until ? xlDate(toDate(c.extended_until)) : dl ? xlDate(dl.reply) : null,
         answered: xlDate(toDate(c.answered_at)),
         lang:     D.langName(c.language),
+        via:      D.via(c),
+        when:     c.incident_when ?? '',
+        // La reunión cuenta desde que se pidió (antes de la migración 012, desde la recepción)
+        meetReq:  c.meeting_requested ? xlDate(toDate(c.meeting_requested_at ?? c.created_at)) : null,
+        meetHeld: xlDate(toDate(c.meeting_held_at)),
+        outcome:  D.outcome(c.outcome),
       },
     };
   });

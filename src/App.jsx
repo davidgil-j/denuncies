@@ -10,13 +10,18 @@ const Consulta = lazy(() => import('./v2/canal/Consulta.jsx'));
 const Privacidad = lazy(() => import('./v2/canal/Privacidad.jsx'));
 const V2Privacy = lazy(() => import('./v2/site/V2Privacy.jsx'));
 const V2Signup = lazy(() => import('./v2/site/V2Signup.jsx'));
-const V2Login = lazy(() => import('./v2/site/V2Login.jsx'));
-const V2Forgot = lazy(() => import('./v2/site/V2Forgot.jsx'));
-const V2Reset = lazy(() => import('./v2/site/V2Reset.jsx'));
 const V2NotFound = lazy(() => import('./v2/site/V2NotFound.jsx'));
-const V2Admin = lazy(() => import('./v2/admin/V2Admin.jsx'));
-const V2Dashboard = lazy(() => import('./v2/admin/V2Dashboard.jsx'));
-const V2Detail = lazy(() => import('./v2/admin/V2Detail.jsx'));
+// Lado «Gestionar»: acceso, armazón del panel, tablero, ficha del caso y registro
+const acceso = () => import('./v2/panel/Acceso.jsx');
+const AccessLayout = lazy(() => acceso().then(m => ({ default: m.AccessLayout })));
+const contrasena = () => import('./v2/panel/Contrasena.jsx');
+const Recuperar = lazy(() => contrasena().then(m => ({ default: m.Recuperar })));
+const Cambiar = lazy(() => contrasena().then(m => ({ default: m.Cambiar })));
+const Acceso = lazy(acceso);
+const Panel = lazy(() => import('./v2/panel/Panel.jsx'));
+const Tablero = lazy(() => import('./v2/panel/Tablero.jsx'));
+const Caso = lazy(() => import('./v2/panel/Caso.jsx'));
+const Registrar = lazy(() => import('./v2/panel/Registrar.jsx'));
 const V2Users = lazy(() => import('./v2/admin/V2Users.jsx'));
 const V2Mfa = lazy(() => import('./v2/admin/V2Mfa.jsx'));
 const V2Integrate = lazy(() => import('./v2/admin/V2Integrate.jsx'));
@@ -46,10 +51,10 @@ function prefetchNext() {
   if (path.startsWith('/canal/')) {
     quiet(import('./v2/canal/Denuncia.jsx')); quiet(import('./v2/canal/Consulta.jsx')); quiet(import('./v2/canal/Privacidad.jsx'));
   } else if (path.startsWith('/admin') && !/login|forgot-password|reset-password/.test(path)) {
-    quiet(import('./v2/admin/V2Detail.jsx')); quiet(import('./v2/admin/V2Dashboard.jsx')); quiet(import('./v2/admin/V2Report.jsx'));
+    quiet(import('./v2/panel/Caso.jsx')); quiet(import('./v2/panel/Tablero.jsx')); quiet(import('./v2/admin/V2Report.jsx'));
     quiet(import('./v2/admin/V2Users.jsx')); quiet(import('./v2/admin/V2Integrate.jsx')); quiet(import('./v2/admin/V2Account.jsx')); quiet(import('./v2/admin/V2Mfa.jsx'));
   } else {
-    quiet(import('./v2/site/V2Signup.jsx')); quiet(import('./v2/site/V2Login.jsx')); quiet(import('./v2/admin/V2Admin.jsx'));
+    quiet(import('./v2/site/V2Signup.jsx')); quiet(acceso()); quiet(import('./v2/panel/Panel.jsx'));
   }
 }
 
@@ -80,17 +85,22 @@ export default function App() {
         <Route element={<V2SiteLayout />}>
           <Route path="/" element={<V2Landing />} />
           <Route path="/crear-compte" element={page(<V2Signup />)} />
-          <Route path="/admin/login" element={page(<V2Login />)} />
-          <Route path="/admin/forgot-password" element={page(<V2Forgot />)} />
-          <Route path="/admin/reset-password" element={page(<V2Reset />)} />
           <Route path="/privacitat" element={page(<V2Privacy />)} />
           <Route path="*" element={page(<V2NotFound />)} />
         </Route>
 
+        {/* Gestionar · accés: la mateixa targeta per entrar, verificar i recuperar la contrasenya */}
+        <Route element={page(<AccessLayout />)}>
+          <Route path="/admin/login" element={page(<Acceso />)} />
+          <Route path="/admin/forgot-password" element={page(<Recuperar />)} />
+          <Route path="/admin/reset-password" element={page(<Cambiar />)} />
+        </Route>
+
         {/* Panell de gestió */}
-        <Route path="/admin" element={page(<V2Admin />)}>
-          <Route index element={page(<V2Dashboard />)} />
-          <Route path="complaints/:id" element={page(<V2Detail />)} />
+        <Route path="/admin" element={page(<Panel />)}>
+          <Route index element={page(<Tablero />)} />
+          <Route path="complaints/:id" element={page(<Caso />)} />
+          <Route path="nueva" element={page(<Registrar />)} />
           <Route path="report" element={page(<V2Report />)} />
           <Route path="users" element={page(<V2Users />)} />
           <Route path="integration" element={page(<V2Integrate />)} />

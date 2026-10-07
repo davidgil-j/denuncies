@@ -60,13 +60,13 @@
 }
 
 .ds, .ds *, .ds *::before, .ds *::after { box-sizing: border-box; }
-.ds :where(h1, h2, h3, h4, p, ul, ol, dl, dd, figure, fieldset) { margin: 0; padding: 0; }
-.ds :where(ul, ol) { list-style: none; }
-.ds :where(fieldset) { border: 0; min-width: 0; }
-.ds :where(button, input, textarea, select) { font: inherit; color: inherit; }
-.ds :where(svg) { flex: none; display: block; }
-.ds :where(a) { color: var(--link); text-underline-offset: 3px; }
-.ds :where(a:hover) { color: var(--link-hover); }
+:where(.ds) :where(h1, h2, h3, h4, p, ul, ol, dl, dd, figure, fieldset) { margin: 0; padding: 0; }
+:where(.ds) :where(ul, ol) { list-style: none; }
+:where(.ds) :where(fieldset) { border: 0; min-width: 0; }
+:where(.ds) :where(button, input, textarea, select) { font: inherit; color: inherit; }
+:where(.ds) :where(svg) { flex: none; display: block; }
+:where(.ds) :where(a) { color: var(--link); text-underline-offset: 3px; }
+:where(.ds) :where(a:hover) { color: var(--link-hover); }
 body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: #F2F4F8; }
 
 /* Qué hay debajo: cambia el color del foco y de los enlaces para que siempre se vean */
@@ -306,7 +306,7 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 40p
 .ds-steps.is-ink .ds-steps-seg::before { background: rgba(255, 255, 255, .2); }
 .ds-steps.is-ink .ds-steps-seg.is-done::before { background: var(--on-ink-accent); }
 .ds-steps.is-ink .ds-steps-seg[aria-current="step"] .ds-steps-name { color: #FFFFFF; }
-@media (max-width: 640px) { .ds-steps-bar { gap: 6px; } .ds-steps-seg::before { height: 5px; } .ds-steps.is-compact .ds-steps-count { display: none; } }
+@media (max-width: 640px) { .ds-steps-bar { gap: 6px; } .ds-steps-seg::before { height: 5px; } .ds-steps.is-compact .ds-steps-count { display: none; } .ds-steps-name { font-size: 11px; overflow-wrap: anywhere; } }
 
 /* ── Menú del panel ────────────────────────────────────────────────── */
 .ds-nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 24px; background: var(--bg); }
@@ -347,13 +347,18 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 40p
 .ds-case-done { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--ok-ink); }
 .ds-case-done.is-late { color: var(--danger-ink); }
 .ds-case-move { position: relative; z-index: 1; align-self: flex-start; margin-top: 2px; }
-/* Con ratón o teclado, «Mover a…» solo aparece al pasar por la tarjeta o al llegar a ella con el tabulador.
-   Sigue en el orden del teclado aunque no se vea. En pantallas táctiles (sin puntero) se ve siempre. */
+/* Con ratón o teclado, «Mover a…» solo aparece al pasar por la tarjeta o al llegar a ella con el tabulador:
+   primero como una flecha, para no tapar los chips, y con su texto al apuntarlo o al recibir el foco.
+   Sigue en el orden del teclado aunque no se vea. En pantallas táctiles anchas se ve siempre, con su texto. */
 @media (hover: hover) and (pointer: fine) {
-  .ds-case-move { position: absolute; right: 12px; bottom: 12px; margin: 0; opacity: 0; pointer-events: none; box-shadow: 0 0 0 4px var(--surface); transition: opacity 120ms; }
-  .ds-case.is-bg .ds-case-move { box-shadow: 0 0 0 4px var(--bg); }
+  .ds-case-move.ds-btn { position: absolute; right: 12px; bottom: 12px; margin: 0; min-width: 40px; padding: 0 12px; opacity: 0; pointer-events: none; box-shadow: 0 0 0 4px var(--surface); transition: opacity 120ms; }
+  .ds-case.is-bg .ds-case-move.ds-btn { box-shadow: 0 0 0 4px var(--bg); }
   .ds-case:hover .ds-case-move, .ds-case:focus-within .ds-case-move { opacity: 1; pointer-events: auto; }
+  .ds-case-move-t { display: none; }
+  .ds-case-move:hover .ds-case-move-t, .ds-case-move:focus-visible .ds-case-move-t { display: inline; }
 }
+/* En el móvil las columnas son pestañas y no hay a dónde arrastrar: el paso se da abriendo el caso */
+@media (max-width: 640px) { .ds-case-move.ds-btn { display: none; } }
 @media (hover: hover) { .ds-case:has(.ds-case-link:hover) .ds-case-title { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; } }
 
 /* ── Tablero ───────────────────────────────────────────────────────── */
@@ -392,6 +397,25 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 40p
 .ds-compose.is-stacked { flex-direction: column; align-items: stretch; }
 .ds-compose-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
 @media (max-width: 640px) { .ds-chat-msg { max-width: 85%; } .ds-chat-bubble { padding: 12px 14px; border-radius: 6px 18px 18px 18px; } .ds-chat-msg.is-mine .ds-chat-bubble { border-radius: 18px 6px 18px 18px; } }
+
+/* ── Menú desplegable («···», avatar) ──────────────────────────────── */
+.ds-menu { position: relative; display: inline-flex; }
+.ds-menu-panel { position: absolute; z-index: 30; top: calc(100% + 8px); right: 0; min-width: 240px; max-width: min(320px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 2px; padding: 8px; border-radius: 20px; background: #FFFFFF; box-shadow: var(--shadow-picked), 0 0 0 1px var(--soft); }
+.ds-menu-panel.is-start { right: auto; left: 0; }
+.ds-menu-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: none; font-family: inherit; font-size: 14px; font-weight: 700; text-align: left; text-decoration: none; cursor: pointer; }
+.ds .ds-menu-item { color: var(--ink); }
+.ds .ds-menu-item:hover { background: var(--bg); color: var(--ink); }
+.ds .ds-menu-item.is-danger { color: var(--danger-ink); }
+.ds-menu-sep { height: 1px; margin: 6px 4px; background: var(--soft); }
+.ds-menu-head { display: flex; flex-direction: column; padding: 8px 12px 10px; font-size: 13px; color: var(--muted); }
+.ds-menu-head b { font-size: 15px; color: var(--ink); }
+
+/* ── Código de 6 cifras ────────────────────────────────────────────── */
+.ds-otp { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.ds-otp-box { width: 100%; height: 66px; padding: 0; text-align: center; border: 2px solid var(--field-line); border-radius: 16px; background: #FFFFFF; font-family: inherit; font-size: 28px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ds .ds-otp-box:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-color: var(--report); }
+.ds-otp-box[aria-invalid="true"] { border-color: var(--danger-ink); }
+@media (max-width: 640px) { .ds-otp { gap: 6px; } .ds-otp-box { height: 56px; font-size: 24px; border-radius: 14px; } }
 
 /* ── Diálogo propio (confirmaciones y paneles) ─────────────────────── */
 .ds-dialog { margin: auto; padding: 0; border: 0; border-radius: 28px; width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); background: #FFFFFF; color: var(--ink); overflow: auto; }

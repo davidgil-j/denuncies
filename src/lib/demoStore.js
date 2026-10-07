@@ -5,7 +5,7 @@
 // tinguin sentit. L'estat es guarda a sessionStorage perquè els canvis de la demo sobrevisquin
 // a una recàrrega dins la mateixa pestanya.
 
-const KEY = 'reportia-demo-store-v2';
+const KEY = 'reportia-demo-store-v3';
 const neutralName = (name, i) => {
   const ext = (name.includes('.') ? name.split('.').pop() : '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
   return `document-${i + 1}${ext ? `.${ext}` : ''}`;
@@ -23,6 +23,16 @@ const PEOPLE = {
   laura:  { id: 'mgr-laura', full_name: 'Laura Puig Ferrer', email: 'l.puig@empresa-demo.es' },
   daniel: { id: 'mgr-daniel', full_name: 'Daniel Ortega Ruiz', email: 'd.ortega@empresa-demo.es' },
   nuria:  { id: 'mgr-nuria', full_name: 'Núria Soler Vidal', email: 'n.soler@empresa-demo.es' },
+};
+
+// Títols curts dels casos (els posa qui gestiona; mai es mostren a qui informa). La resta de
+// casos no en tenen i el tauler n'ensenya les primeres paraules de la descripció.
+const TITLES = {
+  'c-r7kd4wpn': 'Vertidos del taller de mantenimiento al desagüe',
+  'c-vk7p2mqa': 'Comentarios sexuales a compañeras en el turno de noche',
+  'c-3hxd8rne': 'Datos de clientes enviados a correos personales',
+  'c-m9tf6bzq': 'Rutas de transporte facturadas que no se hicieron',
+  'c-d7tn4vka': 'Carretilla del turno de tarde con los frenos en mal estado',
 };
 
 function seed() {
@@ -51,6 +61,9 @@ function seed() {
       department: null, incident_date: null, involved_people: null,
       language: 'es', organization_id: 'demo-org', attachments: [],
       extended_until: null, extension_reason: null, anonymized_at: null,
+      // Columnes de les migracions 011 i 012
+      channel: 'web', meeting_requested: false, meeting_requested_at: null, meeting_held_at: null, outcome: null,
+      investigation_started_at: null, fiscal_referral_at: null, title: TITLES[c.id] ?? null, assigned_to: null, incident_when: null,
       ...c,
       // Referència interna del panell: el codi de seguiment només el coneix qui denuncia
       reference: `REF-${c.tracking_code.replace('-', '').slice(2)}`,
@@ -59,13 +72,20 @@ function seed() {
       updated_at: c.updated_at ?? created,
     });
     messages[c.id] = thread.map((m, i) => ({ id: `${c.id}-m${i}`, is_read: true, ...m }));
-    log(c.id, created, 'created', { channel: 'web', language: c.language ?? 'es' });
+    log(c.id, created, c.channel && c.channel !== 'web' ? 'registered' : 'created', { channel: c.channel ?? 'web', language: c.language ?? 'es', ...(c.channel && c.channel !== 'web' ? { actor_name: PEOPLE.admin.full_name } : {}) });
     events.forEach(e => log(c.id, e.at, e.action, e.details));
   }
   const st = (at_, from, to, who, note) => ({ at: at_, action: 'status_changed', details: { from, to, actor_name: who.full_name, ...(note ? { note } : {}) } });
   const pr = (at_, from, to, who) => ({ at: at_, action: 'priority_changed', details: { from, to, actor_name: who.full_name } });
   const ms = (at_, who) => ({ at: at_, action: 'message_sent', details: { actor_name: who.full_name } });
   const { laura, daniel, nuria, admin } = PEOPLE;
+
+  // Registrada a mà: va arribar per telèfon
+  add({
+    id: 'c-d7tn4vka', tracking_code: 'D7TN-4VKA', category: 'safety', status: 'received', priority: 'normal', channel: 'phone',
+    is_anonymous: true, created_at: at(0, 10, 40), department: 'Muelle de carga', incident_when: 'Desde marzo',
+    description: 'Llama una persona del muelle de carga: la carretilla elevadora del turno de tarde no tiene revisión desde marzo y los frenos fallan.',
+  });
 
   add({
     id: 'c-r7kd4wpn', tracking_code: 'R7KD-4WPN', category: 'environmental', status: 'received', priority: 'normal',
@@ -76,6 +96,7 @@ function seed() {
 
   add({
     id: 'c-vk7p2mqa', tracking_code: 'VK7P-2MQA', category: 'harassment', status: 'received', priority: 'high',
+    meeting_requested: true, incident_when: 'Desde septiembre',
     is_anonymous: true, created_at: at(1, 23, 12), department: 'Almacén central, turno de noche',
     involved_people: 'Uno de los responsables del turno de noche',
     description: 'Desde hace varias semanas, uno de los responsables del turno de noche hace comentarios de carácter sexual a varias compañeras y se acerca a ellas más de lo necesario cuando están solas en los pasillos de preparación de pedidos. Algunas compañeras han pedido cambiar de turno para no coincidir con él. Tengo capturas de los mensajes que envió al grupo de mensajería del turno.',
@@ -334,14 +355,23 @@ function seed() {
     const ans = mine.find(a => DONE.includes(a.details.to) || a.details.to === 'archived');
     c.acknowledged_at = ack?.created_at ?? (c.status !== 'received' ? c.updated_at : null);
     c.answered_at = ans?.created_at ?? ([...DONE, 'archived'].includes(c.status) ? c.updated_at : null);
+    // Com a les migracions 011 i 012: inici de la investigació, data de la petició de reunió i resultat
+    const inv = mine.find(a => ['investigating', 'waiting'].includes(a.details.to));
+    c.investigation_started_at = inv?.created_at ?? (['investigating', 'waiting'].includes(c.status) ? c.updated_at : null);
+    if (c.meeting_requested && !c.meeting_requested_at) c.meeting_requested_at = c.created_at;
+    if (DONE.includes(c.status) && !c.outcome) c.outcome = 'founded';
+    if (c.status === 'archived' && !c.outcome) c.outcome = 'unfounded';
   }
+  // Alguns casos ja tenen qui els porta
+  const own = { 'c-vk7p2mqa': laura.id, 'c-w2lc9pxa': laura.id, 'c-m9tf6bzq': daniel.id, 'c-j6yb3kmv': daniel.id, 'c-q4ns7hje': nuria.id, 'c-n7aw4dsk': admin.id, 'c-p3ve8nqc': admin.id };
+  for (const c of complaints) if (own[c.id]) c.assigned_to = own[c.id];
   // Un missatge de l'informant encara sense llegir, perquè es vegi l'avís al llistat
   const w = messages['c-w2lc9pxa'];
   if (w) w.filter(m => m.sender === 'reporter').forEach(m => { m.is_read = false; });
 
   // L'administrador de la demo ja té la verificació en dos passos activada: l'accés demana el codi
   const mfa = [{ id: 'factor-demo', status: 'verified', factor_type: 'totp', created_at: at(30, 9, 0) }];
-  return { v: 2, complaints, messages, audit, profiles, permissions, mfa, seq: n };
+  return { v: 3, complaints, messages, audit, profiles, permissions, mfa, seq: n };
 }
 
 // ── Persistència ────────────────────────────────────────────────────────
@@ -361,7 +391,8 @@ function save() {
 const wait = (ms = 220) => new Promise(r => setTimeout(r, ms));
 const uid = (p) => `${p}-${Math.random().toString(36).slice(2, 10)}`;
 const clone = (o) => JSON.parse(JSON.stringify(o));
-const LIST_FIELDS = ['id', 'reference', 'category', 'status', 'priority', 'is_anonymous', 'department', 'incident_date', 'language', 'created_at', 'updated_at', 'acknowledged_at', 'answered_at', 'extended_until', 'anonymized_at'];
+const LIST_FIELDS = ['id', 'reference', 'category', 'status', 'priority', 'is_anonymous', 'department', 'incident_date', 'language', 'created_at', 'updated_at', 'acknowledged_at', 'answered_at', 'extended_until', 'anonymized_at',
+  'description', 'channel', 'meeting_requested', 'meeting_held_at', 'outcome', 'investigation_started_at', 'title', 'assigned_to', 'incident_when', 'meeting_requested_at'];
 const pick = (c) => Object.fromEntries(LIST_FIELDS.map(k => [k, c[k] ?? null]));
 const byDateDesc = (a, b) => new Date(b.created_at) - new Date(a.created_at);
 
@@ -476,11 +507,22 @@ export async function sendMessage(complaintId, content, sender = 'reporter', act
 function push(s, complaintId, action, details = {}) {
   s.audit.push({ id: `a${++s.seq}`, complaint_id: complaintId, action, details, created_at: new Date().toISOString() });
 }
-function setStatus(s, c, { status, priority }, actorName) {
+function setStatus(s, c, patch, actorName) {
+  const { status, priority } = patch;
   const now = new Date().toISOString();
+  if ('outcome' in patch && (patch.outcome || null) !== (c.outcome ?? null)) {
+    push(s, c.id, 'outcome_set', { from: c.outcome ?? null, to: patch.outcome || null, actor_name: actorName || undefined });
+    c.outcome = patch.outcome || null;
+  }
+  if ('title' in patch) c.title = (patch.title ?? '').trim().slice(0, 160) || null;
+  if ('assigned_to' in patch && (patch.assigned_to || null) !== (c.assigned_to ?? null)) {
+    c.assigned_to = patch.assigned_to || null;
+    push(s, c.id, 'assigned', { to: c.assigned_to, to_name: s.profiles.find(p => p.id === c.assigned_to)?.full_name ?? null, actor_name: actorName || undefined });
+  }
   if (status && status !== c.status) {
     push(s, c.id, 'status_changed', { from: c.status, to: status, actor_name: actorName || undefined });
     if (!c.acknowledged_at && c.status === 'received') c.acknowledged_at = now;
+    if (!c.investigation_started_at && ['investigating', 'waiting'].includes(status)) c.investigation_started_at = now;
     if (!c.answered_at && [...DONE, 'archived'].includes(status)) c.answered_at = now;
     c.status = status;
   }
@@ -498,8 +540,58 @@ export async function updateComplaint(id, patch, actorName = '') {
   if (!c || c.anonymized_at) return { complaint: null, error: { message: 'not-allowed' } };
   setStatus(s, c, patch, actorName);
   save();
-  const { status, priority, acknowledged_at, answered_at, updated_at } = c;
-  return { complaint: { id, status, priority, acknowledged_at, answered_at, updated_at }, error: null };
+  const { status, priority, outcome, acknowledged_at, answered_at, updated_at } = c;
+  return { complaint: { id, status, priority, outcome, acknowledged_at, answered_at, updated_at }, error: null };
+}
+
+// ── Accions de la fitxa (migracions 011 i 012) ──────────────────────────
+export async function markMeetingHeld(id, actorName = '') {
+  await wait(220);
+  const s = db();
+  const c = s.complaints.find(x => x.id === id);
+  if (!c || !c.meeting_requested || c.meeting_held_at) return { error: { message: 'no-pending-meeting' } };
+  c.meeting_held_at = new Date().toISOString();
+  push(s, id, 'meeting_held', { actor_name: actorName || undefined });
+  save();
+  return { error: null };
+}
+
+export async function markFiscalReferral(id, note, actorName = '') {
+  await wait(220);
+  const s = db();
+  const c = s.complaints.find(x => x.id === id);
+  if (!c || c.fiscal_referral_at) return { error: { message: 'already-referred' } };
+  c.fiscal_referral_at = new Date().toISOString();
+  push(s, id, 'fiscal_referral', { note: (note ?? '').trim() || undefined, actor_name: actorName || undefined });
+  save();
+  return { error: null };
+}
+
+export async function listAssignees() {
+  return { people: db().profiles.map(({ id, full_name, role }) => ({ id, full_name, role })), error: null };
+}
+
+export async function registerComplaint(form, actorName = '') {
+  await wait(320);
+  const s = db();
+  const id = uid('c');
+  const anon = form.isAnonymous !== false;
+  const received = form.receivedAt ? new Date(form.receivedAt).toISOString() : new Date().toISOString();
+  s.complaints.push({
+    id, tracking_code: form.trackingCode, reference: `REF-${form.trackingCode.replace('-', '').slice(2)}`, organization_id: 'demo-org',
+    acknowledged_at: null, answered_at: null, extended_until: null, extension_reason: null, anonymized_at: null,
+    is_anonymous: anon,
+    reporter_name: anon ? null : form.name?.trim() || null, reporter_email: anon ? null : form.email?.trim() || null, reporter_phone: anon ? null : form.phone?.trim() || null,
+    category: form.category, department: form.department?.trim() || null, description: form.description.trim(), incident_date: null,
+    incident_when: form.when?.trim() || null, involved_people: form.involvedPeople?.trim() || null, language: form.language ?? 'es',
+    channel: form.channel, meeting_requested: false, meeting_requested_at: null, meeting_held_at: null, outcome: null,
+    investigation_started_at: null, fiscal_referral_at: null, title: null, assigned_to: null,
+    status: 'received', priority: 'normal', created_at: received, updated_at: new Date().toISOString(), attachments: [],
+  });
+  s.messages[id] = [];
+  push(s, id, 'registered', { channel: form.channel, actor_name: actorName || undefined });
+  save();
+  return { id, trackingCode: form.trackingCode, error: null };
 }
 
 export async function addNote(complaintId, note, actorName = '') {
@@ -612,8 +704,9 @@ export function addComplaint({ id, trackingCode, formData, files = [] }) {
     category: formData.category || 'other',
     department: formData.department || null,
     description: formData.description || '',
-    incident_date: formData.incidentDate || null,
+    incident_date: formData.incidentDate || null, incident_when: formData.when?.trim() || null,
     involved_people: formData.involvedPeople || null,
+    outcome: null, investigation_started_at: null, fiscal_referral_at: null, title: null, assigned_to: null,
     language: formData.language ?? 'ca',
     channel: 'web', meeting_requested: !!formData.meetingRequested, meeting_requested_at: formData.meetingRequested ? now : null, meeting_held_at: null,
     status: 'received', priority: 'normal', created_at: now, updated_at: now,

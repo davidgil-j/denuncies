@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { stripImageMetadata } from './cleanImage.js';
+import { insertWithWhen, withWhen } from './whenFallback.js';
 
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -60,9 +61,7 @@ export async function saveComplaint({ formData, files, organizationId }) {
 
   // 1. Insert complaint record (ID generated client-side to avoid SELECT after INSERT).
   // El codi de seguiment no surt mai del navegador: només se n'envia el hash (migració 010).
-  const { error: dbError } = await supabase
-    .from('complaints')
-    .insert({
+  const row = {
       id,
       tracking_hash:   await codeHash(trackingCode),
       organization_id: organizationId ?? null,
@@ -80,7 +79,13 @@ export async function saveComplaint({ formData, files, organizationId }) {
       meeting_requested: !!formData.meetingRequested,
       status:          'received',
       priority:        'normal',
-    });
+  };
+  // El «cuándo» en texto libre va a su columna (migración 012). Si la base de datos aún no la tiene,
+  // se guarda una sola vez al final de la descripción (ver whenFallback.js)
+  const { error: dbError } = await insertWithWhen(
+    async (r) => ({ error: (await supabase.from('complaints').insert(r)).error }),
+    row, formData.when, formData.whenLabel ?? 'Cuándo',
+  );
 
   if (dbError) return { trackingCode: null, error: dbError };
 
@@ -212,6 +217,24 @@ const COMPLAINT_COLUMNS = [
   'channel', 'meeting_requested', 'meeting_held_at', 'outcome', 'investigation_started_at', 'fiscal_referral_at',
 ].join(', ');
 
+// Columnes de la migració 012 (redisseny). El panell funciona igual si encara no s'ha executat:
+// es demanen i, si la base de dades les rebutja, es torna a demanar sense elles i el panell amaga
+// el que en depèn (títol editable, «qui ho porta», «només els meus»).
+const REDESIGN_COLUMNS = ['title', 'assigned_to', 'incident_when', 'meeting_requested_at'];
+let redesign = null; // null: encara no se sap · true/false
+/** false si la base de dades encara no té les columnes de la migració 012 */
+export const hasRedesign = () => (DEMO_MODE ? true : redesign !== false);
+async function withRedesign(run) {
+  if (redesign !== false) {
+    const first = await run(REDESIGN_COLUMNS);
+    if (!first.error) { redesign = true; return first; }
+    if (redesign === true) return first;
+  }
+  const base = await run([]);
+  if (!base.error) redesign = false;
+  return base;
+}
+
 /**
  * Fetch all complaints (for admin panel — requires service role or RLS policy).
  */
@@ -306,12 +329,17 @@ export async function updateComplaintStatus(id, status, adminNote = null, priori
  * Canvia estat i/o prioritat. Si RLS no ho permet no s'actualitza cap fila: es retorna error
  * (abans es mostrava "Canvis desats" sense haver desat res).
  */
-export async function updateComplaint(id, { status, priority }, actorName = '') {
-  if (DEMO_MODE) return (await demo()).updateComplaint(id, { status, priority }, actorName);
+export async function updateComplaint(id, changes, actorName = '') {
+  if (DEMO_MODE) return (await demo()).updateComplaint(id, changes, actorName);
+  const { status, priority } = changes;
   const patch = {};
   if (status) patch.status = status;
   if (priority) patch.priority = priority;
-  const { data, error } = await supabase.from('complaints').update(patch).eq('id', id).select('id, status, priority, acknowledged_at, answered_at, updated_at');
+  // Resultat de la tramitació (011); títol i qui porta el cas (012)
+  if ('outcome' in changes) patch.outcome = changes.outcome || null;
+  if ('title' in changes) patch.title = changes.title?.trim() || null;
+  if ('assigned_to' in changes) patch.assigned_to = changes.assigned_to || null;
+  const { data, error } = await supabase.from('complaints').update(patch).eq('id', id).select('id, status, priority, outcome, acknowledged_at, answered_at, updated_at');
   if (error) return { complaint: null, error };
   if (!data?.length) return { complaint: null, error: new Error('not-allowed') };
   return { complaint: data[0], error: null };
@@ -367,11 +395,11 @@ export async function getRetentionDue() {
  */
 export async function getComplaintById(id) {
   if (DEMO_MODE) return (await demo()).getComplaintById(id);
-  const { data, error } = await supabase
+  const { data, error } = await withRedesign(extra => supabase
     .from('complaints')
-    .select(`${COMPLAINT_COLUMNS}, attachments(*)`)
+    .select(`${[COMPLAINT_COLUMNS, ...extra].join(', ')}, attachments(*)`)
     .eq('id', id)
-    .single();
+    .single());
 
   return { complaint: data, error };
 }
@@ -386,6 +414,57 @@ export async function getReporterIdentity(complaintId) {
   return { identity: error ? null : (data?.[0] ?? null), error };
 }
 
+// ── Accions de la fitxa (migracions 011 i 012) ─────────────────────────
+
+/** Marca la reunió presencial com a feta. Returns { error } */
+export async function markMeetingHeld(complaintId, actorName = '') {
+  if (DEMO_MODE) return (await demo()).markMeetingHeld(complaintId, actorName);
+  const { error } = await supabase.rpc('mark_meeting_held', { p_complaint: complaintId });
+  return { error };
+}
+
+/** Anota la remissió al Ministeri Fiscal (no es pot desfer). Returns { error } */
+export async function markFiscalReferral(complaintId, note, actorName = '') {
+  if (DEMO_MODE) return (await demo()).markFiscalReferral(complaintId, note, actorName);
+  const { error } = await supabase.rpc('mark_fiscal_referral', { p_complaint: complaintId, p_note: note ?? '' });
+  return { error };
+}
+
+/** Persones de l'equip a qui es pot assignar un cas. Returns { people: [{ id, full_name, role }], error } */
+export async function listAssignees() {
+  if (DEMO_MODE) return (await demo()).listAssignees();
+  const { data, error } = await supabase.from('profiles').select('id, full_name, role').order('full_name', { ascending: true });
+  return { people: data ?? [], error };
+}
+
+/**
+ * Registra una comunicació rebuda per una altra via (telèfon, presencial, carta, correu).
+ * El codi de seguiment es genera aquí i només se n'envia el hash: es mostra una sola vegada
+ * perquè es lliuri a la persona informant. Returns { id, trackingCode, error }
+ */
+export async function registerComplaint(form, actorName = '') {
+  const trackingCode = generateTrackingCode();
+  if (DEMO_MODE) return (await demo()).registerComplaint({ ...form, trackingCode }, actorName);
+  const anon = form.isAnonymous !== false;
+  const base = {
+    p_category: form.category, p_description: form.description.trim(), p_channel: form.channel,
+    p_received_at: form.receivedAt || null, p_is_anonymous: anon,
+    p_reporter_name: anon ? null : clean(form.name), p_reporter_email: anon ? null : clean(form.email), p_reporter_phone: anon ? null : clean(form.phone),
+    p_department: clean(form.department), p_incident_date: null, p_involved_people: clean(form.involvedPeople),
+    p_language: form.language ?? 'es', p_code_hash: await codeHash(trackingCode),
+  };
+  const when = clean(form.when);
+  if (redesign !== false) {
+    const { data, error } = await supabase.rpc('register_complaint', { ...base, p_incident_when: when });
+    if (!error) return { id: data, trackingCode, error: null };
+    // Permís o dades no vàlides: la funció nova existeix i ha dit que no
+    if (['42501', '22023'].includes(error.code)) return { id: null, trackingCode: null, error };
+  }
+  // Sense la migració 012: la funció d'abans, amb el «quan» al final de la descripció
+  const { data, error } = await supabase.rpc('register_complaint', { ...base, p_description: withWhen(base.p_description, when, form.whenLabel ?? 'Cuándo') });
+  return { id: error ? null : data, trackingCode: error ? null : trackingCode, error };
+}
+
 // ── Panell v2 ──────────────────────────────────────────────────────────
 
 /**
@@ -397,13 +476,16 @@ export async function getReporterIdentity(complaintId) {
 export async function listComplaints({ categories = null } = {}) {
   if (DEMO_MODE) return (await demo()).listComplaints({ categories });
   if (categories && categories.length === 0) return { complaints: [], error: null };
-  const cols = 'id, reference, category, status, priority, is_anonymous, department, incident_date, language, created_at, updated_at, acknowledged_at, answered_at, extended_until, anonymized_at';
+  // La descripció hi és per al títol del tauler i la cerca per text (es filtra al navegador)
+  const cols = 'id, reference, category, status, priority, is_anonymous, department, incident_date, language, created_at, updated_at, acknowledged_at, answered_at, extended_until, anonymized_at, description, channel, meeting_requested, meeting_held_at, outcome, investigation_started_at';
   // Es llegeix per pàgines: sense límit de 1.000 files
   const rows = [];
   for (let from = 0; ; from += 1000) {
-    let query = supabase.from('complaints').select(cols).order('created_at', { ascending: false }).range(from, from + 999);
-    if (categories) query = query.in('category', categories);
-    const { data, error } = await query;
+    const { data, error } = await withRedesign(extra => {
+      let query = supabase.from('complaints').select([cols, ...extra].join(', ')).order('created_at', { ascending: false }).range(from, from + 999);
+      if (categories) query = query.in('category', categories);
+      return query;
+    });
     if (error) return { complaints: rows, error };
     rows.push(...(data ?? []));
     if (!data || data.length < 1000) break;

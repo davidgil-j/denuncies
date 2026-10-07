@@ -302,5 +302,50 @@ ok('el canal público sigue resolviendo por slug', (await anon(`select * from ge
 await svc(`update organizations set plan = 'essential', paid_until = '2027-10-31' where id = $1`, [orgA]);
 ok('Reportia activa el plan con el rol de servicio', (await user(adminA, `select plan from organizations`)).rows[0].plan === 'essential');
 
+// ── Rediseño «dos mitades» (012) ──
+if (upTo >= 12) {
+  console.log('\nRediseño (012)');
+  // Repetible: se puede ejecutar dos veces sin error
+  let again = null;
+  try { await db.exec(fs.readFileSync(path.join(MIG, '012_rediseno.sql'), 'utf8')); } catch (e) { again = e.message; }
+  ok('la 012 se puede ejecutar dos veces', again === null, again ?? '');
+
+  const cR = cid();
+  await anon(`insert into complaints (id, tracking_hash, organization_id, is_anonymous, category, description, incident_when, meeting_requested, title, assigned_to)
+    values ($1, code_hash('RDIS-0001'), $2, true, 'fraud', 'Hechos del rediseño', '  desde septiembre  ', false, 'Título colado', $3)`, [cR, orgA, adminA]);
+  const [r0] = await svc(`select incident_when, title, assigned_to, meeting_requested_at from complaints where id = $1`, [cR]);
+  ok('el «cuándo» en texto libre se guarda, recortado', r0?.incident_when === 'desde septiembre', JSON.stringify(r0));
+  ok('por el formulario no entran título ni asignación', r0?.title === null && r0?.assigned_to === null);
+  ok('sin petición de reunión no hay fecha de petición', r0?.meeting_requested_at === null);
+
+  const byCode = await anon(`select * from get_complaint_by_tracking_code('RDIS-0001')`);
+  ok('la consulta por código devuelve meeting_requested', byCode.rows[0]?.meeting_requested === false && 'meeting_requested_at' in (byCode.rows[0] ?? {}), JSON.stringify(byCode));
+  ok('quien informa pide la reunión con su código', !(await anon(`select request_meeting_by_code('rdis0001')`)).error);
+  const [r1] = await svc(`select meeting_requested, meeting_requested_at from complaints where id = $1`, [cR]);
+  ok('queda pedida y con su fecha', r1.meeting_requested === true && !!r1.meeting_requested_at);
+  await anon(`select request_meeting_by_code('RDIS-0001')`);
+  const [r2] = await svc(`select meeting_requested_at from complaints where id = $1`, [cR]);
+  ok('pedirla otra vez no mueve la fecha', String(r2.meeting_requested_at) === String(r1.meeting_requested_at));
+  ok('la petición queda en el registro una sola vez', (await svc(`select 1 from audit_logs where complaint_id = $1 and action = 'meeting_requested'`, [cR])).length === 1);
+  ok('con un código que no existe, error', !!(await anon(`select request_meeting_by_code('ZZZZ-9999')`)).error);
+  ok('admin A ve la petición en el panel', (await user(adminA, `select meeting_requested_at from complaints where id = $1`, [cR])).rows[0]?.meeting_requested_at != null);
+
+  ok('admin A pone título y se asigna el caso', (await user(adminA, `update complaints set title = '  Facturas dudosas  ', assigned_to = $2 where id = $1 returning title`, [cR, adminA])).rows[0]?.title === 'Facturas dudosas');
+  ok('la asignación queda en el registro', (await svc(`select 1 from audit_logs where complaint_id = $1 and action = 'assigned'`, [cR])).length === 1);
+  ok('no se asigna a alguien de otra empresa', !!(await user(adminA, `update complaints set assigned_to = $2 where id = $1`, [cR, adminB])).error);
+  ok('el panel no cambia el «cuándo»', !!(await user(adminA, `update complaints set incident_when = 'ayer' where id = $1`, [cR])).error);
+  await user(adminA, `update complaints set meeting_requested_at = now() - interval '30 days', ai_summary = 'inventado' where id = $1`, [cR]);
+  const [r3] = await svc(`select meeting_requested_at, ai_summary from complaints where id = $1`, [cR]);
+  ok('el panel no mueve la fecha de la reunión ni escribe el resumen', String(r3.meeting_requested_at) === String(r1.meeting_requested_at) && r3.ai_summary === null);
+  ok('admin B no ve ni toca el caso de A', (await user(adminB, `update complaints set title = 'x' where id = $1 returning id`, [cR])).rows.length === 0);
+  ok('la identidad sigue sin poder leerse con la denuncia', !!(await user(adminA, `select reporter_email from complaints where id = $1`, [cR])).error);
+  ok('sin verificación en dos pasos no se lee el título', (await user1(adminA, `select title from complaints where id = $1`, [cR])).rows.length === 0);
+
+  const reg = await user(adminA, `select register_complaint('safety', 'Comunicación recibida por teléfono, con el cuándo en texto.', 'phone', now(), true, null, null, null, 'Muelle', null, null, 'es', code_hash('RDIS-0002'), 'la semana pasada') as id`);
+  ok('registro manual con el «cuándo» en texto', !reg.error && (await svc(`select incident_when from complaints where id = $1`, [reg.rows[0]?.id]))[0]?.incident_when === 'la semana pasada', reg.error ?? '');
+  ok('el registro manual de la 011 sigue funcionando', !(await user(adminA, `select register_complaint('safety', 'Comunicación recibida por teléfono, versión anterior.', 'phone', now(), true, null, null, null, null, null, null, 'es', null)`)).error);
+  ok('admin A guarda las fechas del responsable y los primeros pasos', !(await user(adminA, `update organizations set responsible_appointed_at = '2026-10-01', onboarding = '{"poster":true}' where id = $1`, [orgA])).error);
+}
+
 console.log(`\n${pass} correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

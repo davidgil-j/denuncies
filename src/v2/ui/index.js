@@ -26,3 +26,5 @@ export { default as CaseCard } from './CaseCard.jsx';
 export { default as Kanban } from './Kanban.jsx';
 export { ChatThread, ChatComposer } from './ChatThread.jsx';
 export { default as Dialog } from './Dialog.jsx';
+export { default as Menu, MenuItem } from './Menu.jsx';
+export { default as OtpInput } from './OtpInput.jsx';
