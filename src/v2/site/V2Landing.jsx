@@ -232,7 +232,7 @@ export default function V2Landing() {
           <header className="v2-lp-head">
             <Lp as="h2" className="v2-sec-title" id="v2-lp-cat-t" k="catTitle" />
           </header>
-          <div className="v2-lp-say" ref={say.ref} onMouseLeave={say.release} data-rv>
+          <div className="v2-lp-say" ref={say.ref} onMouseLeave={say.release} data-rv="">
             <div className="v2-lp-say-stage" aria-hidden="true">
               {CATS.map((value, i) => {
                 const Icon = CAT_ICONS[value];
@@ -381,7 +381,7 @@ export default function V2Landing() {
             </ul>
 
             {/* El que inclouen tots els plans, en un panell fosc: es distingeix del fons a primer cop d'ull */}
-            <div className="v2-lp-incl" data-rv>
+            <div className="v2-lp-incl" data-rv="">
               <Tx as="h3" k="inclTitle" />
               <ul>
                 {t.incl.map((item, i) => <li key={i}><Check {...ICON} /><Tx pick={x => x.incl[i]} /></li>)}
