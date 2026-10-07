@@ -1,0 +1,27 @@
+// Piezas comunes del diseño «dos mitades». Quien las usa recibe también los estilos y la tipografía.
+import '@fontsource/manrope/latin-400.css';
+import '@fontsource/manrope/latin-ext-400.css';
+import '@fontsource/manrope/latin-500.css';
+import '@fontsource/manrope/latin-ext-500.css';
+import '@fontsource/manrope/latin-600.css';
+import '@fontsource/manrope/latin-ext-600.css';
+import '@fontsource/manrope/latin-700.css';
+import '@fontsource/manrope/latin-ext-700.css';
+import '@fontsource/manrope/latin-800.css';
+import '@fontsource/manrope/latin-ext-800.css';
+import '../ds.css';
+
+export { cx, Txt } from './text.jsx';
+export { default as SplitShell } from './SplitShell.jsx';
+export { default as SideTab } from './SideTab.jsx';
+export { default as PillNav } from './PillNav.jsx';
+export { Button, IconButton } from './Button.jsx';
+export { Chip, Chips } from './Chip.jsx';
+export { Card, OrgMark, Avatar, Skeleton } from './Card.jsx';
+export { default as Field } from './Field.jsx';
+export { default as Segmented } from './Segmented.jsx';
+export { default as StepBar } from './StepBar.jsx';
+export { default as DeadlineChip } from './DeadlineChip.jsx';
+export { default as CaseCard } from './CaseCard.jsx';
+export { default as Kanban } from './Kanban.jsx';
+export { ChatThread, ChatComposer } from './ChatThread.jsx';

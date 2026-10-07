@@ -9,3 +9,7 @@ dist
 # Prospect finder output
 tools/prospect-finder/output/
 tools/prospect-finder/node_modules/
+
+# Maquetas y material de trabajo: se quedan en el disco, fuera del repositorio
+/Claude outputs/
+/CUsersDavidAppData*/

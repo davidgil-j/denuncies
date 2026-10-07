@@ -1,0 +1,24 @@
+/* Solo para la página de trabajo /dev/ui */
+.dev { min-height: 100vh; padding: 32px clamp(16px, 4vw, 48px) 120px; background: var(--bg); display: flex; flex-direction: column; gap: 40px; }
+.dev-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.dev-head > div { display: grid; gap: 10px; }
+.dev-block { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.dev-h2 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.dev-note { font-size: 14px; color: var(--muted); margin-top: -8px; }
+.dev-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
+.dev-between { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
+.dev-brand { display: inline-flex; align-items: center; gap: 10px; font-size: 16px; }
+.dev-row2, .dev-row3, .dev-row4 { display: grid; gap: 16px; align-items: start; }
+.dev-row2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+.dev-row3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.dev-row4 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+.dev-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.dev-swatch { display: grid; gap: 2px; padding: 10px; border-radius: 16px; background: #FFFFFF; font-size: 12px; }
+.dev-swatch span { height: 44px; border-radius: 10px; box-shadow: inset 0 0 0 1px rgba(13, 21, 48, .08); margin-bottom: 6px; }
+.dev-swatch small { color: var(--muted); }
+.dev-split.ds-split { min-height: 0; border-radius: 24px; box-shadow: inset 0 0 0 2px var(--line); }
+.dev-split.is-entry .ds-pane-body { min-height: 420px; }
+.dev-split:not(.is-entry) .ds-pane { min-height: 420px; }
+@media (max-width: 640px) { .dev [style*="span 2"] { grid-column: auto !important; } }
+/* Aquí hay dos menús a la vez: en esta página no se fijan abajo, para que no tapen las demás piezas */
+@media (max-width: 640px) { .dev .ds-nav { position: static; border-radius: 20px; border: 1px solid #E6E9F0; width: 100%; } }

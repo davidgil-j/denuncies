@@ -22,6 +22,8 @@ const V2Mfa = lazy(() => import('./v2/admin/V2Mfa.jsx'));
 const V2Integrate = lazy(() => import('./v2/admin/V2Integrate.jsx'));
 const V2Account = lazy(() => import('./v2/admin/V2Account.jsx'));
 const V2Report = lazy(() => import('./v2/admin/V2Report.jsx'));
+// Página de trabajo con las piezas del diseño: solo existe en desarrollo, no entra en el build
+const DevUi = import.meta.env.DEV ? lazy(() => import('./v2/dev/DevUi.jsx')) : null;
 
 // Mentre es descarrega una part: un indicador discret i accessible
 function Loading() {
@@ -68,6 +70,8 @@ export default function App() {
           <Route path="privacidad" element={page(<V2Privacy />)} />
           <Route path="*" element={<Navigate to=".." relative="path" replace />} />
         </Route>
+
+        {DevUi && <Route path="/dev/ui" element={page(<DevUi />)} />}
 
         {/* Web de Reportia i accés */}
         <Route element={<V2SiteLayout />}>
