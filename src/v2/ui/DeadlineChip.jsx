@@ -6,22 +6,34 @@ import { Txt } from './text.jsx';
 const SOON = { ack: 6, meeting: 6, resp: 14 };
 const PREFIX = { ack: 'ack', meeting: 'meet', resp: 'resp' };
 
-/** Color y texto de un plazo según los días que quedan */
-export function deadlineLook(kind, days, { short = false, soon = SOON[kind] } = {}) {
+/** Color y textos (largo y corto) de un plazo según los días que quedan */
+export function deadlineLook(kind, days, { soon = SOON[kind] } = {}) {
   const p = PREFIX[kind];
-  if (days < 0) return { tone: 'danger', k: `${p}Over${days === -1 ? 'One' : 'Many'}`, n: -days };
-  if (days === 0) return { tone: 'warn', k: `${p}Today`, n: 0 };
-  const tone = days <= soon ? 'warn' : 'neutral';
+  if (days < 0) { const k = `${p}Over${days === -1 ? 'One' : 'Many'}`; return { tone: 'danger', k, kShort: k, n: -days }; }
+  if (days === 0) return { tone: 'warn', k: `${p}Today`, kShort: `${p}Today`, n: 0 };
   const many = days === 1 ? 'One' : 'Many';
-  if (kind === 'resp' && tone === 'neutral') return { tone, k: 'respFar', n: days };
-  return { tone, k: `${p}${kind === 'ack' && short ? 'Short' : ''}${many}`, n: days };
+  const k = `${p}${many}`;
+  // En el móvil: «6 días para acusar» y «79 días»
+  const kShort = kind === 'ack' ? `ackShort${many}` : kind === 'resp' ? (days === 1 ? k : 'respFar') : k;
+  return { tone: days <= soon ? 'warn' : 'neutral', k, kShort, n: days };
 }
 
 /**
  * Chip de un plazo legal. kind: ack (acuse, 7 días) | meeting (reunión, 7 días) | resp (respuesta, 3 meses).
- * days: días que quedan; negativo si ya ha vencido. short: texto corto para el móvil. onBg: va sobre una tarjeta gris.
+ * days: días que quedan; negativo si ya ha vencido. En el móvil el texto se acorta solo; short lo acorta siempre.
+ * onBg: va sobre una tarjeta gris.
  */
 export default function DeadlineChip({ lang, kind = 'resp', days, short = false, soon, onBg = false, size }) {
-  const { tone, k, n } = deadlineLook(kind, days, { short, soon });
-  return <Chip tone={tone === 'neutral' && onBg ? 'white' : tone} size={size}><Txt lang={lang} k={k} vars={{ n }} /></Chip>;
+  const { tone, k, kShort, n } = deadlineLook(kind, days, { soon });
+  const same = short || k === kShort;
+  return (
+    <Chip tone={tone === 'neutral' && onBg ? 'white' : tone} size={size}>
+      {same ? <Txt lang={lang} k={short ? kShort : k} vars={{ n }} /> : (
+        <>
+          <Txt lang={lang} k={k} vars={{ n }} className="ds-wide" />
+          <Txt lang={lang} k={kShort} vars={{ n }} className="ds-narrow" />
+        </>
+      )}
+    </Chip>
+  );
 }

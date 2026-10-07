@@ -615,6 +615,7 @@ export function addComplaint({ id, trackingCode, formData, files = [] }) {
     incident_date: formData.incidentDate || null,
     involved_people: formData.involvedPeople || null,
     language: formData.language ?? 'ca',
+    channel: 'web', meeting_requested: !!formData.meetingRequested, meeting_requested_at: formData.meetingRequested ? now : null, meeting_held_at: null,
     status: 'received', priority: 'normal', created_at: now, updated_at: now,
     attachments: [...files].map((f, i) => ({ id: uid('f'), filename: anon ? neutralName(f.name, i) : f.name, file_size: f.size, mime_type: f.type, storage_path: `demo/${id}/${i + 1}` })),
   });
@@ -627,7 +628,26 @@ export function findByCode(code) {
   const c = byCode(code);
   if (!c) return null;
   const { tracking_code, status, category, created_at, updated_at, acknowledged_at, answered_at, extended_until } = c;
-  return { tracking_code, status, category, created_at, updated_at, acknowledged_at, answered_at, extended_until };
+  return {
+    tracking_code, status, category, created_at, updated_at, acknowledged_at, answered_at, extended_until,
+    meeting_requested: !!c.meeting_requested, meeting_requested_at: c.meeting_requested_at ?? null,
+  };
+}
+
+/** Qui informa demana una reunió presencial des de «El meu cas» */
+export async function requestMeetingByCode(code) {
+  await wait(200);
+  const c = byCode(code);
+  if (!c) return { error: { message: 'complaint-not-found' } };
+  if (!c.meeting_requested) {
+    const s = db();
+    const now = new Date().toISOString();
+    c.meeting_requested = true;
+    c.meeting_requested_at = now;
+    s.audit.push({ id: `a${++s.seq}`, complaint_id: c.id, action: 'meeting_requested', details: {}, created_at: now });
+    save();
+  }
+  return { error: null };
 }
 
 // ── Organització (compte, pla i dades de l'empresa) ─────────────────────

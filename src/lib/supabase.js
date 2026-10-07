@@ -76,6 +76,8 @@ export async function saveComplaint({ formData, files, organizationId }) {
       incident_date:   formData.incidentDate || null,
       involved_people: clean(formData.involvedPeople),
       language:        formData.language ?? 'ca',
+      // Petició de reunió presencial (art. 7.2). La columna existeix des de la migració 011
+      meeting_requested: !!formData.meetingRequested,
       status:          'received',
       priority:        'normal',
     });
@@ -149,6 +151,17 @@ export async function getComplaintByCode(trackingCode) {
     p_code: trackingCode.toUpperCase(),
   });
   return { complaint: data?.[0] ?? null, error };
+}
+
+/**
+ * Portal de seguiment: qui informa demana una reunió presencial amb el seu codi (art. 7.2).
+ * La funció de la base de dades arriba amb la migració 012; fins llavors, el portal no ofereix
+ * el botó (get_complaint_by_tracking_code encara no retorna meeting_requested). Returns { error }
+ */
+export async function requestMeetingByCode(trackingCode) {
+  if (channelDemo()) return (await demo()).requestMeetingByCode(trackingCode);
+  const { error } = await supabase.rpc('request_meeting_by_code', { p_code: trackingCode });
+  return { error };
 }
 
 export async function getOrganizationBySlug(slug) {

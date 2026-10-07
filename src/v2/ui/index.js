@@ -25,3 +25,4 @@ export { default as DeadlineChip } from './DeadlineChip.jsx';
 export { default as CaseCard } from './CaseCard.jsx';
 export { default as Kanban } from './Kanban.jsx';
 export { ChatThread, ChatComposer } from './ChatThread.jsx';
+export { default as Dialog } from './Dialog.jsx';

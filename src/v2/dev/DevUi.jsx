@@ -206,8 +206,8 @@ export default function DevUi() {
             <Field size="sm" label="Cuándo" tag="opcional" placeholder="Por ejemplo, desde septiembre" />
           </Card>
           <Card tone="report">
-            <div className="ds-field is-on-report"><Field code label="Tu código" placeholder="XXXX-XXXX" defaultValue="5P7Y-983" autoComplete="off" /></div>
-            <div className="ds-field is-on-report"><Field code label="Con error" defaultValue="AAAA-0000" error="No hemos podido abrir ningún caso con ese código. Revísalo." /></div>
+            <Field code onReport label="Tu código" placeholder="XXXX-XXXX" defaultValue="5P7Y-983" autoComplete="off" />
+            <Field code onReport label="Con error" defaultValue="AAAA-0000" error="No hemos podido abrir ningún caso con ese código. Revísalo." />
           </Card>
         </div>
       </Block>

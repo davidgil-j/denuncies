@@ -1,13 +1,13 @@
 import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import V2Canal from './v2/V2Canal.jsx';
-import V2Home from './v2/V2Home.jsx';
+import Canal from './v2/canal/Canal.jsx';
 import V2SiteLayout from './v2/site/V2SiteLayout.jsx';
 import V2Landing from './v2/site/V2Landing.jsx';
 
 // Cada part es descarrega quan cal: qui entra al canal no baixa el panell ni la web comercial
-const V2Form = lazy(() => import('./v2/V2Form.jsx'));
-const V2Track = lazy(() => import('./v2/V2Track.jsx'));
+const Denuncia = lazy(() => import('./v2/canal/Denuncia.jsx'));
+const Consulta = lazy(() => import('./v2/canal/Consulta.jsx'));
+const Privacidad = lazy(() => import('./v2/canal/Privacidad.jsx'));
 const V2Privacy = lazy(() => import('./v2/site/V2Privacy.jsx'));
 const V2Signup = lazy(() => import('./v2/site/V2Signup.jsx'));
 const V2Login = lazy(() => import('./v2/site/V2Login.jsx'));
@@ -34,6 +34,8 @@ function Loading() {
   );
 }
 const page = (el) => <Suspense fallback={<Loading />}>{el}</Suspense>;
+// Dins del canal, mentre arriba la pantalla es manté la targeta blava buida (sense indicador que parpellegi)
+const canalPage = (el) => <Suspense fallback={<div className="flow" role="status" aria-busy="true" />}>{el}</Suspense>;
 
 // Amb el navegador lliure, es baixen per endavant les parts on és més probable anar des d'on
 // s'ha entrat: el canvi de pàgina és immediat. No es fa si la persona ha demanat estalviar dades.
@@ -42,7 +44,7 @@ function prefetchNext() {
   const path = window.location.pathname;
   const quiet = (p) => p.catch(() => {});
   if (path.startsWith('/canal/')) {
-    quiet(import('./v2/V2Form.jsx')); quiet(import('./v2/V2Track.jsx')); quiet(import('./v2/site/V2Privacy.jsx'));
+    quiet(import('./v2/canal/Denuncia.jsx')); quiet(import('./v2/canal/Consulta.jsx')); quiet(import('./v2/canal/Privacidad.jsx'));
   } else if (path.startsWith('/admin') && !/login|forgot-password|reset-password/.test(path)) {
     quiet(import('./v2/admin/V2Detail.jsx')); quiet(import('./v2/admin/V2Dashboard.jsx')); quiet(import('./v2/admin/V2Report.jsx'));
     quiet(import('./v2/admin/V2Users.jsx')); quiet(import('./v2/admin/V2Integrate.jsx')); quiet(import('./v2/admin/V2Account.jsx')); quiet(import('./v2/admin/V2Mfa.jsx'));
@@ -63,11 +65,12 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         {/* Canal públic de cada empresa */}
-        <Route path="/canal/:slug" element={<V2Canal />}>
-          <Route index element={<V2Home />} />
-          <Route path="denuncia" element={page(<V2Form />)} />
-          <Route path="consulta" element={page(<V2Track />)} />
-          <Route path="privacidad" element={page(<V2Privacy />)} />
+        <Route path="/canal/:slug" element={<Canal />}>
+          {/* La entrada (les dues meitats) la pinta Canal; aquí hi van les pantalles del costat Denunciar */}
+          <Route index element={null} />
+          <Route path="denuncia" element={canalPage(<Denuncia />)} />
+          <Route path="consulta" element={canalPage(<Consulta />)} />
+          <Route path="privacidad" element={canalPage(<Privacidad />)} />
           <Route path="*" element={<Navigate to=".." relative="path" replace />} />
         </Route>
 
