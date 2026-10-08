@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Ellipsis, Pencil, Check, X, Paperclip, Download, CircleAlert, LockKeyhole, Archive, Eraser, CalendarPlus,
-  MessageSquareReply, RotateCcw, Search, Eye, FileQuestion,
+  MessageSquareReply, RotateCcw, Search, Eye, FileQuestion, Scale,
 } from 'lucide-react';
 import {
   getComplaintById, getReporterIdentity, getMessages, sendMessage, getAuditLogs, updateComplaint, addComplaintNote,
@@ -13,7 +13,7 @@ import { fmt } from '../V2Layout.jsx';
 import { deadlineInfo, fDateTime, fLong, fShort, auditText, PRIORITIES } from '../admin/adminKit.jsx';
 import { Button, IconButton, Card, Chip, Chips, Field, StepBar, ChatThread, ChatComposer, Dialog, Menu, MenuItem, Skeleton } from '../ui/index.js';
 import { deadlineLook } from '../ui/DeadlineChip.jsx';
-import { usePanel, Tp, caseState, caseTitle, relDay, historyText, OUTCOMES, CLOSED } from './kit.jsx';
+import { usePanel, Tp, caseState, caseTitle, relDay, historyText, blanksError, sameAsColumn, OUTCOMES, CLOSED } from './kit.jsx';
 import { AiSummary, AiDraft } from './Ia.jsx';
 
 function fileSize(bytes) {
@@ -52,6 +52,7 @@ export default function Caso() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [sendErr, setSendErr] = useState(false);
+  const [blankErr, setBlankErr] = useState('');
   const [editing, setEditing] = useState(null); // título en edición
   const [idBusy, setIdBusy] = useState(false);
   const [idErr, setIdErr] = useState(false);
@@ -150,6 +151,7 @@ export default function Caso() {
 
   async function sendAck() {
     if (!text.trim()) { setDErr(p.closeErrMsg); return; }
+    if (blanksError(text, p)) { setDErr(blanksError(text, p)); return; }
     setBusy(true);
     const { error } = await sendMessage(c.id, text.trim(), 'manager', actor);
     if (error) { setBusy(false); setDErr(p.ackErr); return; }
@@ -162,6 +164,7 @@ export default function Caso() {
   async function sendClose() {
     if (!outcome) { setDErr(p.closeErrOutcome); return; }
     if (!text.trim()) { setDErr(p.closeErrMsg); return; }
+    if (blanksError(text, p)) { setDErr(blanksError(text, p)); return; }
     setBusy(true);
     const { error } = await sendMessage(c.id, text.trim(), 'manager', actor);
     if (error) { setBusy(false); setDErr(p.msgErr); return; }
@@ -207,6 +210,10 @@ export default function Caso() {
     if (ok) setDialog(null);
   }
   async function send(body) {
+    // Una plantilla a medio rellenar («el [día] a las [hora]») no sale hacia quien informa
+    const missing = blanksError(body, p);
+    setBlankErr(missing);
+    if (missing) { document.getElementById('cs-msg')?.focus(); return; }
     setSending(true);
     setSendErr(false);
     const { error } = await sendMessage(c.id, body, 'manager', actor);
@@ -307,7 +314,7 @@ export default function Caso() {
         <span className="cs-meta">{c.reference} · {fmt(p.received, { when: `${relDay(c.created_at, p)}, ${new Date(c.created_at).toLocaleTimeString(lang === 'en' ? 'en-GB' : lang === 'ca' ? 'ca-ES' : 'es-ES', { hour: '2-digit', minute: '2-digit' })}`, via })}</span>
         {editing !== null ? (
           <form className="cs-title-edit" onSubmit={e => { e.preventDefault(); saveTitle(); }}>
-            <Field label={p.titleLabel} help={p.titleHelp} value={editing} maxLength={160} autoFocus onChange={e => setEditing(e.target.value)} />
+            <Field label={p.titleLabel} help={sameAsColumn(editing, tr) ? p.titleLikeColumn : p.titleHelp} value={editing} maxLength={160} autoFocus onChange={e => setEditing(e.target.value)} />
             <div className="cs-title-btns">
               <Button type="submit" variant="ink" size="sm" busy={busy} icon={<Check size={16} strokeWidth={2.6} aria-hidden="true" />}>{p.save}</Button>
               <Button variant="bg" size="sm" onClick={() => setEditing(null)} icon={<X size={16} strokeWidth={2.4} aria-hidden="true" />}>{p.cancel}</Button>
@@ -346,7 +353,13 @@ export default function Caso() {
               next.ok
                 ? <Button variant="white" size="md" full busy={busy && !dialog} onClick={next.go}><Tp lang={lang} pick={() => next.label} /></Button>
                 : <p className="cs-next-note"><LockKeyhole size={16} strokeWidth={2} aria-hidden="true" />{next.label}. {p.noPerm}</p>
-            ) : <p className="cs-next-note is-done"><Check size={18} strokeWidth={2.6} aria-hidden="true" />{fmt(p.closedOn, { date: fLong(c.answered_at ?? c.updated_at, lang) })}</p>}
+            ) : (
+              <div className="cs-closed">
+                <p className="cs-next-note is-done"><Check size={18} strokeWidth={2.6} aria-hidden="true" />{fmt(p.closedOn, { date: fLong(c.answered_at ?? c.updated_at, lang) })}</p>
+                <p className="cs-closed-result">{fmt(p.resultIs, { outcome: p.outcomes[c.outcome] ?? p.outcomes.none })}</p>
+                {canEdit && <p className="cs-closed-hint">{p.reopenHint}</p>}
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -388,7 +401,8 @@ export default function Caso() {
             {erased ? null : canReply ? (
               <>
                 {sendErr && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={2.2} aria-hidden="true" />{p.msgErr}</p>}
-                <ChatComposer lang={lang} id="cs-msg" stacked value={draft} onChange={setDraft} onSend={send} busy={sending} placeholder={c.is_anonymous ? p.msgPh : p.msgPhIdent} sendLabel={p.send}
+                {blankErr && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={2.2} aria-hidden="true" />{blankErr}</p>}
+                <ChatComposer lang={lang} id="cs-msg" stacked value={draft} onChange={v => { setDraft(v); if (blankErr) setBlankErr(''); }} onSend={send} busy={sending} placeholder={c.is_anonymous ? p.msgPh : p.msgPhIdent} sendLabel={p.send}
                   actions={AI_ENABLED ? <AiDraft c={c} kinds={['ack', 'question', 'answer']} current={draft} onApply={setDraft} align="start" /> : undefined} />
               </>
             ) : <p className="cs-locked"><LockKeyhole size={16} strokeWidth={2} aria-hidden="true" />{p.noReply}</p>}
@@ -435,7 +449,7 @@ export default function Caso() {
               </Field>
               {c.fiscal_referral_at
                 ? <p className="cs-p">{fmt(p.fiscalDone, { date: fLong(c.fiscal_referral_at, lang) })}</p>
-                : canEdit && <button type="button" className="pn-link" onClick={() => open('fiscal')}>{p.fiscal}</button>}
+                : canEdit && <Button variant="white" size="xs" className="cs-fiscal" onClick={() => open('fiscal')} icon={<Scale size={15} strokeWidth={2.2} aria-hidden="true" />}>{p.fiscal}</Button>}
             </Card>
           )}
 

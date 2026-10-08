@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MessageSquare, LayoutDashboard, EyeOff, Clock, Shield, CalendarDays, FileText, Lock, ArrowRight, ArrowUpRight, MonitorSmartphone } from 'lucide-react';
+import { MessageSquare, LayoutDashboard, EyeOff, Clock, Shield, CalendarDays, FileText, Lock, ArrowRight, ArrowUpRight, MonitorSmartphone, KeyRound } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { LANGS, AIPI_URL, BOE_URL, Stable, fmt } from '../V2Layout.jsx';
 import Ficha from '../Ficha.jsx';
@@ -46,7 +46,8 @@ export function EntryReport({ lang, base }) {
         </Chips>
       </div>
       <div className="entry-foot">
-        <Link className="entry-link" to={`${base}/consulta`} replace><Tc lang={lang} k="already" /></Link>
+        {/* Botón secundario, oscurecido sobre el azul: quien ya denunció vuelve por aquí con su código */}
+        <Button variant="shade" size="xl" className="entry-again" to={`${base}/consulta`} replace icon={<KeyRound size={20} strokeWidth={2.2} aria-hidden="true" />}>{t.already}</Button>
         <Button variant="white" size="xl" className="entry-go" to={`${base}/denuncia`} replace aria-label={t.startAria} iconEnd={arrow}><Tc lang={lang} k="start" /></Button>
       </div>
     </>

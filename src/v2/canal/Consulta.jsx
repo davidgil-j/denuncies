@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
-import { ArrowRight, Check, KeyRound, Ellipsis, MessageSquareReply, CircleAlert } from 'lucide-react';
+import { ArrowRight, Check, KeyRound, Ellipsis, MessageSquareReply, CircleAlert, CircleCheck } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { getComplaintByCode, getReporterMessages, sendReporterMessage, requestMeetingByCode } from '../../lib/supabase.js';
 import { fmt } from '../V2Layout.jsx';
@@ -97,6 +97,9 @@ export default function Consulta() {
     </form>
   );
 }
+
+const LOCALE = { ca: 'ca-ES', es: 'es-ES', en: 'en-GB' };
+const fLongDay = (iso, lang) => new Date(iso).toLocaleDateString(LOCALE[lang] ?? 'es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
 
 /** Línea de tiempo y petición de reunión: a la izquierda en el ordenador, en el menú «···» en el móvil */
 function CaseSide({ lang, c, p, onMeeting, meetBusy, meetErr }) {
@@ -216,6 +219,12 @@ function MiCaso({ lang, org, c, onRefresh, onLeave }) {
               : <ChatThread lang={lang} messages={thread} empty={t.msgEmpty}><span ref={endRef} /></ChatThread>}
           </div>
           <div className="mc-compose">
+            {p.answered && (
+              <p className="okbox" role="note">
+                <CircleCheck size={18} strokeWidth={2.2} aria-hidden="true" />
+                <span><b>{c.answered_at ? fmt(t.closedOn, { date: fLongDay(c.answered_at, lang) }) : t.closedNoDate}</b> {t.closedMore}</span>
+              </p>
+            )}
             {c.status === 'waiting' && <p className="warnbox" role="note"><MessageSquareReply size={18} strokeWidth={2} aria-hidden="true" />{t.waiting}</p>}
             {sendErr && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={2.2} aria-hidden="true" />{t.msgErr}</p>}
             <ChatComposer lang={lang} id="mc-msg" value={draft} onChange={setDraft} onSend={send} busy={sending} />

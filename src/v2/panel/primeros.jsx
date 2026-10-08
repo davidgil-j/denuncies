@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { fmt } from '../V2Layout.jsx';
 import { addBusinessDays, businessDaysLeft, calendarDay } from '../../lib/businessDays.js';
 
@@ -55,14 +56,37 @@ export function joinList(items, and) {
 const R = 17;
 const LEN = 2 * Math.PI * R;
 
-/** Tarjeta del tablero: anillo «3/5» y lo que falta. Lleva a Compartir el canal. */
+const FOLD_KEY = 'reportia-steps-folded';
+const readFold = () => { try { return localStorage.getItem(FOLD_KEY) === '1'; } catch { return false; } };
+
+/**
+ * Tarjeta del tablero: anillo «3/5» y lo que falta. Lleva a Compartir el canal. Se puede plegar a una
+ * píldora pequeña («Primeros pasos · 3/5»); la elección se recuerda solo en este navegador.
+ */
 export function StepsRing({ state, p }) {
   const o = p.onb;
+  const [folded, setFolded] = useState(readFold);
+  const toggle = () => setFolded(v => { try { localStorage.setItem(FOLD_KEY, v ? '0' : '1'); } catch { /* sin almacenamiento: vale solo para esta visita */ } return !v; });
   const missing = STEPS.filter(s => !state.done[s]).map(s => o.short[s]);
   // Con el canal recién creado falta casi todo: se nombran los dos primeros y se cuenta el resto
   const brief = missing.length > 3 ? [...missing.slice(0, 2), fmt(o.more, { n: missing.length - 2 })] : missing;
+  const aria = `${o.title}: ${fmt(o.ringAria, { n: state.count })}. ${fmt(o.missing, { list: joinList(missing, o.and) })}`;
+  const fold = (
+    <button type="button" className="pn-steps-fold" aria-expanded={!folded} aria-label={folded ? o.unfold : o.fold} title={folded ? o.unfold : o.fold} onClick={toggle}>
+      {folded ? <ChevronDown size={16} strokeWidth={2.6} aria-hidden="true" /> : <ChevronUp size={16} strokeWidth={2.6} aria-hidden="true" />}
+    </button>
+  );
+  if (folded) {
+    return (
+      <span className="pn-steps-wrap is-folded">
+        <Link className="pn-steps-pill" to="/admin/integration" aria-label={aria}>{o.title} · {state.count}/{STEPS.length}</Link>
+        {fold}
+      </span>
+    );
+  }
   return (
-    <Link className="pn-steps" to="/admin/integration" aria-label={`${o.title}: ${fmt(o.ringAria, { n: state.count })}. ${fmt(o.missing, { list: joinList(missing, o.and) })}`}>
+    <span className="pn-steps-wrap">
+    <Link className="pn-steps" to="/admin/integration" aria-label={aria}>
       <span className="pn-ring" aria-hidden="true">
         <svg width="42" height="42" viewBox="0 0 42 42">
           <circle className="pn-ring-track" cx="21" cy="21" r={R} />
@@ -75,5 +99,7 @@ export function StepsRing({ state, p }) {
         <span>{fmt(o.missing, { list: joinList(brief, o.and) })}</span>
       </span>
     </Link>
+    {fold}
+    </span>
   );
 }

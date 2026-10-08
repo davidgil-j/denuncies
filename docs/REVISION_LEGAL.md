@@ -39,6 +39,9 @@ Las 32 citas de artículos coinciden en los tres idiomas. Estas se han contrasta
 9. **Texto para la página de inicio (art. 25).** El texto que el panel ofrece para copiar ya lleva la nota «texto orientativo, revísalo con vuestra asesoría». Conviene que el abogado dé por bueno el modelo.
 10. **Contrato de encargado del tratamiento.** No existe todavía; el enlace del panel abre un correo para pedirlo.
 
+11. **Escribir en un caso ya cerrado.** Quien informa puede seguir escribiendo en «Mi caso» después del cierre (la base de datos lo admite y el gestor lo ve). Desde el pulido final, «Mi caso» avisa de que el caso está cerrado y dice: «Si tienes algo nuevo, puedes escribir aquí o enviar una nueva denuncia». ¿Es correcto dejarlo abierto o debe cerrarse la conversación al responder?
+12. **Enseñar el resultado a quien informa.** Hoy «Mi caso» dice que el caso está cerrado y cuándo, y la respuesta va en los mensajes. No enseña el resultado interno («Fundada», «No fundada»…). ¿Debe verlo?
+
 ## 4. Lo que no se ha revisado
 
 - La portada comercial, `/crear-compte` y `/privacitat` (fuera de este trabajo).

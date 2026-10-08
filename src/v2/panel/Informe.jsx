@@ -67,11 +67,15 @@ export default function Informe() {
     if (!rows) return null;
     const now = new Date();
     const info = inPeriod.map(c => ({ c, d: deadlineInfo(c, now) }));
-    const answered = info.filter(x => ANSWERED.includes(x.c.status));
-    const open = info.filter(x => OPEN.includes(x.c.status));
+    // Los casos con los datos suprimidos (art. 32) cuentan como recibidos, pero ni como abiertos ni como
+    // respondidos: van aparte, como «Suprimidos»
+    const live = info.filter(x => !x.c.anonymized_at);
+    const erased = info.length - live.length;
+    const answered = live.filter(x => ANSWERED.includes(x.c.status));
+    const open = live.filter(x => OPEN.includes(x.c.status));
     const byCat = count(inPeriod, 'category');
     const byCatOpen = count(open.map(x => x.c), 'category');
-    const byStatus = count(inPeriod, 'status');
+    const byStatus = count(live.map(x => x.c), 'status');
     const late = answered.filter(x => x.d.resp.state === 'late').length;
     const openOverdue = open.filter(x => x.d.next.state === 'overdue').length;
 
@@ -99,7 +103,8 @@ export default function Informe() {
       ackPending: open.filter(x => x.c.status === 'received').length,
       median: median(answered.map(x => Math.max(daysBetween(x.d.received, x.d.resp.at), 0))),
       byCat: [...byCat].sort((a, b) => b[1] - a[1]).map(([value, n]) => ({ value, n, open: byCatOpen.get(value) ?? 0 })),
-      byStatus: STATUS_ORDER.filter(st => byStatus.has(st)).map(st => ({ value: st, n: byStatus.get(st) })),
+      byStatus: [...STATUS_ORDER.filter(st => byStatus.has(st)).map(st => ({ value: st, n: byStatus.get(st) })), ...(erased ? [{ value: 'erased', n: erased }] : [])],
+      erased,
       series,
     };
   }, [rows, inPeriod, year, years, lang]);
@@ -234,7 +239,7 @@ export default function Informe() {
               <h2 className="ds-card-title" id="rp-status">{r.byStatus}</h2>
               <table className="rp-table">
                 <thead><tr><th scope="col">{r.colStatus}</th><th scope="col">{r.colCount}</th><th scope="col">{r.colShare}</th></tr></thead>
-                <tbody>{data.byStatus.map(s => <tr key={s.value}><th scope="row">{t.status[s.value] ?? s.value}</th><td>{s.n}</td><td>{pct(s.n, data.total)}</td></tr>)}</tbody>
+                <tbody>{data.byStatus.map(s => <tr key={s.value}><th scope="row">{s.value === 'erased' ? r.erased : t.status[s.value] ?? s.value}</th><td>{s.n}</td><td>{pct(s.n, data.total)}</td></tr>)}</tbody>
               </table>
             </Card>
           </div>

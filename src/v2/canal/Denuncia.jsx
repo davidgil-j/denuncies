@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { Turnstile } from '@marsidev/react-turnstile';
-import { ArrowRight, ArrowLeft, Check, Plus, Send, Shield, CircleAlert } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Check, Plus, Send, Shield, CircleAlert, Pencil } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { saveComplaint, IS_DEMO } from '../../lib/supabase.js';
 import { EMAIL_RE } from '../site/fields.jsx';
@@ -283,12 +283,14 @@ export default function Denuncia() {
                 <dl className="review">
                   <div><dt>{t.rTopic}</dt><dd>{t.cats[draft.category][0]}</dd></div>
                   <div className="is-block"><dt>{t.rTold}</dt><dd>{cut(draft.description.trim())}</dd></div>
+                  {draft.department.trim() && <div><dt>{t.rWhere}</dt><dd>{draft.department.trim()}</dd></div>}
                   {draft.when.trim() && <div><dt>{t.when}</dt><dd>{draft.when.trim()}</dd></div>}
+                  {draft.involvedPeople.trim() && <div><dt>{t.who}</dt><dd>{draft.involvedPeople.trim()}</dd></div>}
                   <div><dt>{t.rProof}</dt><dd>{nFiles === 0 ? t.rProof0 : nFiles === 1 ? t.rProof1 : t.rProofN.replace('{n}', nFiles)}</dd></div>
                   <div><dt>{t.rIdentity}</dt><dd>{draft.isAnonymous ? t.rAnon : t.rIdent}</dd></div>
                   {draft.meeting && <div><dt>{t.rMeeting}</dt><dd>{t.rMeetingYes}</dd></div>}
                 </dl>
-                <button type="button" className="linkbtn" onClick={() => { setErrors({}); set({ step: 2 }); }}>{t.change}</button>
+                <Button variant="soft" size="xs" className="review-change" onClick={() => { setErrors({}); set({ step: 2 }); }} icon={<Pencil size={14} strokeWidth={2.4} aria-hidden="true" />}>{t.change}</Button>
                 <label className={cx('consent', errors.privacy && 'is-invalid')}>
                   <input
                     id="dn-privacy" type="checkbox" checked={draft.privacy} aria-invalid={errors.privacy ? true : undefined}

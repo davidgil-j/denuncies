@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { KeyRound, MailCheck, Link2Off, Check, Circle, CircleAlert, ArrowLeft } from 'lucide-react';
 import { translations } from '../../translations.js';
-import { sendPasswordReset, updatePassword, onAuthEvent } from '../../lib/supabase.js';
+import { sendPasswordReset, updatePassword, onAuthEvent, getPasswordLinkState } from '../../lib/supabase.js';
 import { fmt } from '../V2Layout.jsx';
 import { EMAIL_RE, authErrorKey } from '../site/fields.jsx';
 import { Button, Field, Skeleton } from '../ui/index.js';
@@ -106,16 +106,15 @@ export function Cambiar() {
     // Dos formas posibles según la configuración de Supabase:
     // · implícita: el permiso llega en el hash (#access_token=...&type=invite|recovery)
     // · PKCE: un código de un solo uso en la dirección (?code=...)
-    const hashParams = new URLSearchParams(window.location.hash.slice(1));
-    const hasCode = Boolean(new URLSearchParams(window.location.search).get('code'));
-    if (hashParams.get('type') === 'invite') { setIsInvite(true); setStatus('ready'); return undefined; }
+    // Supabase lo procesa al arrancar la aplicación, antes de que esta pantalla exista: por eso no basta
+    // con escuchar el aviso. Primero se mira si la sesión del enlace ya está; el aviso queda de respaldo.
+    let alive = true;
     let settled = false;
-    const stop = onAuthEvent((event) => {
-      if (event === 'PASSWORD_RECOVERY') { settled = true; setStatus('ready'); }
-      if (event === 'SIGNED_IN' && hasCode) { settled = true; setIsInvite(true); setStatus('ready'); }
-    });
-    const timer = setTimeout(() => { if (!settled) setStatus(s => (s === 'checking' ? 'invalid' : s)); }, LINK_TIMEOUT);
-    return () => { stop(); clearTimeout(timer); };
+    const settle = (next, invite = false) => { if (!alive || settled) return; settled = true; setIsInvite(invite); setStatus(next); };
+    getPasswordLinkState().then(({ state, invite }) => { if (state !== 'wait') settle(state, invite); });
+    const stop = onAuthEvent((event) => { if (event === 'PASSWORD_RECOVERY') settle('ready'); });
+    const timer = setTimeout(() => settle('invalid'), LINK_TIMEOUT);
+    return () => { alive = false; stop(); clearTimeout(timer); };
   }, []);
 
   useEffect(() => { if (status !== 'checking') titleRef.current?.focus(); }, [status]);

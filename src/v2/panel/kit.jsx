@@ -14,7 +14,8 @@ export const Tp = forwardRef(function Tp({ lang, k, vars, pick, ...rest }, ref) 
 export const NEW = ['received'];
 export const OPEN = ['reviewing', 'investigating', 'waiting'];
 export const CLOSED = ['resolved', 'closed', 'archived'];
-export const columnOf = (c) => (NEW.includes(c.status) ? 'new' : OPEN.includes(c.status) ? 'open' : 'closed');
+// Un caso con los datos suprimidos (art. 32) ya no tiene nada que gestionar: va a «Cerradas» sea cual sea su estado
+export const columnOf = (c) => (c.anonymized_at ? 'closed' : NEW.includes(c.status) ? 'new' : OPEN.includes(c.status) ? 'open' : 'closed');
 export const OUTCOMES = ['founded', 'unfounded', 'inadmissible', 'out_of_scope', 'duplicate'];
 export const CHANNELS = ['phone', 'in_person', 'mail', 'email', 'other'];
 const MEETING_DAYS = 7;
@@ -42,7 +43,7 @@ export function meetingInfo(c, now = new Date()) {
 }
 
 /**
- * Todo lo que el tablero y la ficha necesitan saber de un caso: plazos, columna, y si «te necesita
+ * Todo lo que el tablero y la ficha necesitan saber de un caso (done: onTime | late | erased, para las cerradas): plazos, columna, y si «te necesita
  * hoy»: acuse pendiente, mensaje sin leer, reunión pendiente o un plazo vencido o a menos de 7 días.
  */
 export function caseState(c, now = new Date()) {
@@ -54,13 +55,44 @@ export function caseState(c, now = new Date()) {
   const urgent = !closed && ['overdue', 'soon', 'pending'].includes(next.state) && next.days < 7;
   const today = !closed && (column === 'new' || (c.unread ?? 0) > 0 || !!meeting?.pending || urgent);
   const deadline = closed ? null : { kind: next.kind, days: next.days };
-  return { dl, column, meeting, closed, today, deadline, overdue: !closed && next.state === 'overdue', done: column === 'closed' ? (dl.resp.state === 'late' ? 'late' : 'onTime') : null };
+  return { dl, column, meeting, closed, today, deadline, overdue: !closed && next.state === 'overdue', done: c.anonymized_at ? 'erased' : column === 'closed' ? (dl.resp.state === 'late' ? 'late' : 'onTime') : null };
 }
 
 export function relDay(iso, p) {
   const n = daysBetween(iso, new Date());
   return n <= 0 ? p.today : n === 1 ? p.yesterday : fmt(p.daysAgo, { n });
 }
+
+const norm = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+/** ¿El título es justo el nombre de una columna del tablero («Nuevas», «En curso», «Cerradas»), en cualquier idioma? */
+export function sameAsColumn(title, tr) {
+  const t = norm(title);
+  if (!t) return false;
+  const all = Object.values(tr.panel?.cols ?? {});
+  return [...all, 'Nuevas', 'En curso', 'Cerradas', 'Noves', 'En curs', 'Tancades', 'New', 'In progress', 'Closed'].some(c => norm(c) === t);
+}
+
+const LOCALES = { ca: 'ca-ES', es: 'es-ES', en: 'en-GB' };
+/** «1 ene» o «1 ene 2026»: día y mes abreviado, sin «de» ni punto, en el idioma */
+function shortDay(iso, lang, withYear) {
+  const d = new Date(`${iso}T12:00:00`);
+  const month = d.toLocaleDateString(LOCALES[lang] ?? 'es-ES', { month: 'short' }).replace(/^(de |d’|d')/, '').replace(/\.$/, '');
+  return `${d.getDate()} ${month}${withYear ? ` ${d.getFullYear()}` : ''}`;
+}
+/** Cómo se dice un filtro de fechas: «Año 2026» si es el año entero; si no, «1 ene – 31 dic 2026» */
+export function rangeLabel(from, to, lang, p) {
+  if (from && to) {
+    const [y1, y2] = [from.slice(0, 4), to.slice(0, 4)];
+    if (y1 === y2 && from.slice(5) === '01-01' && to.slice(5) === '12-31') return fmt(p.yearN, { year: y1 });
+    return `${shortDay(from, lang, y1 !== y2)} – ${shortDay(to, lang, true)}`;
+  }
+  return from ? fmt(p.sinceD, { date: shortDay(from, lang, true) }) : fmt(p.untilD, { date: shortDay(to, lang, true) });
+}
+
+/** Los huecos de una plantilla que siguen sin rellenar: «[día]», «[hora]»… (también en los borradores de IA) */
+export const blanks = (text) => [...new Set(String(text ?? '').match(/\[[^\[\]\n]{1,60}\]/g) ?? [])];
+/** El aviso que bloquea el envío mientras queden huecos, o '' si no queda ninguno */
+export const blanksError = (text, p) => { const left = blanks(text); return left.length ? fmt(p.fillBlanks, { list: left.join(', ') }) : ''; };
 
 /** Texto de una entrada del historial: las de siempre, más las del rediseño */
 export function historyText(p, t, log) {

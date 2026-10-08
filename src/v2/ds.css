@@ -346,20 +346,20 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 40p
 .ds-case-meta { font-size: 13px; color: var(--muted); }
 .ds-case-done { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--ok-ink); }
 .ds-case-done.is-late { color: var(--danger-ink); }
-.ds-case-move { position: relative; z-index: 1; align-self: flex-start; margin-top: 2px; }
-/* Con ratón o teclado, «Mover a…» solo aparece al pasar por la tarjeta o al llegar a ella con el tabulador:
-   primero como una flecha, para no tapar los chips, y con su texto al apuntarlo o al recibir el foco.
-   Sigue en el orden del teclado aunque no se vea. En pantallas táctiles anchas se ve siempre, con su texto. */
-@media (hover: hover) and (pointer: fine) {
-  .ds-case-move.ds-btn { position: absolute; right: 12px; bottom: 12px; margin: 0; min-width: 40px; padding: 0 12px; opacity: 0; pointer-events: none; box-shadow: 0 0 0 4px var(--surface); transition: opacity 120ms; }
-  .ds-case.is-bg .ds-case-move.ds-btn { box-shadow: 0 0 0 4px var(--bg); }
-  .ds-case:hover .ds-case-move, .ds-case:focus-within .ds-case-move { opacity: 1; pointer-events: auto; }
-  .ds-case-move-t { display: none; }
-  .ds-case-move:hover .ds-case-move-t, .ds-case-move:focus-visible .ds-case-move-t { display: inline; }
+/* «Mover a…»: una flecha con sitio propio en la esquina de arriba (el título le deja hueco), para que nunca
+   tape los chips. Aparece al apuntar la tarjeta o al llegar con el teclado; su nombre va en aria-label y title. */
+.ds-case-move.ds-btn { position: absolute; z-index: 1; top: 12px; right: 12px; width: 36px; min-width: 36px; height: 36px; padding: 0; margin: 0; opacity: 0; pointer-events: none; transition: opacity 120ms; }
+.ds-case.has-move .ds-case-title { padding-right: 40px; }
+.ds-case:hover .ds-case-move, .ds-case:focus-within .ds-case-move { opacity: 1; pointer-events: auto; }
+@media (hover: none) { .ds-case-move.ds-btn { opacity: 1; pointer-events: auto; } }
+@media (max-width: 640px) { .ds-case-move.ds-btn { display: none; } .ds-case.has-move .ds-case-title { padding-right: 0; } }
+/* Toda la tarjeta abre el caso (el enlace del título la cubre entera): se nota con la mano y un borde azul */
+.ds-case:has(.ds-case-link) { cursor: pointer; transition: box-shadow 120ms; }
+@media (hover: hover) {
+  .ds-case:has(.ds-case-link):hover { box-shadow: 0 0 0 2px var(--report); }
+  .ds-case:has(.ds-case-link:hover) .ds-case-title { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 }
-/* En el móvil las columnas son pestañas y no hay a dónde arrastrar: el paso se da abriendo el caso */
-@media (max-width: 640px) { .ds-case-move.ds-btn { display: none; } }
-@media (hover: hover) { .ds-case:has(.ds-case-link:hover) .ds-case-title { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; } }
+.ds-case:has(.ds-case-link:focus-visible) { box-shadow: 0 0 0 2px var(--report); }
 
 /* ── Tablero ───────────────────────────────────────────────────────── */
 .ds-kanban { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }

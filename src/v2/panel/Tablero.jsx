@@ -5,7 +5,7 @@ import { listComplaints, getRetentionDue, hasRedesign } from '../../lib/supabase
 import { fmt } from '../V2Layout.jsx';
 import { STATUS_ORDER, PRIORITIES, fLong } from '../admin/adminKit.jsx';
 import { Button, IconButton, Card, Chip, CaseCard, Kanban, Dialog, Field, Menu, MenuItem, Skeleton } from '../ui/index.js';
-import { usePanel, Tp, caseState, caseTitle, relDay } from './kit.jsx';
+import { usePanel, Tp, caseState, caseTitle, relDay, rangeLabel } from './kit.jsx';
 import { STEPS, StepsRing, onboardingState, aipiInfo } from './primeros.jsx';
 
 const FILTERS = ['cat', 'pr', 'st', 'dl', 'mine', 'from', 'to'];
@@ -157,7 +157,7 @@ export default function Tablero() {
           {f.st && <Chip size="md" tone="report">{t.status[f.st]}</Chip>}
           {f.dl && <Chip size="md" tone="report">{f.dl === 'overdue' ? p.dlOverdue : p.dlSoon}</Chip>}
           {f.mine && canMine && <Chip size="md" tone="report">{p.fMine}</Chip>}
-          {(f.from || f.to) && <Chip size="md" tone="report">{f.from || '…'} – {f.to || '…'}</Chip>}
+          {(f.from || f.to) && <Chip size="md" tone="report">{rangeLabel(f.from, f.to, lang, p)}</Chip>}
           <button type="button" className="pn-link" onClick={clear}>{p.clearFilters}</button>
         </p>
       )}

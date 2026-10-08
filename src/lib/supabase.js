@@ -9,6 +9,34 @@ if (!SUPABASE_URL || !SUPABASE_ANON || SUPABASE_ANON === 'PENDING_REPLACE_WITH_A
   console.warn('[Supabase] ⚠️  Missing credentials — running in offline/demo mode.');
 }
 
+// Enllaç d'un correu (recuperar la contrasenya o invitació). Es llegeix ARA, abans de crear el client:
+// Supabase processa el permís de l'adreça en arrencar, n'esborra el rastre i avisa (PASSWORD_RECOVERY)
+// molt abans que la pantalla «Contrasenya nova» s'hagi descarregat i pugui escoltar-ho.
+const LINK_KEY = 'reportia-auth-link';
+function readAuthLink() {
+  const none = { type: '', error: '', code: '', tokenHash: '' };
+  if (typeof window === 'undefined') return none;
+  try {
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const query = new URLSearchParams(window.location.search);
+    const error = hash.get('error_code') || hash.get('error') || query.get('error_code') || query.get('error') || '';
+    const kind = hash.get('type') || query.get('type') || '';
+    // Tres formats: #access_token=…&type=recovery|invite (implícit), ?code=… (PKCE) i
+    // ?token_hash=…&type=… (plantilla de correu pròpia, que funciona encara que s'obri en un altre navegador)
+    const code = query.get('code') || '';
+    const tokenHash = query.get('token_hash') || '';
+    const arrived = hash.has('access_token') || !!code || !!tokenHash;
+    if (error) { window.sessionStorage.removeItem(LINK_KEY); return { ...none, error }; }
+    if (arrived) {
+      const type = kind === 'invite' ? 'invite' : 'recovery';
+      window.sessionStorage.setItem(LINK_KEY, type); // sobreviu a una recàrrega de la pàgina dins la mateixa pestanya
+      return { type, error: '', code, tokenHash };
+    }
+    return { ...none, type: window.sessionStorage.getItem(LINK_KEY) || '' };
+  } catch { return none; }
+}
+const authLink = readAuthLink();
+
 // createClient llança error si la URL és buida; amb un placeholder la UI carrega
 // i les crides a la BD simplement fallen (mode offline/demo).
 export const supabase = createClient(SUPABASE_URL || 'http://localhost:54321', SUPABASE_ANON || 'offline-demo-key', {
@@ -20,6 +48,10 @@ export const supabase = createClient(SUPABASE_URL || 'http://localhost:54321', S
 });
 
 export { SUPABASE_URL };
+
+// Si l'avís de recuperació arriba abans que ningú l'escolti, queda apuntat aquí
+let recoveryEventSeen = false;
+supabase.auth.onAuthStateChange((event) => { if (event === 'PASSWORD_RECOVERY') recoveryEventSeen = true; });
 
 // Mode demo: només si no hi ha credencials (mai en producció). Permet treballar la UI sense BD.
 // Mode demo: sense credencials, i només en desenvolupament o si es demana explícitament
@@ -692,7 +724,43 @@ export async function sendPasswordReset(email) {
 export async function updatePassword(newPassword) {
   if (DEMO_MODE) return { error: null };
   const { error } = await supabase.auth.updateUser({ password: newPassword });
+  // L'enllaç del correu ja ha fet la seva feina
+  if (!error) { try { window.sessionStorage.removeItem(LINK_KEY); } catch { /* res */ } }
   return { error };
+}
+
+/**
+ * Estat de l'enllaç de «Contrasenya nova» en carregar la pantalla, sense dependre d'haver escoltat
+ * l'avís a temps. Espera que Supabase acabi de processar l'adreça (getSession ho fa) i mira si hi ha sessió.
+ * Returns { state: 'ready' | 'invalid' | 'wait', invite }
+ *   ready: hi ha sessió i s'ha arribat per un enllaç de correu · invalid: l'enllaç porta un error o no
+ *   ha deixat sessió · wait: no hi ha rastre de cap enllaç (la pantalla continua escoltant una estona)
+ */
+export function getPasswordLinkState() {
+  // Una sola comprovació encara que la pantalla la demani dues vegades: el codi de l'enllaç només serveix un cop
+  linkState ??= resolvePasswordLink();
+  return linkState;
+}
+let linkState = null;
+async function resolvePasswordLink() {
+  if (DEMO_MODE) return { state: 'wait', invite: false };
+  if (authLink.error) return { state: 'invalid', invite: false };
+  let session = await getAdminSession();
+  // Si el client no ha pogut convertir l'enllaç en sessió tot sol, es prova aquí (una sola vegada)
+  if (!session && (authLink.tokenHash || authLink.code)) {
+    const { tokenHash, code } = authLink;
+    authLink.tokenHash = ''; authLink.code = '';
+    try {
+      const { data } = tokenHash
+        ? await supabase.auth.verifyOtp({ token_hash: tokenHash, type: authLink.type === 'invite' ? 'invite' : 'recovery' })
+        : await supabase.auth.exchangeCodeForSession(code);
+      session = data?.session ?? null;
+    } catch { session = null; }
+  }
+  const arrived = !!authLink.type || recoveryEventSeen;
+  if (session && arrived) return { state: 'ready', invite: authLink.type === 'invite' };
+  if (!session && authLink.type) return { state: 'invalid', invite: false };
+  return { state: 'wait', invite: false };
 }
 
 /**

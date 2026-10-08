@@ -59,8 +59,15 @@
 .pn-ring b { position: relative; font-size: 12px; font-weight: 800; }
 .pn-steps-txt { display: flex; flex-direction: column; min-width: 0; font-size: 13px; line-height: 1.35; color: var(--muted); }
 .pn-steps-txt b { font-size: 14px; font-weight: 800; color: var(--ink); }
-@media (hover: hover) { .pn-steps:hover { background: #E3E8F2; } }
-@media (max-width: 640px) { .pn-actions { justify-content: flex-start; } .pn-steps { flex: 1 1 100%; margin-right: 0; } }
+@media (hover: hover) { .pn-steps:hover, .pn-steps-pill:hover, .pn-steps-fold:hover { background: #E3E8F2; } }
+/* La tarjeta y su botón de plegar van juntos; plegada queda una píldora «Primeros pasos · 3/5» */
+.pn-steps-wrap { display: flex; align-items: stretch; gap: 4px; min-width: 0; margin-right: 4px; }
+.pn-steps-wrap .pn-steps { margin-right: 0; border-radius: 20px 8px 8px 20px; }
+.pn-steps-fold { flex: none; width: 40px; min-height: 44px; padding: 0; border: 0; border-radius: 8px 20px 20px 8px; background: var(--bg); color: var(--ink); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.pn-steps-pill { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px 0 18px; border-radius: 22px 8px 8px 22px; background: var(--bg); font-size: 14px; font-weight: 800; text-decoration: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ds .pn-steps-pill { color: var(--ink); }
+.pn-steps-wrap.is-folded .pn-steps-fold { border-radius: 8px 22px 22px 8px; }
+@media (max-width: 640px) { .pn-actions { justify-content: flex-start; } .pn-steps-wrap:not(.is-folded) { flex: 1 1 100%; margin-right: 0; } .pn-steps { flex: 1; } }
 .pn-count { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--ink); color: #FFFFFF; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
 .pn-filtered { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .pn-link { padding: 6px 0; border: 0; background: none; font-family: inherit; font-size: 14px; font-weight: 800; color: var(--report-soft-ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; align-self: flex-start; }
@@ -136,6 +143,10 @@
 .cs-next-label { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--on-ink-muted); }
 .cs-next-note { display: flex; align-items: flex-start; gap: 8px; font-size: 15px; font-weight: 700; line-height: 1.4; color: var(--on-ink-muted); }
 .cs-next-note.is-done { color: #FFFFFF; }
+/* Caso cerrado: cuándo, con qué resultado y cómo reabrirlo */
+.cs-closed { display: flex; flex-direction: column; gap: 4px; }
+.cs-closed-result { padding-left: 26px; font-size: 15px; font-weight: 800; color: #FFFFFF; }
+.cs-closed-hint { padding-left: 26px; font-size: 13px; color: var(--on-ink-muted); }
 .cs-grid { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
 .cs-main { flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .cs-side { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
@@ -156,6 +167,7 @@
 .cs-file-note.is-err { color: var(--danger-ink); }
 .cs-conv-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 12px; font-size: 13px; color: var(--muted); }
 .cs-locked { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.cs-fiscal.ds-btn { align-self: flex-start; }
 .cs-p { font-size: 14px; line-height: 1.5; color: var(--muted); }
 .cs-p b { color: var(--ink); }
 .cs-p b.is-over { color: var(--danger-ink); }
