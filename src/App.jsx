@@ -11,7 +11,7 @@ const Privacidad = lazy(() => import('./v2/canal/Privacidad.jsx'));
 const V2Privacy = lazy(() => import('./v2/site/V2Privacy.jsx'));
 const V2Signup = lazy(() => import('./v2/site/V2Signup.jsx'));
 const V2NotFound = lazy(() => import('./v2/site/V2NotFound.jsx'));
-// Lado «Gestionar»: acceso, armazón del panel, tablero, ficha del caso y registro
+// Lado «Gestionar»: acceso, armazón del panel, tablero, ficha del caso, registro, informe, compartir y ajustes
 const acceso = () => import('./v2/panel/Acceso.jsx');
 const AccessLayout = lazy(() => acceso().then(m => ({ default: m.AccessLayout })));
 const contrasena = () => import('./v2/panel/Contrasena.jsx');
@@ -22,11 +22,10 @@ const Panel = lazy(() => import('./v2/panel/Panel.jsx'));
 const Tablero = lazy(() => import('./v2/panel/Tablero.jsx'));
 const Caso = lazy(() => import('./v2/panel/Caso.jsx'));
 const Registrar = lazy(() => import('./v2/panel/Registrar.jsx'));
-const V2Users = lazy(() => import('./v2/admin/V2Users.jsx'));
-const V2Mfa = lazy(() => import('./v2/admin/V2Mfa.jsx'));
-const V2Integrate = lazy(() => import('./v2/admin/V2Integrate.jsx'));
-const V2Account = lazy(() => import('./v2/admin/V2Account.jsx'));
-const V2Report = lazy(() => import('./v2/admin/V2Report.jsx'));
+const Informe = lazy(() => import('./v2/panel/Informe.jsx'));
+const Compartir = lazy(() => import('./v2/panel/Compartir.jsx'));
+const Ajustes = lazy(() => import('./v2/panel/Ajustes.jsx'));
+const Seguridad = lazy(() => import('./v2/panel/Seguridad.jsx'));
 // Página de trabajo con las piezas del diseño: solo existe en desarrollo, no entra en el build
 const DevUi = import.meta.env.DEV ? lazy(() => import('./v2/dev/DevUi.jsx')) : null;
 
@@ -51,8 +50,8 @@ function prefetchNext() {
   if (path.startsWith('/canal/')) {
     quiet(import('./v2/canal/Denuncia.jsx')); quiet(import('./v2/canal/Consulta.jsx')); quiet(import('./v2/canal/Privacidad.jsx'));
   } else if (path.startsWith('/admin') && !/login|forgot-password|reset-password/.test(path)) {
-    quiet(import('./v2/panel/Caso.jsx')); quiet(import('./v2/panel/Tablero.jsx')); quiet(import('./v2/admin/V2Report.jsx'));
-    quiet(import('./v2/admin/V2Users.jsx')); quiet(import('./v2/admin/V2Integrate.jsx')); quiet(import('./v2/admin/V2Account.jsx')); quiet(import('./v2/admin/V2Mfa.jsx'));
+    quiet(import('./v2/panel/Caso.jsx')); quiet(import('./v2/panel/Tablero.jsx')); quiet(import('./v2/panel/Informe.jsx'));
+    quiet(import('./v2/panel/Compartir.jsx')); quiet(import('./v2/panel/Ajustes.jsx')); quiet(import('./v2/panel/Seguridad.jsx'));
   } else {
     quiet(import('./v2/site/V2Signup.jsx')); quiet(acceso()); quiet(import('./v2/panel/Panel.jsx'));
   }
@@ -101,11 +100,13 @@ export default function App() {
           <Route index element={page(<Tablero />)} />
           <Route path="complaints/:id" element={page(<Caso />)} />
           <Route path="nueva" element={page(<Registrar />)} />
-          <Route path="report" element={page(<V2Report />)} />
-          <Route path="users" element={page(<V2Users />)} />
-          <Route path="integration" element={page(<V2Integrate />)} />
-          <Route path="account" element={page(<V2Account />)} />
-          <Route path="mfa" element={page(<V2Mfa />)} />
+          <Route path="report" element={page(<Informe />)} />
+          <Route path="integration" element={page(<Compartir />)} />
+          <Route path="ajustes" element={page(<Ajustes />)} />
+          <Route path="mfa" element={page(<Seguridad />)} />
+          {/* Las direcciones de antes (gestores y cuenta) llevan a la página única de ajustes */}
+          <Route path="users" element={<Navigate to="/admin/ajustes" replace />} />
+          <Route path="account" element={<Navigate to="/admin/ajustes" replace />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Route>
       </Routes>

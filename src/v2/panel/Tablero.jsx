@@ -3,16 +3,17 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { SlidersHorizontal, Ellipsis, FileSpreadsheet, FileText, Eraser, CircleAlert, Inbox, LockKeyhole } from 'lucide-react';
 import { listComplaints, getRetentionDue, hasRedesign } from '../../lib/supabase.js';
 import { fmt } from '../V2Layout.jsx';
-import { STATUS_ORDER, PRIORITIES } from '../admin/adminKit.jsx';
+import { STATUS_ORDER, PRIORITIES, fLong } from '../admin/adminKit.jsx';
 import { Button, IconButton, Card, Chip, CaseCard, Kanban, Dialog, Field, Menu, MenuItem, Skeleton } from '../ui/index.js';
 import { usePanel, Tp, caseState, caseTitle, relDay } from './kit.jsx';
+import { STEPS, StepsRing, onboardingState, aipiInfo } from './primeros.jsx';
 
 const FILTERS = ['cat', 'pr', 'st', 'dl', 'mine', 'from', 'to'];
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const CLOSED_SHOWN = 2;
 
 export default function Tablero() {
-  const { lang, t, tr, p, org, profile, email, isSuperadmin, allowedCategories, can, notify } = usePanel();
+  const { lang, t, tr, p, org, members, profile, email, isSuperadmin, allowedCategories, can, notify } = usePanel();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [rows, setRows] = useState(null);
@@ -89,6 +90,9 @@ export default function Tablero() {
   const from = params.toString() ? `?${params}` : '';
   const loading = rows === null && !noAccess;
   const firstName = (profile.full_name || email).trim().split(/[\s@]/)[0];
+  // Lo que le queda por hacer a la empresa para tener el canal en regla: solo lo ve quien administra
+  const steps = isSuperadmin ? onboardingState(org, members) : null;
+  const aipi = isSuperadmin ? aipiInfo(org) : null;
 
   // Pasar de columna es dar el paso en la ficha: se abre con el acuse o el cierre preparados, nunca en silencio
   const canMove = ({ c }, fromCol, toCol) => can('edit', c.category) && can('reply', c.category) && !c.anonymized_at
@@ -135,6 +139,7 @@ export default function Tablero() {
           <Tp as="h1" className="ds-h1 is-sm" lang={lang} pick={x => (loading ? x.nav.board : need === 0 ? x.need0 : need === 1 ? x.need1 : fmt(x.needN, { n: need }))} />
         </div>
         <div className="pn-actions">
+          {steps && steps.count < STEPS.length && <StepsRing state={steps} p={p} />}
           <Button variant="bg" size="sm" onClick={() => setFiltering(true)} icon={<SlidersHorizontal size={16} strokeWidth={2.2} aria-hidden="true" />}>
             {p.filter}{active > 0 && <span className="pn-count">{active}</span>}
           </Button>
@@ -155,6 +160,17 @@ export default function Tablero() {
           {(f.from || f.to) && <Chip size="md" tone="report">{f.from || '…'} – {f.to || '…'}</Chip>}
           <button type="button" className="pn-link" onClick={clear}>{p.clearFilters}</button>
         </p>
+      )}
+
+      {aipi?.state === 'overdue' && (
+        <section className="pn-banner is-danger" aria-labelledby="pn-aipi-t">
+          <CircleAlert size={20} strokeWidth={2} aria-hidden="true" />
+          <div>
+            <h2 id="pn-aipi-t">{p.aipiLateT}</h2>
+            <p>{fmt(p.aipiLateText, { date: fLong(aipi.due, lang) })}</p>
+          </div>
+          <Button variant="white" size="xs" to="/admin/ajustes">{p.onb.goSettings}</Button>
+        </section>
       )}
 
       {due.length > 0 && (

@@ -5,7 +5,9 @@
 // tinguin sentit. L'estat es guarda a sessionStorage perquè els canvis de la demo sobrevisquin
 // a una recàrrega dins la mateixa pestanya.
 
-const KEY = 'reportia-demo-store-v3';
+import { addBusinessDays, isoDay } from './businessDays.js';
+
+const KEY = 'reportia-demo-store-v4';
 const neutralName = (name, i) => {
   const ext = (name.includes('.') ? name.split('.').pop() : '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
   return `document-${i + 1}${ext ? `.${ext}` : ''}`;
@@ -19,8 +21,8 @@ const DEMO_QR = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="htt
 const DEMO_SECRET = 'JBSW Y3DP EHPK 3PXP';
 
 const PEOPLE = {
-  admin:  { id: 'demo-user', full_name: 'Administrador Demo', email: 'admin@empresa-demo.es' },
-  laura:  { id: 'mgr-laura', full_name: 'Laura Puig Ferrer', email: 'l.puig@empresa-demo.es' },
+  // Qui entra a la demo és la Laura Puig, administradora i Responsable del Sistema (com a les maquetes)
+  admin:  { id: 'demo-user', full_name: 'Laura Puig Ferrer', email: 'l.puig@empresa-demo.es' },
   daniel: { id: 'mgr-daniel', full_name: 'Daniel Ortega Ruiz', email: 'd.ortega@empresa-demo.es' },
   nuria:  { id: 'mgr-nuria', full_name: 'Núria Soler Vidal', email: 'n.soler@empresa-demo.es' },
 };
@@ -78,7 +80,8 @@ function seed() {
   const st = (at_, from, to, who, note) => ({ at: at_, action: 'status_changed', details: { from, to, actor_name: who.full_name, ...(note ? { note } : {}) } });
   const pr = (at_, from, to, who) => ({ at: at_, action: 'priority_changed', details: { from, to, actor_name: who.full_name } });
   const ms = (at_, who) => ({ at: at_, action: 'message_sent', details: { actor_name: who.full_name } });
-  const { laura, daniel, nuria, admin } = PEOPLE;
+  const { daniel, nuria, admin } = PEOPLE;
+  const laura = admin;
 
   // Registrada a mà: va arribar per telèfon
   add({
@@ -332,18 +335,17 @@ function seed() {
 
   const profiles = [
     { ...PEOPLE.admin, role: 'superadmin', created_at: at(260, 9, 0) },
-    { ...PEOPLE.laura, role: 'manager', created_at: at(240, 11, 0) },
     { ...PEOPLE.daniel, role: 'manager', created_at: at(240, 11, 5) },
     { ...PEOPLE.nuria, role: 'manager', created_at: at(170, 16, 30) },
   ];
   const P = (manager_id, category, v, e, r, d) => ({ id: `${manager_id}-${category}`, manager_id, category, can_view: v, can_edit: e, can_reply: r, can_delete: d });
   const permissions = [
-    P('mgr-laura', 'harassment', true, true, true, false),
-    P('mgr-laura', 'discrimination', true, true, true, false),
     P('mgr-daniel', 'fraud', true, true, true, false),
     P('mgr-daniel', 'accounting', true, true, true, true),
     P('mgr-daniel', 'conflict', true, true, true, false),
     P('mgr-daniel', 'data', true, false, false, false),
+    P('mgr-nuria', 'harassment', true, true, true, false),
+    P('mgr-nuria', 'discrimination', true, true, true, false),
     P('mgr-nuria', 'safety', true, true, true, false),
     P('mgr-nuria', 'environmental', true, true, true, false),
   ];
@@ -371,7 +373,7 @@ function seed() {
 
   // L'administrador de la demo ja té la verificació en dos passos activada: l'accés demana el codi
   const mfa = [{ id: 'factor-demo', status: 'verified', factor_type: 'totp', created_at: at(30, 9, 0) }];
-  return { v: 3, complaints, messages, audit, profiles, permissions, mfa, seq: n };
+  return { v: 4, complaints, messages, audit, profiles, permissions, mfa, seq: n };
 }
 
 // ── Persistència ────────────────────────────────────────────────────────
@@ -428,7 +430,7 @@ export async function getReporterIdentity(id) {
   const c = s.complaints.find(x => x.id === id);
   if (!c || c.anonymized_at) return { identity: null, error: { message: 'not-allowed' } };
   if (c.is_anonymous) return { identity: null, error: null };
-  s.audit.push({ id: `a${++s.seq}`, complaint_id: id, action: 'identity_viewed', details: { actor_name: 'Administrador Demo' }, created_at: new Date().toISOString() });
+  s.audit.push({ id: `a${++s.seq}`, complaint_id: id, action: 'identity_viewed', details: { actor_name: PEOPLE.admin.full_name }, created_at: new Date().toISOString() });
   save(s);
   return { identity: { reporter_name: c.reporter_name ?? null, reporter_email: c.reporter_email ?? null, reporter_phone: c.reporter_phone ?? null }, error: null };
 }
@@ -753,6 +755,11 @@ export function getOrganization() {
       plan: 'trial', trial_ends_at: new Date(Date.now() + 21 * DAY).toISOString(), paid_until: null,
       responsible_name: 'Laura Puig Ferrer', responsible_role: 'Directora de Cumplimiento',
       billing_name: 'Empresa Demo, S.L.', billing_tax_id: '', billing_email: '',
+      // Responsable nomenada fa 4 dies hàbils: en queden 6 per comunicar-ho a l'AIPI (data buida)
+      responsible_appointed_at: isoDay(addBusinessDays(addBusinessDays(new Date(), 6), -10)), aipi_notified_at: null,
+      // Primers passos a 3 de 5: responsable, canal al web (marcat a mà) i més d'una persona a l'equip
+      onboarding: { web: true },
+      regional_authority_name: 'Oficina Antifrau de Catalunya', regional_authority_url: 'https://www.antifrau.cat',
       created_at: new Date(Date.now() - 9 * DAY).toISOString(),
     };
     save();

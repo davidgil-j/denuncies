@@ -31,7 +31,8 @@ export default function Canal() {
   const t = translations[lang].canal;
   const base = `/canal/${slug}`;
   const sub = pathname.slice(base.length).replace(/^\/+|\/+$/g, '');
-  const loginTo = `/admin/login?from=${encodeURIComponent(slug)}&lang=${lang}`;
+  // En el canal de ejemplo «Gestionar» no lleva al acceso real: no hay cuenta detrás, se invita a crear una
+  const loginTo = org?.is_example ? `/crear-compte?lang=${lang}` : `/admin/login?from=${encodeURIComponent(slug)}&lang=${lang}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -115,7 +116,7 @@ export default function Canal() {
         top={isEntry && <EntryTop lang={lang} setLang={setLang} org={org} />}
         bottom={isEntry && <EntryBottom lang={lang} org={org} base={base} />}
         report={isEntry ? <EntryReport lang={lang} base={base} /> : <Outlet context={ctx} />}
-        manage={isEntry ? <EntryManage lang={lang} org={org} to={loginTo} /> : null}
+        manage={isEntry ? <EntryManage lang={lang} org={org} to={loginTo} example={!!org.is_example} /> : null}
         manageTab={<SideTab side="manage" label={<Tc lang={lang} k="manage" />} icon="forward" to={loginTo} onClick={onManage} />}
       />
       <Dialog

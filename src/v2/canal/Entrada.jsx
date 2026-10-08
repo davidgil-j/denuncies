@@ -53,10 +53,16 @@ export function EntryReport({ lang, base }) {
   );
 }
 
-/** Tarjeta blanca: Gestionar. En el móvil es una tarjeta baja que entera es el enlace. */
-export function EntryManage({ lang, org, to }) {
+/**
+ * Tarjeta blanca: Gestionar. En el móvil es una tarjeta baja que entera es el enlace.
+ * En el canal de ejemplo no hay panel al que entrar: el botón lleva a crear el canal propio y lo dice.
+ */
+export function EntryManage({ lang, org, to, example }) {
   const t = translations[lang].canal;
   const vars = { org: org.name };
+  const k = example
+    ? { note: 'exManageNote', cta: 'exManageCta', aria: t.exManageAria, short: 'exManageShort' }
+    : { note: 'twoStep', cta: 'access', aria: t.accessAria, short: 'manageShort' };
   return (
     <>
       <div className="entry-wide">
@@ -69,14 +75,14 @@ export function EntryManage({ lang, org, to }) {
           </Chips>
         </div>
         <div className="entry-foot">
-          <Tc lang={lang} k="twoStep" className="entry-note" />
-          <Button variant="ink" size="xl" to={to} aria-label={t.accessAria} iconEnd={arrow}><Tc lang={lang} k="access" /></Button>
+          <Tc lang={lang} k={k.note} className="entry-note" />
+          <Button variant="ink" size="xl" to={to} aria-label={k.aria} iconEnd={arrow}><Tc lang={lang} k={k.cta} /></Button>
         </div>
       </div>
-      <Link className="entry-compact" to={to} aria-label={t.accessAria}>
+      <Link className="entry-compact" to={to} aria-label={k.aria}>
         <span className="entry-compact-txt">
           <Tc lang={lang} k="manage" className="entry-compact-t" />
-          <Tc lang={lang} k="manageShort" vars={vars} className="entry-compact-s" />
+          <Tc lang={lang} k={k.short} vars={vars} className="entry-compact-s" />
         </span>
         <span className="entry-compact-go" aria-hidden="true"><ArrowRight size={20} strokeWidth={2.2} /></span>
       </Link>

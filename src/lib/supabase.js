@@ -31,7 +31,7 @@ const DEMO_ORG  = { id: 'demo-org', name: 'Empresa Demo', slug: 'demo' };
 // només es descarrega en mode demo, mai en producció.
 const demo = () => import('./demoStore.js');
 const DEMO_SESSION_KEY = 'reportia-demo-session';
-const DEMO_USER = { id: 'demo-user', email: 'admin@empresa-demo.es' };
+const DEMO_USER = { id: 'demo-user', email: 'l.puig@empresa-demo.es' };
 const DEMO_SESSION = { user: DEMO_USER, access_token: 'demo' };
 export const IS_DEMO = DEMO_MODE;
 
@@ -172,7 +172,12 @@ export async function requestMeetingByCode(trackingCode) {
 export async function getOrganizationBySlug(slug) {
   // A la demo només existeix el canal "demo": qualsevol altra adreça es comporta com en producció
   exampleChannel = slug === DEMO_ORG.slug;
-  if (channelDemo()) return { organization: exampleChannel ? { ...DEMO_ORG, name: (await demo()).getOrganization().name, is_example: true } : null, error: null };
+  if (channelDemo()) {
+    if (!exampleChannel) return { organization: null, error: null };
+    // El canal d'exemple ensenya el nom i l'autoritat autonòmica que es posin a «Equip i ajustos» de la demo
+    const { name, regional_authority_name = null, regional_authority_url = null } = (await demo()).getOrganization();
+    return { organization: { ...DEMO_ORG, name, regional_authority_name, regional_authority_url, is_example: true }, error: null };
+  }
   const { data, error } = await supabase.rpc('get_organization_by_slug', { p_slug: slug });
   return { organization: data?.[0] ?? null, error };
 }
@@ -192,7 +197,13 @@ export async function getMyOrganization() {
 
 // Camps que l'administrador pot editar des del panell. El pla, les dates i l'adreça del canal
 // només els canvia Reportia (i la base de dades ho impedeix: migració 009).
-const ORG_EDITABLE = ['name', 'responsible_name', 'responsible_role', 'billing_name', 'billing_tax_id', 'billing_email'];
+const ORG_EDITABLE = [
+  'name', 'responsible_name', 'responsible_role', 'billing_name', 'billing_tax_id', 'billing_email',
+  // Autoritat autonòmica que es mostra al canal (migració 011)
+  'regional_authority_name', 'regional_authority_url',
+  // Dates del Responsable i passos de «Primers passos» marcats a mà (migració 012)
+  'responsible_appointed_at', 'aipi_notified_at', 'onboarding',
+];
 
 /** Desa les dades de l'organització pròpia. Returns { organization, error } */
 export async function updateMyOrganization(organizationId, updates) {
@@ -698,7 +709,7 @@ export function onAuthEvent(callback) {
 // ── Profiles & permissions ─────────────────────────────────────────────
 
 export async function getProfile(userId) {
-  if (DEMO_MODE) return { profile: { id: DEMO_USER.id, full_name: 'Administrador Demo', role: 'superadmin', created_at: '2026-01-15T09:00:00Z' }, error: null };
+  if (DEMO_MODE) return { profile: { id: DEMO_USER.id, full_name: 'Laura Puig Ferrer', role: 'superadmin', created_at: '2026-01-15T09:00:00Z' }, error: null };
   const { data, error } = await supabase
     .from('profiles')
     .select('*')

@@ -2,13 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, BarChart3, Share2, SlidersHorizontal, Search, Plus, LogOut, CircleCheck, CircleAlert, UserRoundX } from 'lucide-react';
 import { translations } from '../../translations.js';
-import { getAdminSession, getProfile, getManagerPermissions, getMyOrganization, signOutAdmin, getMfaState, listComplaints, IS_DEMO } from '../../lib/supabase.js';
+import {
+  getAdminSession, getProfile, getManagerPermissions, getMyOrganization, updateMyOrganization, listAssignees, signOutAdmin, getMfaState, listComplaints, IS_DEMO,
+} from '../../lib/supabase.js';
 import { LANGS, detectLang, fmt } from '../V2Layout.jsx';
 import { planInfo } from '../admin/adminKit.jsx';
 import { SplitShell, SideTab, PillNav, Button, IconButton, Chip, Card, OrgMark, Avatar, Skeleton, Segmented, Dialog, Field, Menu, MenuItem } from '../ui/index.js';
 import { caseTitle } from './kit.jsx';
-// Las pantallas que aún no se han rediseñado (Informe, Compartir, Equipo, Cuenta, Seguridad) siguen con sus estilos
-import '../admin/admin.css';
 import './panel.css';
 
 const LANG_KEY = 'reportia-panel-lang';
@@ -16,8 +16,7 @@ function initialLang() {
   try { const saved = localStorage.getItem(LANG_KEY); if (LANGS.includes(saved)) return saved; } catch { /* sin almacenamiento */ }
   return detectLang();
 }
-const LEGACY = ['/admin/report', '/admin/users', '/admin/integration', '/admin/account', '/admin/mfa'];
-const SETTINGS = ['/admin/users', '/admin/account', '/admin/mfa'];
+const SETTINGS = ['/admin/ajustes', '/admin/mfa'];
 
 /**
  * El lado «Gestionar» ya dentro: guarda de sesión, perfil y permisos, y el marco de las dos mitades
@@ -34,6 +33,7 @@ export default function Panel() {
   const [profile, setProfile] = useState(null);
   const [permissions, setPermissions] = useState([]);
   const [org, setOrg] = useState(null);
+  const [members, setMembers] = useState(null); // cuántas personas tienen acceso (solo lo necesita quien administra)
   const [leaving, setLeaving] = useState(false);
   const [toast, setToast] = useState(null);
   const [searching, setSearching] = useState(false);
@@ -62,8 +62,17 @@ export default function Panel() {
     setPermissions(perms ?? []);
     setOrg(organization ?? null);
     setPhase('ready');
+    if (pr.role === 'superadmin') listAssignees().then(({ people, error }) => setMembers(error ? 1 : people.length));
   }, []);
   useEffect(() => { loadProfile(); }, [loadProfile]);
+
+  // Guarda datos de la empresa y deja el panel al día sin recargarlo entero
+  const saveOrg = useCallback(async (changes) => {
+    if (!org) return { error: new Error('no-org') };
+    const { organization, error } = await updateMyOrganization(org.id, changes);
+    if (!error && organization) setOrg(organization);
+    return { error };
+  }, [org]);
 
   // Al cambiar de pantalla: arriba y con el foco en el contenido
   const firstPath = useRef(true);
@@ -99,7 +108,7 @@ export default function Panel() {
   const channelPath = org?.slug ? `/canal/${org.slug}` : '';
   const ctx = {
     lang, setLang, t, tr, p, profile, email: session?.user?.email ?? '', permissions, isSuperadmin, can, canRegister,
-    allowedCategories, org, notify, channelPath, refreshProfile: loadProfile, mfaSetup,
+    allowedCategories, org, saveOrg, members, setMembers, notify, channelPath, refreshProfile: loadProfile, mfaSetup,
   };
 
   const here = `${location.pathname}${location.search}`;
@@ -129,8 +138,6 @@ export default function Panel() {
 
   const path = location.pathname.replace(/\/+$/, '');
   const inSettings = SETTINGS.some(x => path.startsWith(x));
-  const legacy = LEGACY.some(x => path.startsWith(x));
-  const settingsTo = isSuperadmin ? '/admin/users' : '/admin/mfa';
   const nav = mfaSetup ? [
     { to: '/admin/mfa', label: p.nav.settings, short: p.nav.settingsShort, icon: SlidersHorizontal, active: true },
   ] : [
@@ -138,7 +145,7 @@ export default function Panel() {
     { to: '/admin/report', label: p.nav.report, icon: BarChart3, active: path.startsWith('/admin/report') },
     // «Compartir el canal» es cosa de quien administra
     ...(isSuperadmin ? [{ to: '/admin/integration', label: p.nav.share, short: p.nav.shareShort, icon: Share2, active: path.startsWith('/admin/integration') }] : []),
-    { to: settingsTo, label: p.nav.settings, short: p.nav.settingsShort, icon: SlidersHorizontal, active: inSettings },
+    { to: '/admin/ajustes', label: p.nav.settings, short: p.nav.settingsShort, icon: SlidersHorizontal, active: inSettings },
   ];
 
   // Aviso del plan junto al nombre: solo cuando hay algo que hacer
@@ -163,7 +170,7 @@ export default function Panel() {
               <div className="pn-brand">
                 <Link className="pn-brand-link" to="/admin"><OrgMark name={orgName} /><b>{orgName}</b></Link>
                 {IS_DEMO && <Chip size="md" className="pn-chip" title={p.demoLong}>{p.demoChip}<span className="ds-vh">: {p.demoLong}</span></Chip>}
-                {planChip && <Link className="pn-chiplink" to="/admin/account"><Chip size="md" tone={planChip.warn ? 'warn' : 'neutral'}>{planChip.text}</Chip></Link>}
+                {planChip && <Link className="pn-chiplink" to="/admin/ajustes"><Chip size="md" tone={planChip.warn ? 'warn' : 'neutral'}>{planChip.text}</Chip></Link>}
               </div>
               <PillNav items={nav} label={p.navLabel} />
               <div className="pn-tools">
@@ -196,14 +203,7 @@ export default function Panel() {
             </header>
 
             <div id="pn-main" className="pn-main" tabIndex={-1}>
-              {inSettings && !mfaSetup && isSuperadmin && (
-                <nav className="pn-subnav" aria-label={p.nav.settings}>
-                  {[['/admin/users', t.navUsers], ...(org?.plan ? [['/admin/account', t.navAccount]] : []), ['/admin/mfa', t.navSecurity]].map(([to, label]) => (
-                    <Link key={to} className="ds-seg-item" to={to} aria-current={path.startsWith(to) ? 'page' : undefined}>{label}</Link>
-                  ))}
-                </nav>
-              )}
-              {legacy ? <div className="v2 v2-admin pn-legacy"><Outlet context={ctx} /></div> : <Outlet context={ctx} />}
+              <Outlet context={ctx} />
             </div>
           </>
         )}
