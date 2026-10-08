@@ -175,6 +175,21 @@
   .cs-title h1 { font-size: 26px; }
 }
 
+/* ── Ayudas de IA (solo con VITE_AI_ENABLED=1) ─────────────────────── */
+.cs-main > .ds-card.ai-card { gap: 10px; }
+.ai-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; }
+.ai-head .ds-card-title { display: flex; align-items: center; gap: 8px; }
+.ai-head .ds-card-title svg { color: var(--report); }
+.ai-wait { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
+.ai-wait .ds-skel { background: #FFFFFF; }
+.ai-text { font-size: 15px; line-height: 1.6; }
+.ai-text.is-muted { color: var(--muted); }
+.ai-title { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; padding: 10px 14px; border-radius: 14px; background: #FFFFFF; font-size: 14px; }
+.ai-label { color: var(--muted); font-weight: 700; }
+.ai-note { font-size: 13px; color: var(--muted); }
+.ai-go { align-self: flex-start; }
+.ds-dialog-text > .ds-btn, .ds-dialog-text > .ds-menu { align-self: flex-start; }
+
 /* ── Registrar una denuncia ────────────────────────────────────────── */
 .rg { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
 .rg-form { flex: 999 1 560px; min-width: 0; padding: 24px; gap: 18px; }

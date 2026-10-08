@@ -394,7 +394,7 @@ const wait = (ms = 220) => new Promise(r => setTimeout(r, ms));
 const uid = (p) => `${p}-${Math.random().toString(36).slice(2, 10)}`;
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const LIST_FIELDS = ['id', 'reference', 'category', 'status', 'priority', 'is_anonymous', 'department', 'incident_date', 'language', 'created_at', 'updated_at', 'acknowledged_at', 'answered_at', 'extended_until', 'anonymized_at',
-  'description', 'channel', 'meeting_requested', 'meeting_held_at', 'outcome', 'investigation_started_at', 'title', 'assigned_to', 'incident_when', 'meeting_requested_at'];
+  'description', 'channel', 'meeting_requested', 'meeting_held_at', 'outcome', 'investigation_started_at', 'title', 'assigned_to', 'incident_when', 'meeting_requested_at', 'ai_title'];
 const pick = (c) => Object.fromEntries(LIST_FIELDS.map(k => [k, c[k] ?? null]));
 const byDateDesc = (a, b) => new Date(b.created_at) - new Date(a.created_at);
 
@@ -633,6 +633,7 @@ export async function anonymize(complaintId, reason, actorName = '') {
   if (!c || c.anonymized_at || !reason || reason.trim().length < 5) return { error: { message: 'not-allowed' } };
   Object.assign(c, {
     description: '', department: null, involved_people: null, incident_date: null,
+    incident_when: null, title: null, ai_summary: null, ai_title: null, ai_generated_at: null,
     reporter_name: null, reporter_email: null, reporter_phone: null, attachments: [],
     tracking_code: `ANON-${c.id}`, anonymized_at: new Date().toISOString(),
   });
@@ -743,6 +744,49 @@ export async function requestMeetingByCode(code) {
     save();
   }
   return { error: null };
+}
+
+// ── IA simulada (només es veu amb VITE_AI_ENABLED=1) ────────────────────
+// Textos fixos d'exemple per poder ensenyar com quedaria encesa. No es crida cap servei.
+const AI_SAMPLE = {
+  harassment: ['Comentarios y trato humillante hacia varias compañeras', 'La persona informante describe comentarios de contenido sexual y un trato humillante repetido hacia varias compañeras. Sitúa los hechos en un turno y un lugar concretos y dice que hay más personas que lo han presenciado. No aporta documentos, pero indica que puede dar más detalles.'],
+  fraud: ['Posibles pagos por servicios que no se prestaron', 'Se describen facturas o cobros que no se corresponden con servicios realmente prestados. La persona informante señala el departamento afectado y un periodo aproximado. Convendría contrastar las facturas con los registros internos de ese periodo.'],
+  discrimination: ['Posible trato desigual en una decisión interna', 'La comunicación describe una decisión interna en la que se habría tratado peor a una persona por un motivo ajeno a su trabajo. Se indica el proceso afectado y cuándo ocurrió. Faltan los criterios que se aplicaron para poder compararlos.'],
+  safety: ['Riesgo para la seguridad en una zona de trabajo', 'Se comunica una situación que puede causar un accidente en una zona de trabajo concreta. Según el relato, el problema dura desde hace tiempo y ya se había avisado. Conviene comprobarlo sobre el terreno cuanto antes.'],
+  data: ['Posible uso indebido de datos personales', 'La persona informante describe un tratamiento de datos personales fuera de los canales previstos. Identifica el tipo de datos y el área donde ocurre. Habría que valorar si procede comunicarlo como brecha de seguridad.'],
+  conflict: ['Posible conflicto de intereses en una adjudicación', 'Se describe una relación personal o económica que podría haber influido en una decisión de compra o contratación. La comunicación indica el área y el periodo. Faltan los documentos de la adjudicación para comprobarlo.'],
+  accounting: ['Posibles apuntes contables que no reflejan la realidad', 'La comunicación describe registros contables que no se corresponderían con operaciones reales. Señala el momento del año en que ocurre y el área responsable. Convendría revisar los asientos de ese periodo con una persona ajena al área.'],
+  environmental: ['Posible gestión incorrecta de residuos o vertidos', 'Se comunica una gestión de residuos o vertidos que no seguiría el procedimiento. La persona informante indica el lugar y que ocurre de forma repetida. Puede haber obligaciones de aviso a la administración ambiental.'],
+  other: ['Comunicación sobre una posible irregularidad interna', 'La persona informante describe un hecho que considera irregular y que no encaja en los demás temas. Indica dónde ocurre y desde cuándo. Hace falta concretar con ella los detalles antes de valorarlo.'],
+};
+const AI_DRAFT = {
+  ack: 'Hemos recibido su comunicación y le agradecemos que la haya presentado.\n\nLa trataremos de forma confidencial y solo tendrán acceso a ella las personas encargadas de gestionarla. Recibirá una respuesta dentro del plazo legal, que es de tres meses como máximo.\n\nSi quiere añadir algo, puede escribirnos por este mismo canal con su código.',
+  question: 'Gracias por su comunicación. Para poder investigarla necesitamos concretar algunos datos:\n\n1. ¿En qué fechas aproximadas ocurrieron los hechos?\n2. ¿En qué lugar o área de la empresa?\n3. ¿Dispone de algún documento, mensaje o imagen que pueda aportar?\n\nNo es necesario que nos diga quién es. Puede responder por este mismo canal.',
+  answer: 'Le agradecemos de nuevo su comunicación. La investigación ha concluido.\n\n[Indique aquí qué se ha comprobado.]\n\n[Indique aquí las medidas adoptadas, si las hay.]\n\nLe recordamos que la ley prohíbe cualquier represalia por haber informado y que también puede acudir a los canales externos de las autoridades.',
+};
+const aiOf = (c) => (c?.ai_summary ? { summary: c.ai_summary, title: c.ai_title ?? '', generatedAt: c.ai_generated_at } : null);
+
+export async function getAiSummary(complaintId) {
+  return { ai: aiOf(db().complaints.find(x => x.id === complaintId)), error: null };
+}
+
+export async function requestAiSummary(complaintId, actorName = '') {
+  await wait(1400);
+  const s = db();
+  const c = s.complaints.find(x => x.id === complaintId);
+  if (!c || c.anonymized_at) return { ai: null, error: { message: 'Forbidden' } };
+  const [title, summary] = AI_SAMPLE[c.category] ?? AI_SAMPLE.other;
+  Object.assign(c, { ai_summary: summary, ai_title: title, ai_generated_at: new Date().toISOString() });
+  push(s, complaintId, 'ai_summary', { actor_name: actorName || undefined });
+  save();
+  return { ai: aiOf(c), error: null };
+}
+
+export async function requestAiDraft(complaintId, kind) {
+  await wait(1100);
+  const c = db().complaints.find(x => x.id === complaintId);
+  if (!c || c.anonymized_at || !AI_DRAFT[kind]) return { draft: '', error: { message: 'Forbidden' } };
+  return { draft: AI_DRAFT[kind], error: null };
 }
 
 // ── Organització (compte, pla i dades de l'empresa) ─────────────────────

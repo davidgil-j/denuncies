@@ -19,14 +19,16 @@ function Rich({ text }) {
 
 /**
  * Política de privacidad dentro del canal: el mismo texto de siempre (v2site.privacy), que nombra a la
- * empresa como responsable, con el estilo nuevo. «Volver» regresa al canal sin salir de él.
+ * empresa como responsable, con el estilo nuevo. Los dos apartados que hablan a quien lee («Datos
+ * recogidos» y «Tus derechos») van en «tú» como el resto del canal (canal.privacyTu); el contenido no cambia. «Volver» regresa al canal sin salir de él.
  */
 export default function Privacidad() {
   const { lang, setLang, org, base, banner } = useOutletContext();
   const T = translations[lang];
   const t = T.v2site.privacy;
   const { hash } = useLocation();
-  const st = (pick, props) => <Stable lang={lang} pick={X => pick(X.v2site.privacy)} {...props} />;
+  // Cada apartado, con su versión en «tú» si la tiene
+  const st = (pick, props) => <Stable lang={lang} pick={X => pick({ ...X.v2site.privacy, sections: X.v2site.privacy.sections.map(sec => ({ ...sec, ...X.canal.privacyTu?.[sec.id] })) })} {...props} />;
 
   useEffect(() => { document.title = `${t.title} · ${org.name}`; }, [t, org]);
   useEffect(() => {

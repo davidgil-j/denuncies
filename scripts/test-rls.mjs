@@ -347,5 +347,38 @@ if (upTo >= 12) {
   ok('admin A guarda las fechas del responsable y los primeros pasos', !(await user(adminA, `update organizations set responsible_appointed_at = '2026-10-01', onboarding = '{"poster":true}' where id = $1`, [orgA])).error);
 }
 
+// ── IA preparada y supresión completa (013) ─────────────────────────────
+if (upTo >= 13) {
+  console.log('\nIA y supresión completa (013)');
+  await db.exec(fs.readFileSync(path.join(MIG, '013_ia_supresion.sql'), 'utf8'));
+  ok('la 013 se puede ejecutar dos veces', true);
+  const mk = await user(adminA, `select register_complaint('fraud', 'Caso de prueba para el resumen con inteligencia artificial.', 'phone', now(), false, 'Marta', 'marta@example.com', null, 'Compras', null, null, 'es', code_hash('IAIA-0013'), 'desde septiembre') as id`);
+  const cI = mk.rows[0]?.id;
+  ok('caso de prueba creado', !!cI, mk.error ?? '');
+  await user(adminA, `update complaints set title = 'Facturas de un proveedor' where id = $1`, [cI]);
+  ok('el navegador (administrador) no puede guardar un resumen', !!(await user(adminA, `select store_ai_summary($1, $2, 'Resumen inventado', 'Título')`, [cI, adminA])).error);
+  ok('el navegador (anónimo) tampoco', !!(await anon(`select store_ai_summary('${cI}', '${adminA}', 'Resumen inventado', 'Título')`)).error);
+  let stored = null, storeErr = '';
+  try { stored = await svc(`select store_ai_summary($1, $2, '  Resumen de tres frases.  ', '  Posibles facturas falsas de un proveedor  ') as at`, [cI, adminA]); } catch (e) { storeErr = e.message; }
+  ok('el servidor guarda el resumen', !!stored?.[0]?.at, storeErr);
+  const [ai] = await svc(`select ai_summary, ai_title, ai_generated_at, title from complaints where id = $1`, [cI]);
+  ok('resumen y título guardados sin espacios, con su fecha', ai.ai_summary === 'Resumen de tres frases.' && ai.ai_title === 'Posibles facturas falsas de un proveedor' && !!ai.ai_generated_at, JSON.stringify(ai));
+  ok('el título puesto a mano no se toca', ai.title === 'Facturas de un proveedor');
+  const logs = await svc(`select organization_id, actor_id, details from audit_logs where complaint_id = $1 and action = 'ai_summary'`, [cI]);
+  ok('queda en el registro con quién lo pidió', logs.length === 1 && logs[0].organization_id === orgA && logs[0].details?.requested_by === adminA && !!logs[0].details?.actor_name, JSON.stringify(logs));
+  ok('el administrador lee el resumen y su entrada del registro', (await user(adminA, `select ai_summary from complaints where id = $1`, [cI])).rows[0]?.ai_summary === 'Resumen de tres frases.' && (await user(adminA, `select 1 from audit_logs where complaint_id = $1 and action = 'ai_summary'`, [cI])).rows.length === 1);
+  ok('otra empresa no lee el resumen', (await user(adminB, `select ai_summary from complaints where id = $1`, [cI])).rows.length === 0);
+  let wrong = false; try { await svc(`select store_ai_summary($1, $2, 'Resumen', 'Título')`, [cI, adminB]); } catch { wrong = true; }
+  ok('no se guarda a nombre de alguien de otra empresa', wrong);
+  let empty = false; try { await svc(`select store_ai_summary($1, $2, '   ', 'Título')`, [cI, adminA]); } catch { empty = true; }
+  ok('un resumen vacío se rechaza', empty);
+  ok('el panel sigue sin poder escribir el resumen directamente', (await (async () => { await user(adminA, `update complaints set ai_summary = 'cambiado', ai_title = 'cambiado' where id = $1`, [cI]); return (await svc(`select ai_summary from complaints where id = $1`, [cI]))[0].ai_summary; })()) === 'Resumen de tres frases.');
+  ok('admin A suprime el caso', !(await user(adminA, `select anonymize_complaint($1, 'Art. 32: prueba de supresión completa')`, [cI])).error);
+  const [gone] = await svc(`select description, incident_when, title, ai_summary, ai_title, ai_generated_at, reporter_name, reference from complaints where id = $1`, [cI]);
+  ok('la supresión borra también título, «cuándo» y resumen de IA', gone.description === '' && gone.incident_when === null && gone.title === null && gone.ai_summary === null && gone.ai_title === null && gone.ai_generated_at === null && gone.reporter_name === null && !!gone.reference, JSON.stringify(gone));
+  let late = false; try { await svc(`select store_ai_summary($1, $2, 'Resumen', 'Título')`, [cI, adminA]); } catch { late = true; }
+  ok('en un caso suprimido ya no se guarda ningún resumen', late);
+}
+
 console.log(`\n${pass} correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

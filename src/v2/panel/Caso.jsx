@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import {
   getComplaintById, getReporterIdentity, getMessages, sendMessage, getAuditLogs, updateComplaint, addComplaintNote,
-  markMessagesRead, extendDeadline, anonymizeComplaint, getAttachmentUrl, markMeetingHeld, markFiscalReferral, listAssignees, hasRedesign,
+  markMessagesRead, extendDeadline, anonymizeComplaint, getAttachmentUrl, markMeetingHeld, markFiscalReferral, listAssignees, hasRedesign, AI_ENABLED,
 } from '../../lib/supabase.js';
 import { translations } from '../../translations.js';
 import { fmt } from '../V2Layout.jsx';
@@ -14,6 +14,7 @@ import { deadlineInfo, fDateTime, fLong, fShort, auditText, PRIORITIES } from '.
 import { Button, IconButton, Card, Chip, Chips, Field, StepBar, ChatThread, ChatComposer, Dialog, Menu, MenuItem, Skeleton } from '../ui/index.js';
 import { deadlineLook } from '../ui/DeadlineChip.jsx';
 import { usePanel, Tp, caseState, caseTitle, relDay, historyText, OUTCOMES, CLOSED } from './kit.jsx';
+import { AiSummary, AiDraft } from './Ia.jsx';
 
 function fileSize(bytes) {
   if (!bytes && bytes !== 0) return '';
@@ -352,6 +353,8 @@ export default function Caso() {
 
       <div className="cs-grid">
         <div className="cs-main">
+          {/* Solo con la IA encendida; apagada, la ficha es exactamente la de siempre */}
+          {AI_ENABLED && !erased && <AiSummary c={c} canEdit={canEdit} onUseTitle={title => change({ title })} onGenerated={refresh} />}
           <Card tone="outline" as="section" aria-labelledby="cs-told">
             <h2 className="ds-card-title" id="cs-told">{p.told}</h2>
             <p className="cs-desc">{c.description}</p>
@@ -385,7 +388,8 @@ export default function Caso() {
             {erased ? null : canReply ? (
               <>
                 {sendErr && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={2.2} aria-hidden="true" />{p.msgErr}</p>}
-                <ChatComposer lang={lang} id="cs-msg" stacked value={draft} onChange={setDraft} onSend={send} busy={sending} placeholder={c.is_anonymous ? p.msgPh : p.msgPhIdent} sendLabel={p.send} />
+                <ChatComposer lang={lang} id="cs-msg" stacked value={draft} onChange={setDraft} onSend={send} busy={sending} placeholder={c.is_anonymous ? p.msgPh : p.msgPhIdent} sendLabel={p.send}
+                  actions={AI_ENABLED ? <AiDraft c={c} kinds={['ack', 'question', 'answer']} current={draft} onApply={setDraft} align="start" /> : undefined} />
               </>
             ) : <p className="cs-locked"><LockKeyhole size={16} strokeWidth={2} aria-hidden="true" />{p.noReply}</p>}
           </Card>
@@ -472,6 +476,7 @@ export default function Caso() {
       <Dialog open={dialog === 'ack'} onClose={closeDialog} title={p.ackTitle}
         actions={<><Button variant="soft" size="md" onClick={closeDialog}>{p.cancel}</Button><Button variant="ink" size="md" busy={busy} onClick={sendAck}>{p.ackSend}</Button></>}>
         <p>{p.ackText}</p>
+        {AI_ENABLED && <AiDraft c={c} kinds={['ack']} current={text === tpl('ackTpl') ? '' : text} onApply={v => { setText(v); setDErr(''); }} />}
         <Field as="textarea" rows={5} label={p.ackLabel} value={text} maxLength={10000} error={dErr} onChange={e => { setText(e.target.value); setDErr(''); }} />
       </Dialog>
 
@@ -482,6 +487,7 @@ export default function Caso() {
           <option value="">{p.outcomes.none}</option>
           {OUTCOMES.map(v => <option key={v} value={v}>{p.outcomes[v]}</option>)}
         </Field>
+        {AI_ENABLED && <AiDraft c={c} kinds={['answer']} current={text} onApply={v => { setText(v); setDErr(''); }} />}
         <Field as="textarea" rows={5} label={p.finalMsg} value={text} maxLength={10000} error={dErr} onChange={e => { setText(e.target.value); setDErr(''); }} />
       </Dialog>
 

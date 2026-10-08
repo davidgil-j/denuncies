@@ -130,6 +130,7 @@ VITE_SENTRY_DSN=             # opcional
 VITE_EMAILJS_SERVICE_ID=     # opcional
 VITE_EMAILJS_TEMPLATE_ID=    # opcional
 VITE_EMAILJS_PUBLIC_KEY=     # opcional
+VITE_AI_ENABLED=             # opcional; 1 encén les ajudes d'IA del panell (apagades per defecte, vegeu docs/IA.md)
 ```
 
 Variables locals (no al repositori):

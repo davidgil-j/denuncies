@@ -2,6 +2,7 @@ import React, { forwardRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Stable, fmt } from '../V2Layout.jsx';
 import { deadlineInfo, daysBetween, auditText } from '../admin/adminKit.jsx';
+import { AI_ENABLED } from '../../lib/supabase.js';
 
 export const usePanel = () => useOutletContext();
 
@@ -18,9 +19,13 @@ export const OUTCOMES = ['founded', 'unfounded', 'inadmissible', 'out_of_scope',
 export const CHANNELS = ['phone', 'in_person', 'mail', 'email', 'other'];
 const MEETING_DAYS = 7;
 
-/** Título del caso: el que puso el equipo o, si no hay, las primeras palabras de lo que contó */
+/**
+ * Título del caso: el que puso el equipo; si no hay, el que propuso la IA (solo con la IA encendida)
+ * y, si tampoco, las primeras palabras de lo que contó.
+ */
 export function caseTitle(c, p) {
   if (c.title) return c.title;
+  if (AI_ENABLED && c.ai_title && !c.anonymized_at) return c.ai_title;
   if (c.anonymized_at) return `${p.suppressed} · ${c.reference}`;
   const words = (c.description ?? '').trim().split(/\s+/).filter(Boolean);
   if (!words.length) return c.reference;
@@ -61,6 +66,7 @@ export function relDay(iso, p) {
 export function historyText(p, t, log) {
   const d = log.details ?? {};
   if (log.action === 'meeting_requested') return p.aMeetReq;
+  if (log.action === 'ai_summary') return d.actor_name ? fmt(p.ai.hist, { who: d.actor_name }) : p.ai.histAnon;
   if (log.action === 'assigned') {
     if (!d.to) return p.aUnassigned;
     return d.actor_name ? fmt(p.aAssigned, { who: d.actor_name, to: d.to_name ?? '' }) : fmt(p.aAssignedAnon, { to: d.to_name ?? '' });

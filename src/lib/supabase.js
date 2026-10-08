@@ -34,6 +34,9 @@ const DEMO_SESSION_KEY = 'reportia-demo-session';
 const DEMO_USER = { id: 'demo-user', email: 'l.puig@empresa-demo.es' };
 const DEMO_SESSION = { user: DEMO_USER, access_token: 'demo' };
 export const IS_DEMO = DEMO_MODE;
+// Ajudes d'IA per a qui gestiona (resum i esborranys): APAGADES si no hi ha VITE_AI_ENABLED=1.
+// Apagades, el panell no en mostra res ni demana res de més. Vegeu docs/IA.md.
+export const AI_ENABLED = import.meta.env.VITE_AI_ENABLED === '1';
 
 // El canal d'exemple (/canal/demo) funciona sempre, també a la web publicada: viu en dades de mostra
 // dins del navegador (demoStore) i mai no arriba a la base de dades real. Només afecta les funcions
@@ -493,7 +496,7 @@ export async function listComplaints({ categories = null } = {}) {
   const rows = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await withRedesign(extra => {
-      let query = supabase.from('complaints').select([cols, ...extra].join(', ')).order('created_at', { ascending: false }).range(from, from + 999);
+      let query = supabase.from('complaints').select([cols, ...extra, ...(AI_ENABLED && extra.length ? ['ai_title'] : [])].join(', ')).order('created_at', { ascending: false }).range(from, from + 999);
       if (categories) query = query.in('category', categories);
       return query;
     });
@@ -781,6 +784,35 @@ export async function deleteManager(userId) {
   return callFunction('delete-manager', { user_id: userId });
 }
 
+// ── IA (apagada per defecte) ────────────────────────────────────────────
+// Res d'això s'executa si AI_ENABLED és fals: cap pantalla ho crida.
+
+/** Resum i títol fets amb IA que ja té desats un cas. Returns { ai: { summary, title, generatedAt } | null, error } */
+export async function getAiSummary(complaintId) {
+  if (!AI_ENABLED) return { ai: null, error: null };
+  if (DEMO_MODE) return (await demo()).getAiSummary(complaintId);
+  const { data, error } = await supabase.from('complaints').select('ai_summary, ai_title, ai_generated_at').eq('id', complaintId).maybeSingle();
+  if (error || !data?.ai_summary) return { ai: null, error };
+  return { ai: { summary: data.ai_summary, title: data.ai_title ?? '', generatedAt: data.ai_generated_at }, error: null };
+}
+
+/** Demana el resum (3 frases) i el títol. El desa el servidor. Returns { ai, error } */
+export async function requestAiSummary(complaintId, lang, actorName = '') {
+  if (!AI_ENABLED) return { ai: null, error: new Error('ai-disabled') };
+  if (DEMO_MODE) return (await demo()).requestAiSummary(complaintId, actorName);
+  const { data, error } = await callFunction('ai-assist', { complaint_id: complaintId, action: 'summary', lang });
+  if (error) return { ai: null, error };
+  return { ai: { summary: data.summary, title: data.title ?? '', generatedAt: data.generated_at }, error: null };
+}
+
+/** Demana un esborrany de missatge (kind: ack | question | answer). No desa ni envia res. Returns { draft, error } */
+export async function requestAiDraft(complaintId, kind) {
+  if (!AI_ENABLED) return { draft: '', error: new Error('ai-disabled') };
+  if (DEMO_MODE) return (await demo()).requestAiDraft(complaintId, kind);
+  const { data, error } = await callFunction('ai-assist', { complaint_id: complaintId, action: 'draft', kind });
+  return { draft: error ? '' : String(data.draft ?? ''), error };
+}
+
 /** Crida una funció del servidor amb la sessió actual. Mai llança: retorna { userId, error } */
 async function callFunction(name, body) {
   try {
@@ -793,7 +825,7 @@ async function callFunction(name, body) {
     });
     const result = await res.json().catch(() => ({ error: `http-${res.status}` }));
     if (!res.ok || result.error) return { error: new Error(result.error || `http-${res.status}`) };
-    return { userId: result.user?.id ?? null, error: null };
+    return { userId: result.user?.id ?? null, data: result, error: null };
   } catch (err) {
     return { error: err };
   }
