@@ -28,3 +28,4 @@ export { ChatThread, ChatComposer } from './ChatThread.jsx';
 export { default as Dialog } from './Dialog.jsx';
 export { default as Menu, MenuItem } from './Menu.jsx';
 export { default as OtpInput } from './OtpInput.jsx';
+export { default as Offline } from './Offline.jsx';

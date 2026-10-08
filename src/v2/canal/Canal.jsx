@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { getOrganizationBySlug } from '../../lib/supabase.js';
 import { detectLang, savedLang, LANGS, Stable } from '../V2Layout.jsx';
-import { SplitShell, SideTab, Button, Card, Dialog, Skeleton } from '../ui/index.js';
+import { SplitShell, SideTab, Button, Card, Dialog, Skeleton, Offline } from '../ui/index.js';
 import { EntryTop, EntryReport, EntryManage, EntryBottom } from './Entrada.jsx';
 import { EMPTY_DRAFT, isDirty, Tc } from './shared.jsx';
 import './canal.css';
@@ -119,6 +119,7 @@ export default function Canal() {
         manage={isEntry ? <EntryManage lang={lang} org={org} to={loginTo} example={!!org.is_example} /> : null}
         manageTab={<SideTab side="manage" label={<Tc lang={lang} k="manage" />} icon="forward" to={loginTo} onClick={onManage} />}
       />
+      <Offline lang={lang} />
       <Dialog
         open={!!leaving} onClose={() => setLeaving(null)} title={t[leaveText[0]]}
         actions={<>

@@ -25,7 +25,7 @@ export default function SplitShell({ active = null, report, manage, reportTab, m
     );
   };
   return (
-    <div className={cx('ds ds-split', entry && 'is-entry', top && 'has-top', className)}>
+    <div className={cx('ds ds-split', entry && 'is-entry', top && 'has-top', banner && 'has-banner', className)}>
       {skip && <a className="ds-skip" href="#ds-main">{skip}</a>}
       {banner && <div className="ds-split-banner">{banner}</div>}
       {top && <header className="ds-split-top">{top}</header>}

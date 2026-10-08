@@ -7,7 +7,7 @@ import {
 } from '../../lib/supabase.js';
 import { LANGS, detectLang, fmt } from '../V2Layout.jsx';
 import { planInfo } from '../admin/adminKit.jsx';
-import { SplitShell, SideTab, PillNav, Button, IconButton, Chip, Card, OrgMark, Avatar, Skeleton, Segmented, Dialog, Field, Menu, MenuItem } from '../ui/index.js';
+import { SplitShell, SideTab, PillNav, Button, IconButton, Chip, Card, OrgMark, Avatar, Skeleton, Segmented, Dialog, Field, Menu, MenuItem, Offline } from '../ui/index.js';
 import { caseTitle } from './kit.jsx';
 import './panel.css';
 
@@ -218,6 +218,7 @@ export default function Panel() {
         )}
       </div>
 
+      <Offline lang={lang} />
       <SearchDialog open={searching} onClose={() => setSearching(false)} ctx={ctx} />
     </>
   );

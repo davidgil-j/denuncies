@@ -263,8 +263,9 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 40p
 .ds-field.is-sm .ds-input { height: 44px; padding: 0 12px; border-radius: var(--r-input-sm); font-size: 15px; }
 .ds-field.is-sm select.ds-input { padding-right: 36px; }
 .ds-field.is-sm textarea.ds-input { height: auto; padding: 12px; }
-.ds-field.is-plain .ds-input { border-color: transparent; font-weight: 700; }
-.ds-field.is-warn .ds-input { border-color: var(--warn-line); }
+/* Sobre una tarjeta gris el campo blanco casi no se distingue (1,1:1): lleva su borde, como los demás */
+.ds-field.is-plain .ds-input { border-color: #7E87A3; font-weight: 700; }
+.ds-field.is-warn .ds-input { border-color: #A86400; }
 .ds-field.is-code .ds-input { height: 76px; padding: 0 24px; border: 0; border-radius: 22px; font-size: 34px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
 .ds-input::placeholder { color: var(--muted); opacity: 1; font-weight: 500; }
 .ds-field.is-code .ds-input::placeholder { color: #8A93AD; font-weight: 800; }
@@ -434,6 +435,8 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 40p
   .ds-dialog, .ds-dialog.is-side { margin: auto 0 0; width: 100%; max-width: 100%; height: auto; max-height: 88dvh; border-radius: 28px 28px 0 0; }
   .ds-dialog-body { padding: 22px 18px calc(18px + env(safe-area-inset-bottom)); }
   .ds-dialog-actions > .ds-btn { flex: 1 1 auto; }
+  /* En el móvil los botones del diálogo se quedan pegados abajo: siempre a la vista, también con el teclado abierto */
+  .ds-dialog-actions { position: sticky; bottom: 0; z-index: 1; margin: auto -18px calc(-18px - env(safe-area-inset-bottom)); padding: 10px 18px calc(18px + env(safe-area-inset-bottom)); background: #FFFFFF; }
 }
 
 /* Sin animación si la persona lo ha pedido al sistema */
@@ -445,3 +448,35 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 40p
 .ds-chip > .v2-stable > .v2-stable-v, .ds-btn > .v2-stable > .v2-stable-v { text-align: center; }
 /* Con icono delante, el texto va pegado a él */
 .ds-chip:has(> svg) > .v2-stable > .v2-stable-v { text-align: left; }
+
+/* ── La franja lateral, fija ───────────────────────────────────────────
+   Con un lado elegido, la franja del otro se queda en su sitio (del alto de la ventana, con su margen y sus
+   esquinas redondas) y solo el contenido hace scroll a su lado. Así la flecha está siempre a la misma
+   altura, centrada en lo que se ve. El aviso del canal de ejemplo también se queda arriba. */
+@media (min-width: 641px) {
+  .ds-split { --banner-h: 0px; }
+  .ds-split.has-banner { --banner-h: 41px; }
+  .ds-split-banner { position: sticky; top: 0; z-index: 20; min-height: 41px; flex-wrap: nowrap; white-space: nowrap; overflow: hidden; }
+  .ds-split:not(.is-entry) .ds-pane.is-tab { position: sticky; top: calc(16px + var(--banner-h)); align-self: flex-start; height: calc(100vh - 32px - var(--banner-h)); height: calc(100dvh - 32px - var(--banner-h)); }
+}
+
+/* ── Pantallas bajas (portátil al 100 %) ───────────────────────────────
+   Misma composición, otra escala: con poca altura se encogen los títulos gigantes, los iconos y los
+   espacios verticales para que la entrada, el acceso y cada paso quepan sin scroll. */
+@media (min-width: 641px) and (max-height: 860px) {
+  .ds-hero { font-size: clamp(46px, 9.4vh, 80px); }
+  .ds-h1 { font-size: clamp(30px, 5.6vh, 56px); }
+  .ds-h1.is-sm { font-size: clamp(28px, 5vh, 48px); }
+  .ds-split-top { padding-top: 12px; padding-bottom: 12px; }
+  .ds-split-bottom { padding-top: 2px; padding-bottom: 12px; }
+  .ds-split.is-entry .ds-pane-body { min-height: 0; padding: clamp(24px, 4.4vh, 48px) clamp(32px, 3.4vw, 48px); gap: clamp(14px, 2.6vh, 32px); }
+  .ds-split:not(.is-entry) .ds-pane.is-report > .ds-pane-body { padding: clamp(16px, 3vh, 32px) clamp(28px, 3.4vw, 48px) clamp(18px, 3.2vh, 36px); gap: clamp(12px, 2.4vh, 26px); }
+  .ds-split:not(.is-entry) .ds-pane.is-manage > .ds-pane-body { padding-top: 18px; gap: 18px; }
+}
+
+/* Aviso de «sin conexión», arriba y centrado, por encima de todo */
+.ds-offline-zone { position: fixed; z-index: 70; top: 12px; left: 0; right: 0; display: flex; justify-content: center; padding: 0 16px; pointer-events: none; }
+.ds-offline { display: flex; align-items: center; gap: 10px; max-width: 560px; padding: 12px 18px; border-radius: 18px; background: var(--ink); color: #FFFFFF; font-size: 14px; font-weight: 700; line-height: 1.4; box-shadow: var(--shadow-picked); }
+.ds-offline svg { flex: none; color: var(--on-ink-warn); }
+/* Párrafos de entrada sin una palabra suelta en la última línea */
+.ds-lead { text-wrap: pretty; }
