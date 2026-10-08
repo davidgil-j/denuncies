@@ -437,14 +437,15 @@ async function createDoc(orientation, D) {
   const fonts = await loadFonts();
   if (fonts) {
     try {
-      doc.addFileToVFS('WixMadeforText-Regular.ttf', fonts.TEXT_400);
-      doc.addFont('WixMadeforText-Regular.ttf', 'WixText', 'normal');
-      doc.addFileToVFS('WixMadeforText-SemiBold.ttf', fonts.TEXT_600);
-      doc.addFont('WixMadeforText-SemiBold.ttf', 'WixText', 'bold');
-      doc.addFileToVFS('WixMadeforDisplay-SemiBold.ttf', fonts.DISPLAY_600);
-      doc.addFont('WixMadeforDisplay-SemiBold.ttf', 'WixDisplay', 'normal');
-      doc.setFont('WixText', 'normal');
-      F = { text: 'WixText', display: 'WixDisplay', displayStyle: 'normal' };
+      // Manrope, la tipografia del producte (scripts/pdf-fonts.mjs): 400 per al text, 700 per a les negretes i 800 per als títols
+      doc.addFileToVFS('Manrope-Regular.ttf', fonts.TEXT_400);
+      doc.addFont('Manrope-Regular.ttf', 'Manrope', 'normal');
+      doc.addFileToVFS('Manrope-Bold.ttf', fonts.TEXT_700);
+      doc.addFont('Manrope-Bold.ttf', 'Manrope', 'bold');
+      doc.addFileToVFS('Manrope-ExtraBold.ttf', fonts.DISPLAY_800);
+      doc.addFont('Manrope-ExtraBold.ttf', 'ManropeDisplay', 'normal');
+      doc.setFont('Manrope', 'normal');
+      F = { text: 'Manrope', display: 'ManropeDisplay', displayStyle: 'normal' };
     } catch {
       doc.setFont('helvetica', 'normal'); // si la tipografia falla, Helvetica
     }

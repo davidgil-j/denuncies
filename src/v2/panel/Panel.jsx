@@ -178,7 +178,7 @@ export default function Panel() {
                   <>
                     <IconButton variant="bg" label={p.search} onClick={() => setSearching(true)}><Search size={18} strokeWidth={2} aria-hidden="true" /></IconButton>
                     {canRegister && (
-                      <Button variant="report" size="sm" className="pn-register" to="/admin/nueva" aria-label={p.register} icon={<Plus size={18} strokeWidth={2.6} aria-hidden="true" />}>
+                      <Button variant={path === '/admin' ? 'report' : 'bg'} size="sm" className="pn-register" to="/admin/nueva" aria-label={p.register} icon={<Plus size={18} strokeWidth={2.6} aria-hidden="true" />}>
                         <span className="pn-register-t">{p.register}</span>
                       </Button>
                     )}

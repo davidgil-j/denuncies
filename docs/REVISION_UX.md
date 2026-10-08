@@ -30,23 +30,23 @@ Las capturas de antes y después están en `capturas/pulido-2/antes` y `capturas
 | 11 | Diálogos en el móvil | Con el teclado abierto, los botones del diálogo podían quedar fuera de la vista | Media | Se quedan pegados abajo |
 | 12 | Todo el producto | Sin conexión no se avisaba: se escribía o se pulsaba «Enviar» sin saber por qué fallaba | Media | Aviso arriba («Sin conexión…») que se va solo al volver la red |
 | 13 | Panel | Doce errores decían solo «No se ha podido…» | Baja | Añaden qué hacer («Inténtalo de nuevo») |
-| 14 | Panel | Palabras distintas para lo mismo: «categorías» y «temas»; «el informante» y «quien informa»; «Espera al informante» y «Esperando a quien informa» | Baja | Unificado en «temas» y «quien informa» (historial, Informe y avisos de «sin acceso») |
+| 14 | Panel | Palabras distintas para lo mismo: «categorías» y «temas»; «el informante» y «quien informa»; «Espera al informante» y «Esperando a quien informa» | Baja | Unificado en «temas» y «quien informa» (historial, Informe y avisos de «sin acceso»). En «Registrar», «caso» (propuesta 2) |
 | 15 | Títulos y entradillas | Palabras sueltas en la última línea de algunos párrafos | Baja | Reparto de líneas equilibrado |
-| 16 | Tablero | Con poca altura se veía una sola tarjeta por columna | Media | A 1366×768 se ven dos por columna. A 1280×720 la columna central enseña una (ver propuesta 3) |
+| 16 | Tablero | Con poca altura se veía una sola tarjeta por columna | Media | Dos por columna a 1366×768, 1280×720 y 1280×700 (con la propuesta 3) |
 
-## Propuestas que no he tocado (cambian la estructura o un texto)
+## Propuestas (decididas por David el 8 de octubre de 2026)
 
-| # | Pantalla | Problema | Gravedad | Propuesta |
-|---|---|---|---|---|
-| 1 | Todo el panel | «Registrar caso» va en azul en todas las pantallas y compite con el botón principal de cada una (el siguiente paso de la ficha, «Informe para dirección», «Guardar»). Hay dos o tres botones «principales» a la vez | Media | Dejarlo en azul solo en el tablero y en gris en las demás |
-| 2 | Registrar | El botón dice «Registrar caso» y la pantalla se titula «Registrar una denuncia» | Baja | Unificar. Las dos formas vienen de las maquetas (G2 y G7): dime cuál |
-| 3 | Cabecera del panel | Por debajo de 1367 px el menú baja a una segunda fila y quita altura al contenido | Media | En pantallas estrechas, esconder los chips «Demo» y «Prueba · 21 días» detrás del nombre, o acortar el menú a «Compartir» y «Ajustes» |
-| 4 | Panel | El idioma solo se cambia desde el menú del avatar; cuesta encontrarlo | Baja | Dejarlo también en Equipo y ajustes, «Tu seguridad» |
-| 5 | Tablero | «Cerradas» enseña 2 y «Ver las N»; al abrir N se alarga mucho | Baja | Paginar de 10 en 10 |
-| 6 | Ficha del caso | En casos largos, el siguiente paso queda arriba y hay que volver para darlo | Media | Que la franja oscura se quede fija arriba al bajar |
-| 7 | Mi caso | No se enseña el resultado, solo que está cerrado | — | Pendiente del abogado (duda 12 de `REVISION_LEGAL.md`) |
-| 8 | Canal y panel | La reunión presencial se «propone» en 7 días | — | Texto legal, pendiente del abogado (duda 1) |
-| 9 | Campos de fecha | El navegador los pinta a su manera (formato e idioma del sistema) | Baja | Dejarlo: un selector propio pesa más de lo que aporta |
+| # | Pantalla | Problema | Gravedad | Propuesta | Decisión |
+|---|---|---|---|---|---|
+| 1 | Todo el panel | «Registrar caso» va en azul en todas las pantallas y compite con el botón principal de cada una (el siguiente paso de la ficha, «Informe para dirección», «Guardar»). Hay dos o tres botones «principales» a la vez | Media | Dejarlo en azul solo en el tablero y en gris en las demás | **Hecha.** Azul en el tablero, gris en las demás pantallas |
+| 2 | Registrar | El botón dice «Registrar caso» y la pantalla se titula «Registrar una denuncia» | Baja | Unificar. Las dos formas vienen de las maquetas (G2 y G7): dime cuál | **Hecha.** Botón «Registrar caso», título «Registrar un caso», y toda la pantalla habla de «caso» (también en CA y EN) |
+| 3 | Cabecera del panel | Por debajo de 1367 px el menú baja a una segunda fila y quita altura al contenido | Media | En pantallas estrechas, esconder los chips «Demo» y «Prueba · 21 días» detrás del nombre, o acortar el menú a «Compartir» y «Ajustes» | **Hecha.** Por debajo de 1367 px se esconden los chips y el menú cabe en una fila hasta 1180 px. A 1280×720 y 1280×700 el tablero enseña dos tarjetas por columna |
+| 4 | Panel | El idioma solo se cambia desde el menú del avatar; cuesta encontrarlo | Baja | Dejarlo también en Equipo y ajustes, «Tu seguridad» | **Hecha.** Selector CA/ES/EN en «Tu seguridad» |
+| 5 | Tablero | «Cerradas» enseña 2 y «Ver las N»; al abrir N se alarga mucho | Baja | Paginar de 10 en 10 | **Hecha.** Las 2 últimas y luego «Ver 10 más (de N)»; al final, «Ver menos» |
+| 6 | Ficha del caso | En casos largos, el siguiente paso queda arriba y hay que volver para darlo | Media | Que la franja oscura se quede fija arriba al bajar | **Descartada** de momento |
+| 7 | Mi caso | No se enseña el resultado, solo que está cerrado | — | Pendiente del abogado (duda 12 de `REVISION_LEGAL.md`) | No se toca (pendiente del abogado) |
+| 8 | Canal y panel | La reunión presencial se «propone» en 7 días | — | Texto legal, pendiente del abogado (duda 1) | No se toca (pendiente del abogado) |
+| 9 | Campos de fecha | El navegador los pinta a su manera (formato e idioma del sistema) | Baja | Dejarlo: un selector propio pesa más de lo que aporta | No se toca |
 
 ## Lo que está bien y no se ha tocado
 

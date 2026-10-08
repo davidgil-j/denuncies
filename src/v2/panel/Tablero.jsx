@@ -11,6 +11,7 @@ import { STEPS, StepsRing, onboardingState, aipiInfo } from './primeros.jsx';
 const FILTERS = ['cat', 'pr', 'st', 'dl', 'mine', 'from', 'to'];
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const CLOSED_SHOWN = 2;
+const CLOSED_STEP = 10;
 
 export default function Tablero() {
   const { lang, t, tr, p, org, members, profile, email, isSuperadmin, allowedCategories, can, notify } = usePanel();
@@ -20,7 +21,7 @@ export default function Tablero() {
   const [failed, setFailed] = useState(false);
   const [due, setDue] = useState([]);
   const [filtering, setFiltering] = useState(false);
-  const [allClosed, setAllClosed] = useState(false);
+  const [closedShown, setClosedShown] = useState(CLOSED_SHOWN);
   const [exporting, setExporting] = useState(false);
 
   const noAccess = !isSuperadmin && allowedCategories.length === 0;
@@ -122,11 +123,15 @@ export default function Tablero() {
 
   const cols = ['new', 'open', 'closed'].map(id => {
     const items = columns[id];
-    const cut = id === 'closed' && !allClosed ? items.slice(0, CLOSED_SHOWN) : items;
+    // Las cerradas: las 2 últimas y, a partir de ahí, de 10 en 10
+    const cut = id === 'closed' ? items.slice(0, closedShown) : items;
+    const left = items.length - cut.length;
     return {
       id, name: p.cols[id], items: cut, total: items.length, empty: active ? p.emptyFiltered : p.colEmpty[id],
       footer: id === 'closed' && items.length > CLOSED_SHOWN
-        ? <button type="button" className="pn-link" onClick={() => setAllClosed(v => !v)}>{allClosed ? p.seeLess : fmt(p.seeAll, { n: items.length })}</button>
+        ? (left > 0
+          ? <button type="button" className="pn-link" onClick={() => setClosedShown(n => n + CLOSED_STEP)}>{fmt(p.seeMore, { n: Math.min(CLOSED_STEP, left), total: items.length })}</button>
+          : <button type="button" className="pn-link" onClick={() => setClosedShown(CLOSED_SHOWN)}>{p.seeLess}</button>)
         : null,
     };
   });

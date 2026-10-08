@@ -436,6 +436,8 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 40p
   .ds-dialog-body { padding: 22px 18px calc(18px + env(safe-area-inset-bottom)); }
   .ds-dialog-actions > .ds-btn { flex: 1 1 auto; }
   /* En el móvil los botones del diálogo se quedan pegados abajo: siempre a la vista, también con el teclado abierto */
+  /* …y lo que recibe el foco o se trae a la vista queda por encima de esa barra, nunca debajo */
+  .ds-dialog { scroll-padding-bottom: 104px; }
   .ds-dialog-actions { position: sticky; bottom: 0; z-index: 1; margin: auto -18px calc(-18px - env(safe-area-inset-bottom)); padding: 10px 18px calc(18px + env(safe-area-inset-bottom)); background: #FFFFFF; }
 }
 

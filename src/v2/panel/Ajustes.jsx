@@ -2,12 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, Check, Circle, CircleAlert, Mail } from 'lucide-react';
 import { updatePassword } from '../../lib/supabase.js';
-import { AIPI_URL, ANTIFRAU_URL, fmt } from '../V2Layout.jsx';
+import { AIPI_URL, ANTIFRAU_URL, LANGS, fmt } from '../V2Layout.jsx';
+import { translations } from '../../translations.js';
 import { planInfo, fLong } from '../admin/adminKit.jsx';
 import { PLANS, CONTACT_EMAIL, formatPrice } from '../site/plans.js';
 import { EMAIL_RE, authErrorKey } from '../site/fields.jsx';
 import { isoDay } from '../../lib/businessDays.js';
-import { Button, Card, Dialog, Field, cx } from '../ui/index.js';
+import { Button, Card, Dialog, Field, Segmented, cx } from '../ui/index.js';
 import { usePanel, Tp } from './kit.jsx';
 import { aipiInfo, hasOnboarding } from './primeros.jsx';
 import Equipo from './Equipo.jsx';
@@ -320,7 +321,7 @@ function Empresa() {
 
 // ── Tu seguridad ─────────────────────────────────────────────────────────
 function TuSeguridad() {
-  const { p, mfaSetup, notify } = usePanel();
+  const { lang, setLang, p, mfaSetup, notify } = usePanel();
   const s = p.set;
   const w = p.pw;
   const [changing, setChanging] = useState(false);
@@ -365,6 +366,10 @@ function TuSeguridad() {
       <div className="st-tile">
         <span className="st-tile-row"><b>{s.pwd}</b></span>
         <button type="button" className="st-link" onClick={open}>{s.change}<span className="ds-vh">: {s.pwd}</span></button>
+      </div>
+      <div className="st-tile">
+        <span className="st-tile-row"><b>{p.language}</b></span>
+        <Segmented tone="bg" label={p.language} value={lang} onChange={setLang} options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: translations[l].langName, lang: l }))} />
       </div>
 
       <Dialog open={changing} onClose={() => { if (!busy) setChanging(false); }} title={s.pwdT}>

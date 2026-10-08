@@ -14,7 +14,10 @@
 .pn-tools { grid-area: tools; }
 .pn-brand { grid-area: brand; display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 16px; }
 .pn-brand b { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 26ch; }
-@media (max-width: 1367px) { .pn-head { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand tools" "nav nav"; } }
+/* Por debajo de 1367 px se esconden los chips «Demo» y «Prueba» para que todo quepa en una fila; el plan sigue en
+   Equipo y ajustes. Solo cuando ni así cabe (pantallas estrechas) el menú baja a una segunda fila. */
+@media (max-width: 1367px) { .pn-brand .ds-chip, .pn-chiplink { display: none; } .pn-brand b { max-width: 18ch; } }
+@media (max-width: 1179px) { .pn-head { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand tools" "nav nav"; } }
 .pn-brand-link { display: flex; align-items: center; gap: 10px; min-width: 0; text-decoration: none; }
 .ds .pn-brand-link { color: var(--ink); }
 .pn-chiplink { text-decoration: none; display: inline-flex; }

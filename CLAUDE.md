@@ -2,11 +2,13 @@
 
 ## Què és aquest projecte
 
-Aplicació web per a empreses privades que necessiten un **canal intern de denúncies** conforme a la Llei 2/2023 (transposició de la Directiva europea de protecció de denunciants, "whistleblowing").
+Aplicació web (Reportia) per a empreses privades que necessiten un **canal intern de denúncies** conforme a la Llei 2/2023 (transposició de la Directiva europea de protecció de denunciants, "whistleblowing").
 
-Consta de dues parts:
-- **Canal públic**: qualsevol persona (empleat, proveïdor, client) pot presentar una denúncia de forma anònima o identificada, i fer-ne seguiment per codi.
-- **Panell de control privat**: els gestors de l'empresa revisen, investiguen i responen les denúncies.
+Té el disseny **«dues meitats»**: dos costats que sempre es veuen junts.
+- **Denunciar** (blau): qualsevol persona (empleat, proveïdor, client) presenta una denúncia, anònima o identificada, en tres passos, i en fa el seguiment amb un codi secret («El meu cas»).
+- **Gestionar** (blanc): l'equip de l'empresa rep, investiga i respon les denúncies des d'un tauler de tres columnes.
+
+Quan s'és en un costat, l'altre queda plegat en una franja lateral fixa.
 
 L'aplicació està **en producció** a Vercel (frontend) + Supabase (base de dades i autenticació).
 
@@ -17,16 +19,17 @@ L'aplicació està **en producció** a Vercel (frontend) + Supabase (base de dad
 | Capa | Tecnologia |
 |------|-----------|
 | Frontend | React 18 + Vite 5 (JavaScript/JSX) |
-| Routing | React Router DOM 7 |
-| Formularis | React Hook Form |
-| Base de dades | Supabase (PostgreSQL) |
-| Autenticació | Supabase Auth (email + MFA TOTP) |
+| Routing | React Router DOM 7 (rutes amb `lazy()`) |
+| Base de dades | Supabase (PostgreSQL, RLS, funcions RPC) |
+| Autenticació | Supabase Auth (correu + MFA TOTP obligatòria) |
 | Storage (adjunts) | Supabase Storage (bucket privat) |
-| Exportació | ExcelJS (Excel) + jsPDF (PDF) |
-| Deploy | Vercel |
+| Funcions de servidor | Supabase Edge Functions (Deno) |
+| Exportació | ExcelJS (Excel) + jsPDF (PDF, amb Manrope) |
+| Tipografia | Manrope (`@fontsource/manrope`) al producte; Wix Madefor només a la portada |
 | Icones | Lucide React |
-| Monitoratge | Sentry (configurat via variable d'entorn, opcional) |
-| Email | EmailJS (configurat via variable d'entorn, opcional) |
+| Antispam | Cloudflare Turnstile (opcional) |
+| Monitoratge | Sentry (opcional, mai al canal de denúncies) |
+| Deploy | Vercel |
 
 ---
 
@@ -34,103 +37,161 @@ L'aplicació està **en producció** a Vercel (frontend) + Supabase (base de dad
 
 ```
 src/
-├── contexts/
-│   └── AdminAuth.jsx          # Gestió de sessió i permisos del panell admin
+├── main.jsx                 # Arrencada (Sentry opcional)
+├── App.jsx                  # Totes les rutes
+├── translations.js          # Tots els textos, en ca / es / en
 ├── lib/
-│   ├── supabase.js            # Totes les crides a la base de dades
-│   └── export.js              # Lògica d'exportació Excel i PDF
-├── pages/
-│   ├── ComplaintForm.jsx      # Formulari públic de denúncia (4 passos)
-│   ├── TrackingPortal.jsx     # Portal de seguiment per codi
-│   ├── PrivacyPolicy.jsx      # Política de privacitat (RGPD + Llei 2/2023)
-│   └── admin/
-│       ├── Login.jsx          # Login admin + MFA
-│       ├── Dashboard.jsx      # Llistat i filtres de denúncies
-│       ├── ComplaintDetail.jsx# Detall, missatgeria i gestió d'una denúncia
-│       ├── Users.jsx          # Gestió d'usuaris (només superadmin)
-│       ├── MFASetup.jsx       # Configuració autenticació en dos passos
-│       ├── ForgotPassword.jsx
-│       └── ResetPassword.jsx
-├── translations.js            # Totes les cadenes de text en ca/es/en
-├── App.jsx                    # Definició de rutes
-├── global.css
-└── main.jsx
+│   ├── supabase.js          # TOTES les crides a la base de dades i a les funcions
+│   ├── demoStore.js         # Dades del mode demo (sessionStorage); només es carrega en demo
+│   ├── businessDays.js      # Dies hàbils (termini de l'AIPI)
+│   ├── whenFallback.js      # El «quan» en text quan la BD no té la columna
+│   └── cleanImage.js        # Treu les metadades de les fotos adjuntes
+└── v2/
+    ├── ds.css               # Sistema visual «B · Color»: tokens, peces i les dues meitats (tot sota .ds)
+    ├── ui/                  # Peces comunes: SplitShell, SideTab, Button, Card, Field, Dialog, Kanban,
+    │                        #   CaseCard, ChatThread, Menu, OtpInput, Offline… (index.js les exporta)
+    ├── canal/               # Costat Denunciar (/canal/:slug)
+    │   ├── Canal.jsx        #   Les dues meitats, idioma i esborrany (només en memòria)
+    │   ├── Entrada.jsx      #   Entrada: Denunciar / Gestionar
+    │   ├── Denuncia.jsx     #   Els 3 passos
+    │   ├── Enviada.jsx      #   Codi secret i justificant PDF
+    │   ├── Consulta.jsx     #   Escriure el codi i «El meu cas»
+    │   ├── Privacidad.jsx   #   Política de privacitat dins del canal
+    │   └── Pruebas.jsx, shared.jsx, canal.css
+    ├── panel/               # Costat Gestionar (/admin)
+    │   ├── Panel.jsx        #   Marc del panell: sessió, MFA, menú, cerca, avisos
+    │   ├── Acceso.jsx       #   Accés i verificació en dos passos
+    │   ├── Contrasena.jsx   #   Recuperar i canviar la contrasenya (enllaços del correu)
+    │   ├── Tablero.jsx      #   Tauler de 3 columnes (Noves, En curs, Tancades)
+    │   ├── Caso.jsx         #   Fitxa del cas amb el «següent pas»
+    │   ├── Registrar.jsx    #   Registrar un cas arribat per telèfon, en persona o per carta
+    │   ├── Informe.jsx      #   Informe de l'any
+    │   ├── Compartir.jsx    #   Enllaç, cartell amb QR, botó per al web, text de l'art. 25 i «Primers passos»
+    │   ├── Ajustes.jsx      #   Equip i ajustos: Responsable, pla, empresa, la teva seguretat
+    │   ├── Equipo.jsx       #   Qui gestiona: invitar, permisos per tema, administradors, treure accés
+    │   ├── Seguridad.jsx    #   Verificació en dos passos (/admin/mfa)
+    │   ├── Ia.jsx           #   Ajudes d'IA (només amb VITE_AI_ENABLED=1)
+    │   └── kit.jsx, primeros.jsx, panel.css
+    ├── lib/                 # exportV2.js (Excel, PDF del cas, informe, cartell), pdfFonts.js (Manrope), receipt.js
+    ├── site/                # Web de Reportia: portada (/), /crear-compte, /privacitat, 404
+    ├── admin/adminKit.jsx   # Terminis legals, pla i textos del registre (compartit pel panell)
+    ├── emails/              # Plantilles HTML dels correus de Supabase Auth (s'enganxen al dashboard)
+    ├── dev/                 # /dev/ui: totes les peces del disseny (només en desenvolupament)
+    ├── V2Layout.jsx         # Stable/Swap (que res no es mogui en canviar d'idioma), idiomes, enllaços legals
+    ├── Ficha.jsx            # «Què guardem i què no»
+    └── v2.css               # Estils de la portada
 
 supabase/
-├── migrations/                # Canvis de schema de base de dades
-└── functions/                 # Edge functions serverless
+├── migrations/              # 001 … 013, totes additives i repetibles
+└── functions/               # invite-manager, delete-manager, notify, ai-assist (no desplegada)
 
 scripts/
-└── migrate.js                 # Executa migracions a Supabase
+├── migrate.js               # Executa migracions a Supabase (no fer-lo servir sense permís)
+├── test-rls.mjs             # Proves de la base de dades en memòria (npm run db:test)
+├── pdf-fonts.mjs            # Regenera src/v2/lib/pdfFonts.js (Manrope per als PDF)
+├── textos-sin-uso.mjs       # Llista (o treu amb --write) els textos que no fa servir cap pantalla
+└── landing-*.mjs            # Captures i fotos de la portada
+
+docs/
+├── IA.md                    # Què cal per encendre la IA
+├── REVISION_LEGAL.md        # Dubtes pendents de l'advocat (no canviar aquests textos sense resposta)
+└── REVISION_UX.md           # Revisió de disseny i usabilitat
 ```
 
 ---
 
 ## Rutes de l'aplicació
 
-### Canal públic
+### Web de Reportia
 | Ruta | Pàgina |
 |------|--------|
-| `/` | Formulari de denúncia + portal de seguiment |
-| `/privacitat` | Política de privacitat |
+| `/` | Portada comercial |
+| `/crear-compte` | Alta d'una empresa |
+| `/privacitat` | Política de privacitat de Reportia |
 
-### Panell admin (requereix login)
+### Canal de cada empresa (costat Denunciar)
 | Ruta | Pàgina |
 |------|--------|
-| `/admin/login` | Login + verificació MFA |
-| `/admin/forgot-password` | Recuperació de contrasenya |
-| `/admin/reset-password` | Reset de contrasenya |
-| `/admin` | Dashboard de denúncies |
-| `/admin/complaints/:id` | Detall d'una denúncia |
-| `/admin/users` | Gestió d'usuaris (superadmin) |
-| `/admin/mfa` | Configuració 2FA |
+| `/canal/:slug` | Entrada en dues meitats |
+| `/canal/:slug/denuncia` | Els 3 passos i la denúncia enviada |
+| `/canal/:slug/consulta` | Escriure el codi i «El meu cas» |
+| `/canal/:slug/privacidad` | Política de privacitat dins del canal |
+| `/canal/demo` | Canal d'exemple (sempre en mode demo; «Gestionar» porta a `/crear-compte`) |
+
+### Panell (costat Gestionar, requereix login + MFA)
+| Ruta | Pàgina |
+|------|--------|
+| `/admin/login` | Accés + verificació en dos passos (`?from=slug` mostra l'empresa) |
+| `/admin/forgot-password` | Recuperar la contrasenya |
+| `/admin/reset-password` | Contrasenya nova (enllaç de recuperació o d'invitació) |
+| `/admin` | Tauler |
+| `/admin/complaints/:id` | Fitxa del cas |
+| `/admin/nueva` | Registrar un cas |
+| `/admin/report` | Informe |
+| `/admin/integration` | Compartir el canal (només administradors) |
+| `/admin/ajustes` | Equip i ajustos (`/admin/users` i `/admin/account` hi redirigeixen) |
+| `/admin/mfa` | Verificació en dos passos |
 
 ---
 
 ## Base de dades (taules principals)
 
-- **complaints** — dades de la denúncia (tracking_code, categoria, descripció, estat, prioritat, idioma, anònim o identificat)
-- **attachments** — fitxers adjunts vinculats a una denúncia
-- **messages** — missatgeria entre el denunciant i el gestor
-- **audit_logs** — registre de totes les accions fetes sobre una denúncia
-- **manager_permissions** — permisos granulars per gestor i categoria (can_view, can_edit, can_reply, can_delete)
-- **profiles** — perfils d'usuaris admin (rol: superadmin o manager)
+- **organizations** — empresa: nom, slug, pla i prova, Responsable del Sistema (nom, càrrec, data de nomenament, data de comunicació a l'AIPI), autoritat autonòmica, facturació, `onboarding` (primers passos marcats a mà)
+- **complaints** — denúncia: referència interna, hash del codi de seguiment, categoria, descripció, «quan» en text, estat, prioritat, idioma, anònima o identificada, via d'entrada, reunió demanada i feta, resultat, títol, qui la porta, resum i títol d'IA, dates legals
+- **attachments** — fitxers adjunts
+- **messages** — missatges entre qui informa i qui gestiona
+- **audit_logs** — registre de totes les accions sobre una denúncia
+- **manager_permissions** — permisos per gestor i tema (can_view, can_edit, can_reply, can_delete)
+- **profiles** — usuaris del panell (rol: superadmin o manager)
+
+Migracions: de la `001` a la `013`, totes executades a producció. Qualsevol canvi nou va en una `014` additiva i repetible, amb les seves proves a `scripts/test-rls.mjs`.
 
 ### Estats d'una denúncia
 `received` → `reviewing` → `investigating` → `waiting` → `resolved` → `closed` → `archived`
+
+Al tauler: **Noves** (`received`), **En curs** (`reviewing`, `investigating`, `waiting`) i **Tancades** (`resolved`, `closed`, `archived`, i qualsevol cas amb les dades suprimides).
 
 ### Prioritats
 `low` | `normal` | `high` | `critical`
 
 ---
 
-## Rols i permisos (admin)
+## Rols i permisos (panell)
 
-- **Superadmin**: accés complet a totes les denúncies i a la gestió d'usuaris
-- **Manager**: accés limitat a les categories assignades, amb permisos configurables (veure, editar, respondre, eliminar)
+- **Superadmin** (administració): totes les denúncies, l'equip, el compte i «Compartir el canal».
+- **Manager** (gestió): només els temes assignats, amb permisos configurables (veure, editar, respondre, eliminar). A «Equip i ajustos» només veu «La teva seguretat».
 
 ---
 
 ## Seguretat
 
 - **Row Level Security (RLS)** a totes les taules de Supabase — crític, no bypassar mai
-- MFA TOTP (Google Authenticator / Authy) per als administradors
-- Honeypot anti-spam al formulari públic
-- Storage privat per als adjunts (no accessibles públicament per URL directa)
+- MFA TOTP obligatòria per veure denúncies (sense codis de recuperació: la restableix un administrador o Reportia)
+- L'esborrany de la denúncia viu només a la memòria de React: res al navegador
+- Honeypot i Turnstile (opcional) al formulari públic
+- Storage privat per als adjunts
 - Conforme a RGPD i Llei 2/2023
 
 ---
 
-## Variables d'entorn necessàries
+## Variables d'entorn
 
 ```
 VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
+VITE_PUBLIC_ORIGIN=          # opcional; l'adreça pública per als enllaços i el QR (si no, la de la pàgina)
+VITE_TURNSTILE_SITE_KEY=     # opcional; antispam al formulari i a l'accés
+VITE_MAX_FILE_MB=            # opcional; mida màxima de cada adjunt (50 per defecte)
 VITE_SENTRY_DSN=             # opcional
-VITE_EMAILJS_SERVICE_ID=     # opcional
-VITE_EMAILJS_TEMPLATE_ID=    # opcional
-VITE_EMAILJS_PUBLIC_KEY=     # opcional
+VITE_DEMO=                   # opcional; 1 = mode demo en un build sense credencials (per ensenyar la web)
 VITE_AI_ENABLED=             # opcional; 1 encén les ajudes d'IA del panell (apagades per defecte, vegeu docs/IA.md)
+```
+
+Secrets de les funcions de servidor (a Supabase, mai al codi):
+```
+invite-manager:  SITE_URL
+notify:          RESEND_API_KEY, MAIL_FROM, SITE_URL, WEBHOOK_SECRET
+ai-assist:       AI_PROVIDER_URL, AI_API_KEY, AI_MODEL, AI_PROVIDER_FORMAT   (no desplegada)
 ```
 
 Variables locals (no al repositori):
@@ -146,27 +207,42 @@ SUPABASE_PAT=
 ```bash
 npm run dev        # Servidor de desenvolupament (port 3000)
 npm run build      # Build per a producció
-npm run db:migrate # Executa migracions de base de dades
+npm run db:test    # Proves de seguretat de la base de dades, en memòria (PGlite): no toca res real
+npm run db:migrate # Executa migracions a Supabase (només amb permís explícit)
+node scripts/pdf-fonts.mjs        # Regenera la tipografia dels PDF
+node scripts/textos-sin-uso.mjs   # Llista els textos sense ús (--write per treure'ls)
 ```
+
+### Com provar sense tocar Supabase
+
+- **Mode demo:** sense credencials, l'app funciona amb dades d'exemple.
+  `VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= npx vite --port 3111`
+  Per entrar al panell: qualsevol correu i contrasenya i qualsevol codi de 6 xifres. Les dades viuen a `sessionStorage` (`reportia-demo-store-v4`) i es reinicien en tancar la pestanya.
+  Amb `VITE_AI_ENABLED=1` es veuen les ajudes d'IA amb textos d'exemple.
+- **Base de dades:** `npm run db:test` aplica totes les migracions a un Postgres en memòria i comprova les polítiques.
+- **Sense una migració:** l'app continua funcionant si la base de dades no té les columnes de la 012 o la 013 (vegeu `withRedesign` a `supabase.js`).
 
 ---
 
 ## Convencions obligatòries
 
 ### 1. Sempre tres idiomes
-Qualsevol text visible a la interfície ha d'existir en **els tres idiomes**: Català (`ca`), Espanyol (`es`) i Anglès (`en`). El fitxer [src/translations.js](src/translations.js) conté totes les cadenes. Mai s'ha d'afegir text directament al JSX en un sol idioma.
+Qualsevol text visible ha d'existir en **català (`ca`), castellà (`es`) i anglès (`en`)** a [src/translations.js](src/translations.js). Mai text directament al JSX en un sol idioma. To: **«tu»** a tot el producte. Títols i botons grans amb `Stable`/`Tc`/`Tp`, perquè res no es mogui en canviar d'idioma.
 
 ### 2. Canvis de base de dades sempre amb migració
-Qualsevol modificació a l'estructura de la base de dades (nova columna, nova taula, canvi de tipus) requereix un fitxer de migració a `supabase/migrations/`. Mai modificar el schema directament des del dashboard de Supabase sense crear primer la migració.
+Qualsevol modificació de l'estructura requereix un fitxer a `supabase/migrations/`, additiu i repetible, amb proves a `scripts/test-rls.mjs`. Mai modificar el schema directament des del dashboard de Supabase.
 
 ### 3. JavaScript, no TypeScript
-Tot el projecte és en JSX/JavaScript. No migrar ni afegir TypeScript.
+Tot el frontend és JSX/JavaScript (les Edge Functions són TypeScript de Deno).
 
 ### 4. No bypassar RLS
-Les polítiques de seguretat a nivell de fila de Supabase protegeixen totes les dades. No afegir `serviceRole` ni desactivar RLS per simplificar consultes.
+No afegir `serviceRole` ni desactivar RLS al frontend. Només les funcions de servidor fan servir la clau de servei.
 
 ### 5. Totes les crides a BD passen per `src/lib/supabase.js`
-Cap component ha de fer crides directes a Supabase. Totes les operacions de dades es fan a través de les funcions exportades per `supabase.js`.
+Cap component crida Supabase directament.
+
+### 6. Les peces del disseny, a `src/v2/ui`
+Les pantalles noves fan servir les peces comunes i els tokens de `ds.css`. Accessibilitat: botons i enllaços de veritat, focus visible, `aria-label` als botons d'icona, contrast mínim 4,5:1 (mesurat), diàlegs propis (mai `confirm()`).
 
 ---
 
@@ -176,3 +252,4 @@ Cap component ha de fer crides directes a Supabase. Totes les operacions de dade
 - Client tipus: empresa privada de 50+ treballadors obligada per llei a tenir canal intern de denúncies
 - Requisit clau: garantir l'anonimat i la confidencialitat del denunciant
 - Els gestors no han de poder esbrinar la identitat d'un denunciant anònim en cap cas
+- Els textos legals pendents de revisió són a `docs/REVISION_LEGAL.md`: no canviar-los sense resposta de l'advocat
