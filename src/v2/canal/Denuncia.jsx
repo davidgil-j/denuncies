@@ -164,13 +164,13 @@ export default function Denuncia() {
               <Tc as="p" className="ds-lead" lang={lang} k="q1Lead" />
             </div>
             <div className="cats" role="radiogroup" aria-label={t.q1Group} ref={groupRef} onKeyDown={onCatKey}>
-              {CATEGORIES.map((value, i) => {
+              {CATEGORIES.map((value) => {
                 const Icon = CAT_ICON[value];
                 const on = draft.category === value;
                 return (
                   <button
                     key={value} type="button" role="radio" aria-checked={on} className={cx('cat', value === 'other' && 'is-other')}
-                    tabIndex={on || (!draft.category && i === 0) ? 0 : -1} onClick={() => set({ category: value })}
+                    onClick={() => set({ category: value })}
                   >
                     <span className="cat-ico" aria-hidden="true"><Icon size={24} strokeWidth={1.8} /></span>
                     <Tc

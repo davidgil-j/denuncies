@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import Canal from './v2/canal/Canal.jsx';
 import V2SiteLayout from './v2/site/V2SiteLayout.jsx';
 import V2Landing from './v2/site/V2Landing.jsx';
@@ -28,6 +28,12 @@ const Ajustes = lazy(() => import('./v2/panel/Ajustes.jsx'));
 const Seguridad = lazy(() => import('./v2/panel/Seguridad.jsx'));
 // Página de trabajo con las piezas del diseño: solo existe en desarrollo, no entra en el build
 const DevUi = import.meta.env.DEV ? lazy(() => import('./v2/dev/DevUi.jsx')) : null;
+
+// Qualsevol adreça desconeguda dins d'un canal (per llarga que sigui) torna a l'entrada d'aquell canal
+function ToChannel() {
+  const { slug } = useParams();
+  return <Navigate to={`/canal/${slug}`} replace />;
+}
 
 // Mentre es descarrega una part: un indicador discret i accessible
 function Loading() {
@@ -75,7 +81,7 @@ export default function App() {
           <Route path="denuncia" element={canalPage(<Denuncia />)} />
           <Route path="consulta" element={canalPage(<Consulta />)} />
           <Route path="privacidad" element={canalPage(<Privacidad />)} />
-          <Route path="*" element={<Navigate to=".." relative="path" replace />} />
+          <Route path="*" element={<ToChannel />} />
         </Route>
 
         {DevUi && <Route path="/dev/ui" element={page(<DevUi />)} />}

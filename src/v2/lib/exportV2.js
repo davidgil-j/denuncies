@@ -23,18 +23,20 @@ const CLOSED = new Set(['resolved', 'closed', 'archived']);
 const PRIORITY_ORDER = ['critical', 'high', 'normal', 'low'];
 
 // Paleta (mateixos valors que els tokens de src/v2/v2.css)
+// Los colores del sistema «B · Color» (src/v2/ds.css): tinta, azul del producto y sus neutros
 const C = {
-  navy:   [15, 34, 66],
-  accent: [28, 76, 150],
-  ink:    [15, 27, 45],
-  ink2:   [70, 84, 106],
-  ink3:   [90, 103, 123],
-  line:   [211, 218, 228],
-  line2:  [229, 233, 239],
-  bg:     [243, 245, 248],
-  tint:   [238, 243, 250],
-  danger: [180, 35, 24],
+  navy:   [13, 21, 48],    // --ink: títulos, cabeceras de tabla y marca
+  accent: [47, 84, 235],   // --report: el azul del producto
+  ink:    [13, 21, 48],
+  ink2:   [77, 86, 114],   // --muted
+  ink3:   [98, 107, 133],
+  line:   [215, 222, 239], // --line
+  line2:  [238, 241, 247], // --soft
+  bg:     [242, 244, 248], // --bg
+  tint:   [232, 237, 255], // --report-soft
+  danger: [156, 28, 18],   // --danger
   white:  [255, 255, 255],
+  onAccent: [227, 233, 255], // --on-report-muted: texto secundario sobre el azul
 };
 const argb = rgb => 'FF' + rgb.map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
 
@@ -483,7 +485,7 @@ function ensureSpace(ctx, needed) {
 // Capçalera de cada pàgina: banda, organització, canal i marca de confidencialitat
 function drawRunningHeader(ctx) {
   const { doc, W, M, D, org } = ctx;
-  doc.setFillColor(...C.navy);
+  doc.setFillColor(...C.accent);
   doc.rect(0, 0, W, 2.2, 'F');
 
   const mid = 12.6;
@@ -505,7 +507,7 @@ function drawRunningHeader(ctx) {
   if (org) {
     const s = 7.6;
     doc.setFillColor(...C.navy);
-    doc.roundedRect(M, mid - s / 2, s, s, 1.3, 1.3, 'F');
+    doc.roundedRect(M, mid - s / 2, s, s, 2, 2, 'F');
     font(ctx, { kind: 'display', size: 8, color: C.white });
     doc.text(initials(org) || '·', M + s / 2, mid + 0.15, { align: 'center', baseline: 'middle' });
     font(ctx, { bold: true, size: 8.6, color: C.ink });
@@ -981,7 +983,7 @@ export async function buildChannelPoster({ orgName = '', url, lang = 'es' }) {
   const M = 20;
   const CW = W - M * 2;
   const { default: QRCode } = await import('qrcode');
-  const qr = await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 0, width: 960, color: { dark: '#0A1830', light: '#ffffff' } });
+  const qr = await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 0, width: 960, color: { dark: '#0D1530', light: '#ffffff' } });
   const shown = url.replace(/^https?:\/\//, '');
 
   // Banda superior: organització (fins a dues línies) i marc legal
@@ -989,11 +991,11 @@ export async function buildChannelPoster({ orgName = '', url, lang = 'es' }) {
   const nameLines = doc.splitTextToSize(orgName, CW).slice(0, 2);
   if (doc.splitTextToSize(orgName, CW).length > 2) nameLines[1] = fit(doc, `${nameLines[1]} …`, CW);
   const bandH = 36 + (nameLines.length - 1) * 6.5;
-  doc.setFillColor(...C.navy);
+  doc.setFillColor(...C.accent);
   doc.rect(0, 0, W, bandH, 'F');
   font(ctx, { bold: true, size: 14, color: C.white });
   doc.text(nameLines, M, 17, { lineHeightFactor: 1.3 });
-  font(ctx, { size: 9.5, color: [179, 192, 210] });
+  font(ctx, { size: 9.5, color: C.onAccent });
   doc.text(t.posterBand, M, 25 + (nameLines.length - 1) * 6.5);
 
   // Títol, promesa i explicació
@@ -1028,9 +1030,9 @@ export async function buildChannelPoster({ orgName = '', url, lang = 'es' }) {
   doc.setFillColor(...C.bg);
   doc.setDrawColor(...C.line);
   doc.setLineWidth(0.3);
-  doc.roundedRect(M, y, CW, panelH, 4, 4, 'FD');
+  doc.roundedRect(M, y, CW, panelH, 6, 6, 'FD');
   doc.setFillColor(...C.white);
-  doc.roundedRect(M + PAD - 4, y + PAD - 4, QS + 8, QS + 8, 2.5, 2.5, 'FD');
+  doc.roundedRect(M + PAD - 4, y + PAD - 4, QS + 8, QS + 8, 4, 4, 'FD');
   doc.addImage(qr, 'PNG', M + PAD, y + PAD, QS, QS);
 
   const x = M + PAD + QS + 14;

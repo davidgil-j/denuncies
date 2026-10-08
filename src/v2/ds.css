@@ -80,7 +80,7 @@ body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: #
 .ds-on-report { --focus: #FFFFFF; --link: #FFFFFF; --link-hover: var(--on-report-muted); --lead: var(--on-report-muted); --mark-bg: #FFFFFF; --mark-ink: var(--ink); color: #FFFFFF; }
 .ds-on-ink { --focus: #FFFFFF; --link: #FFFFFF; --link-hover: var(--on-ink-muted); --lead: var(--on-ink-muted); --mark-bg: #FFFFFF; --mark-ink: var(--ink); color: #FFFFFF; }
 
-.ds :where(a, button, input, textarea, select, [tabindex]):focus-visible {
+.ds :where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
@@ -420,6 +420,8 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 40p
 /* ── Diálogo propio (confirmaciones y paneles) ─────────────────────── */
 .ds-dialog { margin: auto; padding: 0; border: 0; border-radius: 28px; width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); background: #FFFFFF; color: var(--ink); overflow: auto; }
 .ds-dialog::backdrop { background: rgba(13, 21, 48, .5); }
+/* Un panel largo se puede recorrer con las flechas: cuando el foco está en él, se ve */
+.ds.ds-dialog:focus-visible { outline: 3px solid var(--ink); outline-offset: -3px; }
 .ds-dialog.is-side { margin: 16px 16px 16px auto; width: min(480px, calc(100vw - 32px)); height: calc(100dvh - 32px); }
 .ds-dialog-body { display: flex; flex-direction: column; gap: 16px; padding: 26px; min-height: 100%; }
 .ds-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }

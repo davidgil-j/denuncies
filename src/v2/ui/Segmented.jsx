@@ -4,7 +4,7 @@ import { cx } from './text.jsx';
 /**
  * Opciones en píldora. mode:
  *   toggle: botones independientes con uno marcado (el selector de idioma);
- *   radio: grupo de radio de verdad, con las flechas del teclado;
+ *   radio: grupo de radio de verdad; se recorre con Tab y también con las flechas;
  *   tabs: pestañas (las columnas del tablero en el móvil); cada opción puede llevar `controls`.
  * options: [{ value, label, ariaLabel, lang }]. loose: cada opción es su propia píldora. tone: white | bg.
  */
@@ -25,7 +25,6 @@ export default function Segmented({ options, value, onChange, mode = 'toggle', l
   }
 
   const role = { toggle: 'group', radio: 'radiogroup', tabs: 'tablist' }[mode];
-  const none = roving && !options.some(o => o.value === value);
   return (
     <div ref={ref} role={role} aria-label={label} className={cx('ds-seg', loose && 'is-loose', scroll && 'is-scroll', tone === 'bg' && 'is-bg', className)} onKeyDown={onKeyDown}>
       {options.map((o, i) => {
@@ -36,7 +35,6 @@ export default function Segmented({ options, value, onChange, mode = 'toggle', l
         return (
           <button
             key={o.value} type="button" className="ds-seg-item" lang={o.lang} aria-label={o.ariaLabel}
-            tabIndex={roving ? (on || (none && i === 0) ? 0 : -1) : undefined}
             onClick={() => onChange(o.value)} {...state}
           >
             {o.label}
