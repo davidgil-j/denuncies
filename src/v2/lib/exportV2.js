@@ -15,6 +15,7 @@ import ExcelJS from 'exceljs';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { translations } from '../../translations.js';
+import { deadlineInfo } from '../../lib/deadlines.js';
 
 const LANGS = ['ca', 'es', 'en'];
 const LOCALE = { ca: 'ca-ES', es: 'es-ES', en: 'en-GB' };
@@ -74,7 +75,8 @@ function dict(lang) {
 
 // Només una denúncia marcada explícitament com a identificada pot mostrar dades personals.
 const isIdentified = c => c?.is_anonymous === false;
-const isOpen = c => !CLOSED.has(c?.status);
+// Un caso con los datos suprimidos (art. 32) cuenta como cerrado, igual que en el panel
+const isOpen = c => !CLOSED.has(c?.status) && !c?.anonymized_at;
 
 function initials(name = '') {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -103,13 +105,6 @@ function toDate(v) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
-function addMonths(d, n) {
-  const y = d.getFullYear(), m = d.getMonth() + n;
-  const last = new Date(y, m + 1, 0).getDate();
-  return new Date(y, m, Math.min(d.getDate(), last));
-}
-const daysBetween = (from, to) => Math.round((startOfDay(to) - startOfDay(from)) / 86400000);
 
 const fDate = (v, locale) => {
   const d = toDate(v);
@@ -124,14 +119,15 @@ const fLong = (d, locale) => d.toLocaleDateString(locale, { day: 'numeric', mont
 const isoDay = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /**
- * Terminis de l'article 9 de la Llei 2/2023, comptats des de la recepció:
- * acusament de recepció en 7 dies naturals i resposta en 3 mesos.
+ * Terminis de l'article 9 de la Llei 2/2023, amb el mateix compte que el panell (src/lib/deadlines.js):
+ * acusament en 7 dies naturals i resposta en 3 mesos o fins a la data ampliada, en dies de Madrid.
+ * Una denúncia ja resposta (encara que s'hagi reobert) o suprimida no surt mai com a vençuda.
  */
 function legalDeadlines(complaint, now, messages = []) {
   const received = toDate(complaint?.created_at);
   if (!received) return null;
-  const ack = addDays(startOfDay(received), 7);
-  const reply = addMonths(startOfDay(received), 3);
+  const P = deadlineInfo(complaint, now);
+  const open = isOpen(complaint) && !complaint.anonymized_at;
   const firstManagerMsg = (messages ?? [])
     .filter(m => m?.sender === 'manager')
     .map(m => toDate(m.created_at))
@@ -139,11 +135,14 @@ function legalDeadlines(complaint, now, messages = []) {
     .sort((a, b) => a - b)[0] ?? null;
   return {
     received,
-    ack,
-    reply,
-    open: isOpen(complaint),
-    ackLeft: daysBetween(now, ack),
-    replyLeft: daysBetween(now, reply),
+    ack: P.ackDue,
+    reply: P.respDue,
+    open,
+    ackLeft: P.ack.days,   // sense valor si ja s'ha fet
+    replyLeft: P.resp.days,
+    // Vençuda: oberta, sense resposta i passat el termini (ampliat si escau)
+    overdue: open && P.resp.state === 'overdue',
+    ackOverdue: open && P.ack.state === 'overdue',
     firstManagerMsg,
   };
 }
@@ -246,7 +245,7 @@ export async function buildExcelWorkbook(complaints = [], lang = 'es', { now = n
     const dl = legalDeadlines(c, now);
     return {
       raw: c,
-      overdue: !!dl && dl.open && dl.replyLeft < 0,
+      overdue: !!dl && dl.overdue,
       values: {
         code:     c.tracking_code ?? '',
         category: D.category(c.category),
@@ -258,7 +257,7 @@ export async function buildExcelWorkbook(complaints = [], lang = 'es', { now = n
         received: xlDate(toDate(c.created_at)),
         // Dates del llibre registre (art. 26): acusament, termini (ampliat si escau) i resposta
         acked:    xlDate(toDate(c.acknowledged_at)),
-        deadline: c.extended_until ? xlDate(toDate(c.extended_until)) : dl ? xlDate(dl.reply) : null,
+        deadline: dl ? xlDate(dl.reply) : null,   // ja inclou l'ampliació
         answered: xlDate(toDate(c.answered_at)),
         lang:     D.langName(c.language),
         via:      D.via(c),
@@ -661,7 +660,7 @@ export async function buildSummaryPDF(complaints = [], filters = {}, lang = 'es'
 
   // Xifres clau
   const rows = list.map(c => ({ c, dl: legalDeadlines(c, now) }));
-  const overdue = rows.filter(r => r.dl && r.dl.open && r.dl.replyLeft < 0).length;
+  const overdue = rows.filter(r => r.dl?.overdue).length;
   const kpis = [
     { label: t.kTotal,   n: list.length },
     { label: t.kOpen,    n: list.filter(isOpen).length },
@@ -728,7 +727,7 @@ export async function buildSummaryPDF(complaints = [], filters = {}, lang = 'es'
         if (data.column.index === 3 && c.priority === 'critical') Object.assign(data.cell.styles, { fontStyle: 'bold', textColor: C.danger });
         if (data.column.index === 3 && c.priority === 'high') data.cell.styles.fontStyle = 'bold';
         if (data.column.index === 5 && !c.department) data.cell.styles.textColor = C.ink3;
-        if (data.column.index === 7 && dl && dl.open && dl.replyLeft < 0) Object.assign(data.cell.styles, { fontStyle: 'bold', textColor: C.danger });
+        if (data.column.index === 7 && dl?.overdue) Object.assign(data.cell.styles, { fontStyle: 'bold', textColor: C.danger });
       },
     });
     ctx.y += 5;
@@ -851,12 +850,12 @@ export async function buildComplaintPDF(complaint, messages = [], lang = 'es', {
   if (dl) {
     sectionTitle(ctx, ++n, t.sDeadlines);
     const closedText = fmt(t.dClosed, { status: D.status(c.status) });
-    let ackLate = dl.firstManagerMsg ? startOfDay(dl.firstManagerMsg) > dl.ack : dl.open && dl.ackLeft < 0;
+    let ackLate = dl.firstManagerMsg ? startOfDay(dl.firstManagerMsg) > dl.ack : dl.ackOverdue;
     let ackState = dl.firstManagerMsg
       ? fmt(t.dFirstMsg, { date: fDate(dl.firstManagerMsg, locale) })
-      : dl.open ? countdown(t, dl.ackLeft) : closedText;
-    let replyLate = dl.open && dl.replyLeft < 0;
-    let replyState = dl.open ? countdown(t, dl.replyLeft) : closedText;
+      : dl.open && dl.ackLeft !== undefined ? countdown(t, dl.ackLeft) : closedText;
+    let replyLate = dl.overdue;
+    let replyState = dl.open && dl.replyLeft !== undefined ? countdown(t, dl.replyLeft) : closedText;
     // El panell passa els terminis ja calculats (mateix criteri que la pantalla): s'usen tal qual
     const P = c.deadline;
     if (P) {

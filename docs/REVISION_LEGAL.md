@@ -42,6 +42,25 @@ Las 32 citas de artículos coinciden en los tres idiomas. Estas se han contrasta
 11. **Escribir en un caso ya cerrado.** Quien informa puede seguir escribiendo en «Mi caso» después del cierre (la base de datos lo admite y el gestor lo ve). Desde el pulido final, «Mi caso» avisa de que el caso está cerrado y dice: «Si tienes algo nuevo, puedes escribir aquí o enviar una nueva denuncia». ¿Es correcto dejarlo abierto o debe cerrarse la conversación al responder?
 12. **Enseñar el resultado a quien informa.** Hoy «Mi caso» dice que el caso está cerrado y cuándo, y la respuesta va en los mensajes. No enseña el resultado interno («Fundada», «No fundada»…). ¿Debe verlo?
 
+### Dudas nuevas de la auditoría «Mejora total» (octubre 2026, ver `docs/AUDITORIA.md`)
+
+Ninguna ha cambiado ningún texto. Donde había que elegir, el producto hace ahora lo más prudente y lo dice entre paréntesis.
+
+13. **Ampliación del plazo (art. 9.2 d): ¿6 meses desde la recepción o 3 + 3 encadenados?** Solo cambia a final de mes: recibida el 30 de noviembre, el producto amplía hasta el 30 de mayo; encadenando, sería el 28 de mayo.
+14. **¿Se puede ampliar un plazo ya vencido?** En el procedimiento administrativo la Ley 39/2015 (art. 32.3) lo prohíbe. (Ahora el producto no lo permite.)
+15. **Inicio del plazo de 3 meses.** La ley lo cuenta desde la recepción o, si no hubo acuse, desde que vencen los 7 días. El producto cuenta siempre desde la recepción, que es lo más estricto. ¿Vale así?
+16. **Zona horaria de referencia.** Los plazos se cuentan en días de calendario de Madrid (como la base de datos). Para una empresa de Canarias, ¿debería contar su hora local? Solo cambia algo en las denuncias recibidas entre las 23:00 y las 24:00 de Canarias.
+17. **Casos cerrados sin investigar** (inadmitidos, duplicados, fuera de ámbito): ¿se suprimen a los 3 meses (art. 32.4) o se pueden conservar anonimizados «para dejar evidencia del funcionamiento del sistema»? (Ahora el aviso de supresión los incluye; la empresa decide.)
+18. **Reabrir un caso.** ¿La primera respuesta ya cumple el art. 9.2, o reabrir abre un plazo nuevo, y desde cuándo? (Ahora un caso reabierto conserva la fecha de su primera respuesta y no tiene cuenta atrás.)
+19. **¿Un mensaje cualquiera vale como acuse de recibo**, o tiene que ser un acuse expreso? Hoy solo cuenta el acuse que se envía con el botón.
+20. **Festivos para la AIPI (art. 8.3).** ¿Hay que descontar festivos nacionales, autonómicos y locales? (Igual que la n.º 5.)
+21. **Nota de plazos del PDF de un caso.** Dice que el plazo no incluye la ampliación, pero en un caso ampliado la ficha ya muestra la fecha ampliada: hay que validar una variante para esos casos.
+22. **«Nombrar a una persona» como Responsable.** El art. 8 también admite un órgano colegiado. ¿Se menciona?
+23. **Lema de los correos: «Canal de denuncias anónimas».** El canal también admite denuncias identificadas.
+24. **«Cifrado de extremo a extremo».** Aparece en un texto que ya no se muestra en ninguna pantalla; se propone borrarlo (no es cierto en sentido estricto).
+25. **IP en los registros de los proveedores.** Ni la base de datos ni la denuncia guardan la IP de quien informa, pero los registros técnicos de Vercel y Supabase sí la guardan durante su periodo de retención (Reportia puede verlos; la empresa cliente no). ¿Hay que decirlo en la política de privacidad del canal y fijar un plazo?
+26. **Freno de intentos del portal de seguimiento.** Para que nadie pueda adivinar códigos, si hay muchos intentos con códigos falsos el portal se frena unos minutos para todos (sin guardar IPs). Alguien podría provocarlo a propósito y retrasar unos minutos que una persona consulte su caso. ¿Es aceptable frente a la garantía de confidencialidad?
+
 ## 4. Lo que no se ha revisado
 
 - La portada comercial, `/crear-compte` y `/privacitat` (fuera de este trabajo).

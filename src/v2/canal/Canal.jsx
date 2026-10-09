@@ -24,7 +24,8 @@ export default function Canal() {
   // El idioma vive en la dirección (?lang=): sobrevive a recargar y no deja rastro en el navegador
   const [lang, setLang] = useState(() => (LANGS.includes(urlLang) ? urlLang : savedLang() ?? detectLang()));
   const [org, setOrg] = useState(null);
-  const [status, setStatus] = useState('loading'); // loading | ready | notfound
+  const [status, setStatus] = useState('loading'); // loading | ready | notfound | error
+  const [tries, setTries] = useState(0);
   const [draft, setDraft] = useState(EMPTY_DRAFT);
   const [sent, setSent] = useState(null); // { code, failed, createdAt, secured, asked }
   const [leaving, setLeaving] = useState(null); // 'draft' | 'code': se ha pulsado «Gestionar» con algo a medias
@@ -37,12 +38,12 @@ export default function Canal() {
   useEffect(() => {
     let cancelled = false;
     setStatus('loading');
-    getOrganizationBySlug(slug).then(({ organization }) => {
+    getOrganizationBySlug(slug).then(({ organization, error }) => {
       if (cancelled) return;
-      if (organization) { setOrg(organization); setStatus('ready'); } else setStatus('notfound');
-    });
+      if (organization) { setOrg(organization); setStatus('ready'); } else setStatus(error ? 'error' : 'notfound');
+    }).catch(() => { if (!cancelled) setStatus('error'); });
     return () => { cancelled = true; };
-  }, [slug]);
+  }, [slug, tries]);
 
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   useEffect(() => { if (status === 'notfound') document.title = translations[lang].v2.notFoundDoc; }, [status, lang]);
@@ -79,6 +80,14 @@ export default function Canal() {
             <Card radius="xl" tone="report" aria-hidden="true"><Skeleton width="55%" height={56} /><Skeleton width="80%" /></Card>
             <Card radius="xl" aria-hidden="true"><Skeleton width="55%" height={56} /><Skeleton width="80%" /></Card>
           </div>
+        ) : status === 'error' ? (
+          <Card as="main" radius="xl" className="canal-lost">
+            <Tc as="h1" className="ds-h1 is-sm" lang={lang} k="loadErrT" />
+            <Tc as="p" className="ds-lead" lang={lang} k="loadErrD" />
+            <div className="canal-lost-go">
+              <Button variant="ink" size="md" onClick={() => setTries(n => n + 1)}><Tc lang={lang} k="retry" /></Button>
+            </div>
+          </Card>
         ) : (
           <Card as="main" radius="xl" className="canal-lost">
             <Tc as="h1" className="ds-h1 is-sm" lang={lang} k="nfTitle" />

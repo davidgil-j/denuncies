@@ -6,6 +6,7 @@
 // a una recàrrega dins la mateixa pestanya.
 
 import { addBusinessDays, isoDay } from './businessDays.js';
+import { madridDay, addMonthsDay } from './deadlines.js';
 
 const KEY = 'reportia-demo-store-v4';
 const neutralName = (name, i) => {
@@ -646,11 +647,15 @@ export async function anonymize(complaintId, reason, actorName = '') {
 export async function retentionDue() {
   await wait(150);
   const s = db();
-  const limit = Date.now() - 91 * DAY;
+  // Igual que retention_due() de la base de datos (migración 014): 3 meses sin iniciar la investigación,
+  // sea cual sea el estado (también cerradas o archivadas sin investigar), o 10 años
+  const today = madridDay(new Date());
+  const started = (c) => !!c.investigation_started_at || c.status === 'investigating'
+    || s.audit.some(a => a.complaint_id === c.id && a.action === 'status_changed' && a.details?.to === 'investigating');
+  const tenYears = (c) => today > addMonthsDay(madridDay(c.created_at), 120);
   const items = s.complaints
-    .filter(c => !c.anonymized_at && new Date(c.created_at).getTime() < limit && ['received', 'reviewing'].includes(c.status)
-      && !s.audit.some(a => a.complaint_id === c.id && a.action === 'status_changed' && !['received', 'reviewing'].includes(a.details?.to)))
-    .map(c => ({ id: c.id, reference: c.reference, created_at: c.created_at, reason: 'no_investigation' }));
+    .filter(c => !c.anonymized_at && (tenYears(c) || (today > addMonthsDay(madridDay(c.created_at), 3) && !started(c))))
+    .map(c => ({ id: c.id, reference: c.reference, created_at: c.created_at, reason: tenYears(c) ? 'ten_years' : 'no_investigation' }));
   return { items: clone(items), error: null };
 }
 

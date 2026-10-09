@@ -4,7 +4,11 @@ import { ArrowRight, Check, TriangleAlert } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { fmt, Swap } from '../V2Layout.jsx';
 import { Button, Dialog } from '../ui/index.js';
+import { uploadAttachments } from '../../lib/supabase.js';
 import { CanalHead, Tc, ackDue, respDue, dayMonth, dateTime } from './shared.jsx';
+
+// Subidas ya empezadas (una sola vez por envío, aunque la pantalla se vuelva a montar)
+const started = new WeakSet();
 
 /** Enviada: el código secreto, cómo guardarlo y qué pasa ahora, con las fechas reales */
 export default function Enviada() {
@@ -16,18 +20,30 @@ export default function Enviada() {
   const [ask, setAsk] = useState(null); // a dónde se iba cuando se preguntó por el código
   const codeRef = useRef(null);
   const headRef = useRef(null);
-  const { code, failed, createdAt, secured } = sent;
+  const { code, failed, createdAt, secured, uploads, uploaded } = sent;
+  const uploading = !!uploads;
   const secure = () => setSent(s => (s ? { ...s, secured: true } : s));
 
   useEffect(() => { headRef.current?.focus({ preventScroll: true }); }, []);
 
-  // Hasta que copia, descarga o imprime el código, cerrar o recargar la pestaña pide confirmación
+  // Las pruebas se suben aquí, con el código ya a la vista: si se corta, la denuncia y su código ya están
   useEffect(() => {
-    if (secured) return undefined;
+    if (!uploads || started.has(uploads)) return;
+    started.add(uploads);
+    const update = (patch) => setSent(s => (s ? { ...s, ...patch } : s));
+    uploadAttachments({ complaintId: sent.complaintId, files: uploads, isAnonymous: sent.anonymous, onProgress: n => update({ uploaded: n }) })
+      .then(({ failedFiles }) => update({ uploads: null, failed: failedFiles.length }))
+      .catch(() => update({ uploads: null, failed: uploads.length }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploads]);
+
+  // Hasta que copia, descarga o imprime el código (y mientras se suben las pruebas), cerrar o recargar la pestaña pide confirmación
+  useEffect(() => {
+    if (secured && !uploading) return undefined;
     const onBefore = (e) => { if (window.__v2Exiting) return; e.preventDefault(); e.returnValue = ''; };
     window.addEventListener('beforeunload', onBefore);
     return () => window.removeEventListener('beforeunload', onBefore);
-  }, [secured]);
+  }, [secured, uploading]);
 
   async function copy() {
     try {
@@ -100,6 +116,7 @@ export default function Enviada() {
             </div>
             <p className="print-only">{t.rcKeep} {t.n1}: {fmt(t.byDate, { date: dates.ack })}. {t.n3}: {fmt(t.byDate, { date: dates.resp })}.</p>
           </div>
+          {uploading && <p className="sent-law" role="status">{fmt(t.filesUploading, { n: uploaded ?? 0, total: uploads.length })}</p>}
           {failed > 0 && (
             <p className="flow-error" role="alert"><TriangleAlert size={18} strokeWidth={2.2} aria-hidden="true" />{failed === 1 ? t.filesFailed1 : fmt(t.filesFailedN, { n: failed })}</p>
           )}

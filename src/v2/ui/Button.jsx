@@ -17,7 +17,9 @@ export const Button = forwardRef(function Button(
       ? <Link ref={ref} className={cls} to={to} {...rest} {...off}>{inner}</Link>
       : <a ref={ref} className={cls} href={href} {...rest} {...off}>{inner}</a>;
   }
-  return <button ref={ref} type="button" className={cls} disabled={disabled} aria-busy={busy || undefined} {...rest}>{inner}</button>;
+  // Ocupado: un segundo clic no hace nada. No se desactiva, para que el foco no se pierda
+  const guard = busy ? { onClick: (e) => e.preventDefault(), 'aria-disabled': true } : {};
+  return <button ref={ref} type="button" className={cls} disabled={disabled} aria-busy={busy || undefined} {...rest} {...guard}>{inner}</button>;
 });
 
 /** Botón redondo que solo lleva un icono: el nombre (`label`) es obligatorio para quien no lo ve. */

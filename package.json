@@ -5,7 +5,9 @@
         "dev": "vite",
         "build": "vite build",
         "db:migrate": "node scripts/migrate.js",
-        "db:test": "node scripts/test-rls.mjs"
+        "db:test": "node scripts/test-rls.mjs",
+        "test:logic": "node scripts/test-logica.mjs",
+        "e2e": "node e2e/run.mjs"
     },
     "dependencies": {
         "@emailjs/browser": "^4.4.1",

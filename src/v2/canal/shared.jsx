@@ -3,6 +3,7 @@ import {
   Users, Banknote, Scale, TriangleAlert, Lock, ArrowLeftRight, Calculator, Leaf, CircleHelp, EyeOff, LogOut,
 } from 'lucide-react';
 import { translations } from '../../translations.js';
+import { madridDay, addMonthsDay, dayToDate, ACK_DAYS, RESP_MONTHS } from '../../lib/deadlines.js';
 import { Stable, fmt, quickExit } from '../V2Layout.jsx';
 import { Button, Chip, OrgMark } from '../ui/index.js';
 
@@ -33,18 +34,12 @@ export const dayShort = (date, lang) => new Date(date).toLocaleDateString(LOCALE
 export const dateTime = (date, lang) => new Date(date).toLocaleString(LOCALE[lang] ?? 'es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 // Plazos de la Ley 2/2023 desde la recepción: acuse en 7 días naturales y respuesta en 3 meses (art. 9.2)
+// (días de calendario de Madrid, igual que el panel y la base de datos: src/lib/deadlines.js)
 export function ackDue(created) {
-  const d = new Date(created);
-  d.setDate(d.getDate() + 7);
-  return d;
+  return dayToDate(madridDay(created) + ACK_DAYS);
 }
 export function respDue(created, extendedUntil) {
-  if (extendedUntil) return new Date(`${extendedUntil}T12:00:00`);
-  const d = new Date(created);
-  const day = d.getDate();
-  d.setMonth(d.getMonth() + 3);
-  if (d.getDate() < day) d.setDate(0);
-  return d;
+  return dayToDate(extendedUntil ? madridDay(String(extendedUntil).slice(0, 10)) : addMonthsDay(madridDay(created), RESP_MONTHS));
 }
 
 /** «Salir rápido»: a una web neutra, sin dejar el canal en el historial. En el móvil, «Salir». */

@@ -1,18 +1,16 @@
 import { fmt } from '../V2Layout.jsx';
+import { daysBetween } from '../../lib/deadlines.js';
+
+// Terminis de la Llei 2/2023, en dies de calendari de Madrid (com la base de dades): src/lib/deadlines.js
+export { deadlineInfo, daysBetween, ACK_DAYS, RESP_MONTHS } from '../../lib/deadlines.js';
 
 // ── Constants ───────────────────────────────────────────────────────────
 export const STATUS_ORDER = ['received', 'reviewing', 'investigating', 'waiting', 'resolved', 'closed', 'archived'];
 export const OPEN = ['received', 'reviewing', 'investigating', 'waiting'];
-export const ANSWERED = ['resolved', 'closed', 'archived'];
+export { ANSWERED } from '../../lib/deadlines.js';
 export const PRIORITIES = ['low', 'normal', 'high', 'critical'];
 export const PERMS = ['can_view', 'can_edit', 'can_reply', 'can_delete'];
 
-// Llindars de "propers a vèncer" (s'expliquen al text del panell)
-export const ACK_DAYS = 7;
-export const RESP_MONTHS = 3;
-const SOON_ACK = 2;
-const SOON_RESP = 14;
-const DAY = 86400000;
 
 export function localeOf(lang) {
   return lang === 'en' ? 'en-GB' : lang === 'es' ? 'es-ES' : 'ca-ES';
@@ -33,60 +31,11 @@ export function fLong(iso, lang) {
   return fDate(iso, lang, { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-function startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
-/** Dies naturals entre dues dates (comptant per data de calendari) */
-export function daysBetween(from, to) { return Math.round((startOfDay(to) - startOfDay(from)) / DAY); }
-function addMonths(d, n) {
-  const x = new Date(d);
-  const day = x.getDate();
-  x.setMonth(x.getMonth() + n);
-  if (x.getDate() < day) x.setDate(0); // 31 de maig + 3 mesos = 31 d'agost; 30 de novembre + 3 = 28/29 de febrer
-  return x;
-}
-
 export function relDay(iso, t) {
   const n = daysBetween(iso, new Date());
   if (n <= 0) return t.today;
   if (n === 1) return t.yesterday;
   return fmt(t.daysAgo, { n });
-}
-
-/**
- * Terminis de la Llei 2/2023 calculats des de la recepció (created_at), en dies de calendari
- * (un canvi d'hora no els desplaça): acusament de recepció en 7 dies naturals i resposta en un
- * màxim de 3 mesos, o fins a la data ampliada (extended_until, art. 9.2 d).
- * Les dates d'acusament i de resposta les desa la base de dades (acknowledged_at, answered_at,
- * migració 010); sense elles, es dedueixen de l'estat.
- */
-export function deadlineInfo(c, now = new Date(), { answeredAt: answeredOverride, ackAt: ackOverride } = {}) {
-  const received = new Date(c.created_at);
-  const ackDue = new Date(received);
-  ackDue.setDate(ackDue.getDate() + ACK_DAYS);
-  const baseDue = addMonths(received, RESP_MONTHS);
-  const respDue = c.extended_until ? new Date(`${c.extended_until}T12:00:00`) : baseDue;
-  const ackAt = c.acknowledged_at ?? ackOverride ?? null;
-  const acked = !!ackAt || c.status !== 'received';
-  const answered = !!c.answered_at || ANSWERED.includes(c.status);
-  const answeredAt = answered ? new Date(c.answered_at || answeredOverride || c.updated_at || c.created_at) : null;
-  const ackDays = daysBetween(now, ackDue);
-  const respDays = daysBetween(now, respDue);
-  const state = (days, soon) => (days < 0 ? 'overdue' : days <= soon ? 'soon' : 'pending');
-
-  const ack = acked
-    ? { state: 'done', due: ackDue, at: ackAt ? new Date(ackAt) : null, late: ackAt ? daysBetween(ackAt, ackDue) < 0 : false }
-    : { state: state(ackDays, SOON_ACK), days: ackDays, due: ackDue };
-  const resp = answered
-    ? { state: daysBetween(answeredAt, respDue) >= 0 ? 'met' : 'late', at: answeredAt, due: respDue }
-    : { state: state(respDays, SOON_RESP), days: respDays, due: respDue };
-  const next = answered ? { kind: 'resp', ...resp } : !acked ? { kind: 'ack', ...ack } : { kind: 'resp', ...resp };
-
-  return {
-    received, ackDue, respDue, baseDue, extended: !!c.extended_until, ack, resp, next,
-    totalDays: daysBetween(received, respDue),
-    elapsed: daysBetween(received, now),
-    // clau d'ordenació: el més urgent primer; les respostes ja donades, al final
-    sortKey: answered ? Number.MAX_SAFE_INTEGER - received.getTime() / DAY : next.due.getTime(),
-  };
 }
 
 // ── Pla de l'organització ───────────────────────────────────────────────
@@ -105,7 +54,7 @@ export function planInfo(org, now = new Date()) {
     return { plan: 'trial', state: ended ? 'trialEnded' : 'trial', days: Math.max(days, 0), until: org.trial_ends_at, renewSoon: false };
   }
   if (!org.paid_until) return { plan: org.plan, state: 'active', days: null, until: null, renewSoon: false };
-  const days = daysBetween(now, new Date(`${org.paid_until}T12:00:00`));
+  const days = daysBetween(now, String(org.paid_until).slice(0, 10));
   return { plan: org.plan, state: days < 0 ? 'expired' : 'active', days: Math.max(days, 0), until: `${org.paid_until}T12:00:00`, renewSoon: days >= 0 && days <= 30 };
 }
 

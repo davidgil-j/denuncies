@@ -44,12 +44,24 @@ Deno.serve(async (req) => {
     const cleanName = String(full_name ?? '').trim().slice(0, 120);
     if (!cleanEmail || !cleanName) return json({ error: 'invalid' }, 400);
 
+    // Un correu que ja té compte només es pot tornar a convidar si és d'aquesta empresa i encara no hi ha entrat.
+    // Mai no s'adopta ni s'esborra un compte d'una altra empresa o sense empresa (migració 014: find_auth_user).
+    // Sense la 014, la funció no existeix i es continua com abans, però sense esborrar ningú.
+    const { data: found, error: findError } = await adminClient.rpc('find_auth_user', { p_email: cleanEmail });
+    const existing = findError ? null : (found ?? [])[0] ?? null;
+    if (existing && (existing.organization_id !== profile.organization_id || existing.last_sign_in_at)) {
+      return json({ error: 'invite-failed' }, 400);
+    }
+
     const { data, error } = await adminClient.auth.admin.inviteUserByEmail(cleanEmail, {
       data: { full_name: cleanName },
       redirectTo: `${siteUrl}/admin/reset-password`,
     });
     // Resposta genèrica: no es revela si el correu ja té compte (a Reportia o a una altra empresa)
     if (error || !data?.user) return json({ error: 'invite-failed' }, 400);
+
+    // Ja era una invitació pendent d'aquesta empresa: s'ha reenviat el correu i prou
+    if (existing) return json({ user: { id: data.user.id } });
 
     // El trigger crea el perfil sense organització: l'invitat entra a la de qui convida.
     // Només si encara no en té cap (un usuari d'una altra empresa no es mou mai).
@@ -60,8 +72,9 @@ Deno.serve(async (req) => {
       .is('organization_id', null)
       .select('id');
     if (orgError || !updated?.length) {
-      // Si no s'ha pogut assignar, no es deixa un usuari a mitges
-      if (!data.user.last_sign_in_at) await adminClient.auth.admin.deleteUser(data.user.id);
+      // Si no s'ha pogut assignar, no es deixa a mitges un compte creat ara mateix per aquesta invitació.
+      // Un compte que ja existia (o del qual no se sap, sense la 014) no s'esborra mai.
+      if (!findError && !existing) await adminClient.auth.admin.deleteUser(data.user.id);
       return json({ error: 'invite-failed' }, 400);
     }
 

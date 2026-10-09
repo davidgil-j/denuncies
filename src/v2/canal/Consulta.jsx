@@ -34,7 +34,7 @@ export default function Consulta() {
   const t = translations[lang].canal;
   const [code, setCode] = useState(formatCode(location.state?.code ?? ''));
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null); // codeErr | codeShort
+  const [error, setError] = useState(null); // codeErr | codeShort | codeBusy
   const [result, setResult] = useState(null);
   const inputRef = useRef(null);
 
@@ -49,6 +49,8 @@ export default function Consulta() {
     const { complaint, error: err } = await getComplaintByCode(q);
     setLoading(false);
     // El mismo mensaje exista o no el código: no se dan pistas
+    // Demasiados intentos con códigos que no existen (migración 014): se dice, sin dar pistas del código
+    if (/too-many-attempts/.test(err?.message ?? '')) { setError('codeBusy'); inputRef.current?.focus(); return; }
     if (err || !complaint) { setError('codeErr'); inputRef.current?.focus(); return; }
     setResult(complaint);
   }

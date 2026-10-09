@@ -4,6 +4,8 @@ import { Turnstile } from '@marsidev/react-turnstile';
 import { ArrowRight, ArrowLeft, Check, Plus, Send, Shield, CircleAlert, Pencil } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { saveComplaint, IS_DEMO } from '../../lib/supabase.js';
+import { cleanForAnonymous } from '../../lib/cleanImage.js';
+import { fmt } from '../V2Layout.jsx';
 import { EMAIL_RE } from '../site/fields.jsx';
 import { Button, Card, Chip, Field, StepBar, cx } from '../ui/index.js';
 import Pruebas from './Pruebas.jsx';
@@ -42,7 +44,10 @@ export default function Denuncia() {
   const [errors, setErrors] = useState({});
   const [more, setMore] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState(false);
+  const [submitError, setSubmitError] = useState(null); // sendErr | sendLimit | { clean: nombre del archivo }
+  // Código e id del primer intento de envío: si la red falla después de guardar, el reintento usa los
+  // mismos y la base de datos no crea una denuncia repetida
+  const attemptRef = useRef(null);
   const [token, setToken] = useState(null);
   const headRef = useRef(null);
   const groupRef = useRef(null);
@@ -108,28 +113,43 @@ export default function Denuncia() {
     if ((needsCaptcha && !token) || submitting) return;
 
     setSubmitting(true);
-    setSubmitError(false);
+    setSubmitError(null);
     try {
+      // En una denuncia anónima, las fotos salen sin datos ocultos. Si alguna no se puede limpiar, no se envía nada
+      let files = draft.files;
+      if (draft.isAnonymous && files.length) {
+        const cleaned = await Promise.all(files.map(cleanForAnonymous));
+        const dirty = files.find((f, i) => !cleaned[i]);
+        if (dirty) { setSubmitError({ clean: dirty.name }); return; }
+        files = cleaned;
+      }
       // El «cuándo» viaja aparte: va a su columna o, si aún no existe, una sola vez al final de la
       // descripción (lo decide supabase.js al guardar)
-      const { trackingCode, failedFiles, error } = await saveComplaint({
+      const { trackingCode, complaintId, attempt, error } = await saveComplaint({
         formData: {
           isAnonymous: draft.isAnonymous, name: draft.name, email: draft.email, phone: draft.phone,
           category: draft.category, department: draft.department, description: draft.description.trim(), incidentDate: '',
           when: draft.when, whenLabel: t.when,
           involvedPeople: draft.involvedPeople, language: lang, meetingRequested: draft.meeting,
         },
-        files: draft.files,
+        files,
         organizationId: org.id,
+        attempt: attemptRef.current,
       });
-      if (error) { console.error('[Supabase]', error); setSubmitError(true); }
+      attemptRef.current = attempt;
+      if (error) { console.error('[Supabase]', error); setSubmitError(/rate-limited/.test(error.message ?? '') ? 'sendLimit' : 'sendErr'); }
       else {
-        setSent({ code: trackingCode, failed: failedFiles?.length ?? 0, createdAt: new Date().toISOString(), secured: false, asked: false });
+        attemptRef.current = null;
+        // El código se enseña ya; las pruebas se suben desde «Enviada» (si se corta, la denuncia y su código ya están)
+        setSent({
+          code: trackingCode, failed: 0, createdAt: new Date().toISOString(), secured: false, asked: false,
+          complaintId, anonymous: draft.isAnonymous, uploads: files.length ? files : null, uploaded: 0,
+        });
         setDraft(EMPTY_DRAFT);
       }
     } catch (err) {
       console.error(err);
-      setSubmitError(true);
+      setSubmitError('sendErr');
     } finally {
       setSubmitting(false);
     }
@@ -311,7 +331,7 @@ export default function Denuncia() {
                 />
               </div>
             )}
-            {submitError && <p className="flow-error" role="alert"><CircleAlert size={18} strokeWidth={2.2} aria-hidden="true" />{t.sendErr}</p>}
+            {submitError && <p className="flow-error" role="alert"><CircleAlert size={18} strokeWidth={2.2} aria-hidden="true" />{submitError.clean ? fmt(t.cleanErr, { name: submitError.clean }) : t[submitError]}</p>}
           </>
         )}
 

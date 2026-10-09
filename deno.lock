@@ -1,0 +1,34 @@
+{
+  "version": "5",
+  "redirects": {
+    "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2.117.3"
+  },
+  "remote": {
+    "https://esm.sh/@supabase/supabase-js@2.117.3": "614f9e550b12b4be7054f947cc4949ebcc0eceeb8e83f7e226cc875356e9b126"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@electric-sql/pglite@~0.5.8",
+        "npm:@emailjs/browser@^4.4.1",
+        "npm:@fontsource/manrope@^5.3.0",
+        "npm:@fontsource/wix-madefor-display@^5.3.0",
+        "npm:@fontsource/wix-madefor-text@^5.3.0",
+        "npm:@marsidev/react-turnstile@^1.5.2",
+        "npm:@sentry/react@^10.53.1",
+        "npm:@supabase/supabase-js@^2.105.4",
+        "npm:@vitejs/plugin-react@^4.3.4",
+        "npm:exceljs@^4.4.0",
+        "npm:jimp@^1.6.1",
+        "npm:jspdf-autotable@^5.0.8",
+        "npm:jspdf@^4.2.1",
+        "npm:lucide-react@^1.14.0",
+        "npm:qrcode@^1.5.4",
+        "npm:react-dom@^18.2.0",
+        "npm:react-router-dom@^7.15.0",
+        "npm:react@^18.2.0",
+        "npm:vite@^5.1.0"
+      ]
+    }
+  }
+}

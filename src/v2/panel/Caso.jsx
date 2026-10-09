@@ -11,6 +11,7 @@ import {
 import { translations } from '../../translations.js';
 import { fmt } from '../V2Layout.jsx';
 import { deadlineInfo, fDateTime, fLong, fShort, auditText, PRIORITIES } from '../admin/adminKit.jsx';
+import { extensionUntil } from '../../lib/deadlines.js';
 import { Button, IconButton, Card, Chip, Chips, Field, StepBar, ChatThread, ChatComposer, Dialog, Menu, MenuItem, Skeleton } from '../ui/index.js';
 import { deadlineLook } from '../ui/DeadlineChip.jsx';
 import { usePanel, Tp, caseState, caseTitle, relDay, historyText, blanksError, sameAsColumn, OUTCOMES, CLOSED } from './kit.jsx';
@@ -21,13 +22,6 @@ function fileSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1).replace('.0', '')} MB`;
-}
-function sixMonths(iso) {
-  const d = new Date(iso);
-  const day = d.getDate();
-  d.setMonth(d.getMonth() + 6);
-  if (d.getDate() < day) d.setDate(0);
-  return d;
 }
 
 /** Ficha de un caso: qué ha contado, la conversación y un único botón con el siguiente paso */
@@ -58,6 +52,8 @@ export default function Caso() {
   const [idErr, setIdErr] = useState(false);
   const [fileNote, setFileNote] = useState(null);
   const autoStep = useRef(location.state?.step ?? null);
+  // Acuse o respuesta final que ya han salido aunque el cambio de estado fallara: al reintentar no se repiten
+  const sentRef = useRef(null);
 
   async function loadAll() {
     setC(undefined);
@@ -139,6 +135,7 @@ export default function Caso() {
 
   // ── Acciones ──────────────────────────────────────────────────────────
   async function run(fn, okText) {
+    if (busy) return false;
     setBusy(true);
     const { error } = await fn();
     setBusy(false);
@@ -150,33 +147,44 @@ export default function Caso() {
   const change = (patch, okText = p.saved) => run(() => updateComplaint(c.id, patch, actor), okText);
 
   async function sendAck() {
+    if (busy) return;
     if (!text.trim()) { setDErr(p.closeErrMsg); return; }
     if (blanksError(text, p)) { setDErr(blanksError(text, p)); return; }
     setBusy(true);
-    const { error } = await sendMessage(c.id, text.trim(), 'manager', actor);
-    if (error) { setBusy(false); setDErr(p.ackErr); return; }
-    await updateComplaint(c.id, { status: 'reviewing' }, actor);
+    if (sentRef.current !== `ack:${c.id}`) {
+      const { error } = await sendMessage(c.id, text.trim(), 'manager', actor);
+      if (error) { setBusy(false); setDErr(p.ackErr); return; }
+      sentRef.current = `ack:${c.id}`;
+    }
+    const { error: e2 } = await updateComplaint(c.id, { status: 'reviewing' }, actor);
     setBusy(false);
+    if (e2) { setDErr(p.ackPartial); refresh(); return; }
+    sentRef.current = null;
     setDialog(null);
     notify(p.ackSent);
     refresh();
   }
   async function sendClose() {
+    if (busy) return;
     if (!outcome) { setDErr(p.closeErrOutcome); return; }
     if (!text.trim()) { setDErr(p.closeErrMsg); return; }
     if (blanksError(text, p)) { setDErr(blanksError(text, p)); return; }
     setBusy(true);
-    const { error } = await sendMessage(c.id, text.trim(), 'manager', actor);
-    if (error) { setBusy(false); setDErr(p.msgErr); return; }
+    if (sentRef.current !== `close:${c.id}`) {
+      const { error } = await sendMessage(c.id, text.trim(), 'manager', actor);
+      if (error) { setBusy(false); setDErr(p.msgErr); return; }
+      sentRef.current = `close:${c.id}`;
+    }
     const { error: e2 } = await updateComplaint(c.id, { status: 'resolved', outcome }, actor);
     setBusy(false);
-    if (e2) { setDErr(p.saveErr); return; }
+    if (e2) { setDErr(p.closePartial); refresh(); return; }
+    sentRef.current = null;
     setDialog(null);
     notify(p.closedOk);
     refresh();
   }
   async function saveNote() {
-    if (!text.trim()) return;
+    if (busy || !text.trim()) return;
     setBusy(true);
     const { error } = await addComplaintNote(c.id, text.trim(), actor);
     setBusy(false);
@@ -186,6 +194,7 @@ export default function Caso() {
     refresh();
   }
   async function doExtend() {
+    if (busy) return;
     if (text.trim().length < 10) { setDErr(t.extendErrReason); return; }
     setBusy(true);
     const { until, error } = await extendDeadline(c.id, text.trim(), actor);
@@ -196,6 +205,7 @@ export default function Caso() {
     refresh();
   }
   async function doSuppress() {
+    if (busy) return;
     if (text.trim().length < 5) { setDErr(t.supErrReason); return; }
     setBusy(true);
     const { error } = await anonymizeComplaint(c.id, text.trim(), actor);
@@ -274,9 +284,11 @@ export default function Caso() {
   const deadlines = [];
   if (!erased) {
     if (c.status === 'received') deadlines.push(line('ack', info.ack.days));
-    else if (info.ack.at) deadlines.push({ tone: 'done', text: fmt(p.ackDoneOn, { date: fShort(info.ack.at, lang) }) });
+    // Un acuse enviado fuera de los 7 días se marca en rojo: es un plazo incumplido
+    else if (info.ack.at) deadlines.push({ tone: info.ack.late ? 'danger' : 'done', text: fmt(p.ackDoneOn, { date: fShort(info.ack.at, lang) }) });
     if (meeting?.pending) { const m = line('meeting', meeting.days); deadlines.push({ ...m, text: `${m.text} (${p.meetLegal})` }); }
-    if (answered) deadlines.push({ tone: 'done', text: fmt(p.respondedOn, { date: fShort(info.resp.at, lang) }) });
+    // También en un caso reabierto: la primera respuesta ya se dio y no hay cuenta atrás
+    if (answered || info.resp.at) deadlines.push({ tone: 'done', text: fmt(p.respondedOn, { date: fShort(info.resp.at, lang) }) });
     else deadlines.push(line('resp', info.resp.days));
   }
 
@@ -299,7 +311,7 @@ export default function Caso() {
           <Button variant="bg" size="sm" onClick={exportPdf}>{p.exportOne}</Button>
           {(canEdit || canDelete) && (
             <Menu label={p.more} trigger={props => <IconButton variant="bg" label={p.more} {...props}><Ellipsis size={20} strokeWidth={2.4} aria-hidden="true" /></IconButton>}>
-              {canEdit && !info.extended && !answered && <MenuItem icon={<CalendarPlus size={16} aria-hidden="true" />} onClick={() => open('extend')}>{p.extend}</MenuItem>}
+              {canEdit && info.canExtend && <MenuItem icon={<CalendarPlus size={16} aria-hidden="true" />} onClick={() => open('extend')}>{p.extend}</MenuItem>}
               {canEdit && c.status === 'investigating' && <MenuItem icon={<MessageSquareReply size={16} aria-hidden="true" />} onClick={() => change({ status: 'waiting' }, p.statusOk)}>{p.toWaiting}</MenuItem>}
               {canEdit && c.status === 'waiting' && <MenuItem icon={<Search size={16} aria-hidden="true" />} onClick={() => change({ status: 'investigating' }, p.statusOk)}>{p.toInvestigating}</MenuItem>}
               {canEdit && ['resolved', 'closed'].includes(c.status) && <MenuItem icon={<Archive size={16} aria-hidden="true" />} onClick={() => change({ status: 'archived' }, p.statusOk)}>{p.archive}</MenuItem>}
@@ -512,7 +524,7 @@ export default function Caso() {
       </Dialog>
 
       <Dialog open={dialog === 'extend'} onClose={closeDialog} title={t.extendTitle}
-        actions={<><Button variant="soft" size="md" onClick={closeDialog}>{p.cancel}</Button><Button variant="ink" size="md" busy={busy} onClick={doExtend}>{fmt(t.extendConfirm, { date: fLong(sixMonths(c.created_at), lang) })}</Button></>}>
+        actions={<><Button variant="soft" size="md" onClick={closeDialog}>{p.cancel}</Button><Button variant="ink" size="md" busy={busy} onClick={doExtend}>{fmt(t.extendConfirm, { date: fLong(extensionUntil(c.created_at), lang) })}</Button></>}>
         <p>{t.extendText}</p>
         <Field as="textarea" rows={3} label={t.extendReason} value={text} maxLength={500} error={dErr} onChange={e => { setText(e.target.value); setDErr(''); }} />
       </Dialog>

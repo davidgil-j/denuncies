@@ -78,6 +78,8 @@ export default function Informe() {
     const byStatus = count(live.map(x => x.c), 'status');
     const late = answered.filter(x => x.d.resp.state === 'late').length;
     const openOverdue = open.filter(x => x.d.next.state === 'overdue').length;
+    // Acuses enviados después de los 7 días: también es un plazo incumplido, aunque luego se respondiera a tiempo
+    const lateAck = live.filter(x => x.d.ack.late).length;
 
     // Barras: los meses del año (del primero con denuncias al último, o hasta hoy), o los años si es todo el historial
     let series = [];
@@ -99,7 +101,8 @@ export default function Informe() {
       onTime: answered.filter(x => x.d.resp.state === 'met').length,
       late,
       openOverdue,
-      missed: late + openOverdue,
+      lateAck,
+      missed: late + openOverdue + lateAck,
       ackPending: open.filter(x => x.c.status === 'received').length,
       median: median(answered.map(x => Math.max(daysBetween(x.d.received, x.d.resp.at), 0))),
       byCat: [...byCat].sort((a, b) => b[1] - a[1]).map(([value, n]) => ({ value, n, open: byCatOpen.get(value) ?? 0 })),
@@ -229,6 +232,7 @@ export default function Informe() {
                 <div><dt>{r.closed}</dt><dd>{data.closed}</dd></div>
                 <div className={data.late ? 'is-danger' : undefined}><dt>{r.late}</dt><dd>{data.late}</dd></div>
                 <div className={data.openOverdue ? 'is-danger' : undefined}><dt>{r.openOverdue}</dt><dd>{data.openOverdue}</dd></div>
+                <div className={data.lateAck ? 'is-danger' : undefined}><dt>{r.lateAck}</dt><dd>{data.lateAck}</dd></div>
                 <div><dt>{r.ackPending}</dt><dd>{data.ackPending}</dd></div>
                 <div><dt>{r.median}</dt><dd>{data.median ?? NONE}</dd></div>
               </dl>

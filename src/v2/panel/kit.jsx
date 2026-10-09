@@ -2,6 +2,7 @@ import React, { forwardRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Stable, fmt } from '../V2Layout.jsx';
 import { deadlineInfo, daysBetween, auditText } from '../admin/adminKit.jsx';
+import { madridDay, dayToDate } from '../../lib/deadlines.js';
 import { AI_ENABLED } from '../../lib/supabase.js';
 
 export const usePanel = () => useOutletContext();
@@ -36,10 +37,9 @@ export function caseTitle(c, p) {
 /** Reunión presencial: el plazo legal son 7 días desde que se pidió (art. 7.2) */
 export function meetingInfo(c, now = new Date()) {
   if (!c.meeting_requested) return null;
-  const from = new Date(c.meeting_requested_at ?? c.created_at);
-  const due = new Date(from);
-  due.setDate(due.getDate() + MEETING_DAYS);
-  return { pending: !c.meeting_held_at && !CLOSED.includes(c.status), heldAt: c.meeting_held_at ?? null, due, days: daysBetween(now, due) };
+  // En días de calendario de Madrid, como el resto de plazos
+  const dueDay = madridDay(c.meeting_requested_at ?? c.created_at) + MEETING_DAYS;
+  return { pending: !c.meeting_held_at && !CLOSED.includes(c.status), heldAt: c.meeting_held_at ?? null, due: dayToDate(dueDay), days: dueDay - madridDay(now) };
 }
 
 /**
@@ -53,8 +53,10 @@ export function caseState(c, now = new Date()) {
   const closed = column === 'closed' || !!c.anonymized_at;
   const next = dl.next;
   const urgent = !closed && ['overdue', 'soon', 'pending'].includes(next.state) && next.days < 7;
-  const today = !closed && (column === 'new' || (c.unread ?? 0) > 0 || !!meeting?.pending || urgent);
-  const deadline = closed ? null : { kind: next.kind, days: next.days };
+  // Un mensaje sin leer cuenta siempre, también en un caso cerrado (puede ser un aviso de represalia)
+  const today = (c.unread ?? 0) > 0 || (!closed && (column === 'new' || !!meeting?.pending || urgent));
+  // Un caso reabierto ya tiene su primera respuesta: no vuelve a tener cuenta atrás
+  const deadline = closed || next.days === undefined ? null : { kind: next.kind, days: next.days };
   return { dl, column, meeting, closed, today, deadline, overdue: !closed && next.state === 'overdue', done: c.anonymized_at ? 'erased' : column === 'closed' ? (dl.resp.state === 'late' ? 'late' : 'onTime') : null };
 }
 

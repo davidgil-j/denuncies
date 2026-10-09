@@ -37,7 +37,10 @@ export default function CaseCard({
           {done === 'late' ? <CircleAlert size={14} strokeWidth={2.6} aria-hidden="true" /> : <Check size={14} strokeWidth={3} aria-hidden="true" />}
           <Txt lang={lang} k={done === 'late' ? 'late' : 'onTime'} />
         </p>
-      ) : hasChips && (
+      ) : null}
+      {/* En un caso cerrado, si quien informa vuelve a escribir, se avisa igual */}
+      {done && done !== 'erased' && wrote && <Chips><Chip tone="report">{t.wrote}</Chip></Chips>}
+      {!done && hasChips && (
         <Chips>
           {today && <Chip tone="ink">{t.today}</Chip>}
           {deadline && <DeadlineChip lang={lang} kind={deadline.kind} days={deadline.days} short={short} onBg={onBg} />}

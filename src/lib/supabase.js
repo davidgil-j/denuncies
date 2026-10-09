@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { stripImageMetadata } from './cleanImage.js';
-import { insertWithWhen, withWhen } from './whenFallback.js';
+import { insertWithWhen, withWhen, isMissingSchema } from './whenFallback.js';
 
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -79,31 +78,50 @@ const channelDemo = () => DEMO_MODE || exampleChannel;
 // ── Complaints ─────────────────────────────────────────────────────────
 
 /**
- * Save a new complaint to the database.
- * Returns { trackingCode, error }
+ * Desa una denúncia nova (només la fila; els adjunts es pugen després amb uploadAttachments, perquè
+ * qui informa vegi el seu codi encara que la pujada s'interrompi).
+ * attempt: { id, trackingCode } d'un intent anterior del mateix enviament. Si la xarxa cau després de
+ * desar, en tornar-ho a provar es fa servir el mateix codi i la base de dades no en crea una altra.
+ * Returns { trackingCode, complaintId, attempt, error }
  */
-export async function saveComplaint({ formData, files, organizationId }) {
-  const id           = crypto.randomUUID();
-  const trackingCode = generateTrackingCode();
-  // En una denúncia anònima, les fotos s'envien sense dades ocultes (ubicació, dispositiu, data)
-  if (formData.isAnonymous && files?.length) files = await Promise.all([...files].map(stripImageMetadata));
+export async function saveComplaint({ formData, files, organizationId, attempt }) {
+  const id           = attempt?.id ?? crypto.randomUUID();
+  const trackingCode = attempt?.trackingCode ?? generateTrackingCode();
+  const next = { id, trackingCode };
 
   if (channelDemo()) {
     // En la demo, la denúncia enviada apareix al panell i es pot consultar amb el seu codi
     (await demo()).addComplaint({ id, trackingCode, formData, files: files ?? [] });
-    return { trackingCode, error: null };
+    return { trackingCode, complaintId: id, attempt: next, error: null };
   }
 
-  // 1. Insert complaint record (ID generated client-side to avoid SELECT after INSERT).
+  const anon = formData.isAnonymous;
+  // 1. Amb la migració 014: una sola crida, que també escriu l'entrada «created» del registre
+  const viaFunction = await supabase.rpc('submit_complaint', {
+    p_org: organizationId, p_hash: await codeHash(trackingCode), p_category: formData.category,
+    p_description: formData.description.trim(), p_is_anonymous: anon,
+    p_name: anon ? null : clean(formData.name), p_email: anon ? null : clean(formData.email), p_phone: anon ? null : clean(formData.phone),
+    p_department: clean(formData.department), p_incident_date: formData.incidentDate || null,
+    p_involved: clean(formData.involvedPeople), p_language: formData.language ?? 'ca',
+    p_meeting: !!formData.meetingRequested, p_when: clean(formData.when),
+  });
+  if (!viaFunction.error) return { trackingCode, complaintId: viaFunction.data, attempt: next, error: null };
+  // El codi ja és d'una altra denúncia (gairebé impossible): un de nou, una sola vegada
+  if (/code-conflict/.test(viaFunction.error.message ?? '') && !attempt?.retried) {
+    return saveComplaint({ formData, files, organizationId, attempt: { id: crypto.randomUUID(), trackingCode: generateTrackingCode(), retried: true } });
+  }
+  if (!isMissingSchema(viaFunction.error)) return { trackingCode: null, complaintId: null, attempt: next, error: viaFunction.error };
+
+  // 2. Sense la migració 014: inserció directa, amb l'id i el codi generats aquí.
   // El codi de seguiment no surt mai del navegador: només se n'envia el hash (migració 010).
   const row = {
       id,
       tracking_hash:   await codeHash(trackingCode),
       organization_id: organizationId ?? null,
-      is_anonymous:    formData.isAnonymous,
-      reporter_name:   formData.isAnonymous ? null : clean(formData.name),
-      reporter_email:  formData.isAnonymous ? null : clean(formData.email),
-      reporter_phone:  formData.isAnonymous ? null : clean(formData.phone),
+      is_anonymous:    anon,
+      reporter_name:   anon ? null : clean(formData.name),
+      reporter_email:  anon ? null : clean(formData.email),
+      reporter_phone:  anon ? null : clean(formData.phone),
       category:        formData.category,
       department:      clean(formData.department),
       description:     formData.description.trim(),
@@ -121,45 +139,58 @@ export async function saveComplaint({ formData, files, organizationId }) {
     async (r) => ({ error: (await supabase.from('complaints').insert(r)).error }),
     row, formData.when, formData.whenLabel ?? 'Cuándo',
   );
+  // L'id ja existeix: és aquest mateix enviament, que es va desar però la resposta no va arribar
+  const savedBefore = dbError?.code === '23505' && /complaints_pkey/.test(dbError.message ?? '');
+  if (dbError && !savedBefore) return { trackingCode: null, complaintId: null, attempt: next, error: dbError };
 
-  if (dbError) return { trackingCode: null, error: dbError };
+  if (!savedBefore) {
+    await supabase.from('audit_logs').insert({
+      complaint_id:    id,
+      organization_id: organizationId ?? null,
+      action:          'created',
+      details:         { channel: 'web', language: formData.language ?? 'ca' },
+    });
+  }
+  return { trackingCode, complaintId: id, attempt: next, error: null };
+}
 
-  const complaint = { id };
-
-  // 2. Upload attachments (if any). La ruta del bucket no porta el nom original: Storage rebutja
-  // accents i caràcters especials, i el nom pot identificar qui denuncia. El nom es desa a la taula.
+/**
+ * Puja els adjunts d'una denúncia acabada de desar. La ruta del bucket no porta el nom original: Storage
+ * rebutja accents i caràcters especials, i el nom pot identificar qui denuncia. En una denúncia anònima
+ * tampoc no viatja el nom original (ni a la taula ni a la pujada), i les fotos ja arriben netes
+ * (cleanForAnonymous, abans d'enviar). onProgress(n): n arxius acabats. Returns { failedFiles }
+ */
+export async function uploadAttachments({ complaintId, files, isAnonymous, onProgress }) {
   const failedFiles = [];
-  for (const [i, file] of (files ?? []).entries()) {
+  if (channelDemo() || !files?.length) return { failedFiles };
+  for (const [i, file] of files.entries()) {
     const ext  = (file.name.includes('.') ? file.name.split('.').pop() : '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
-    const path = `${complaint.id}/${i + 1}-${crypto.randomUUID()}${ext ? `.${ext}` : ''}`;
+    const path = `${complaintId}/${i + 1}-${crypto.randomUUID()}${ext ? `.${ext}` : ''}`;
+    const name = isAnonymous ? neutralName(file.name, i) : file.name;
+    const body = isAnonymous ? new File([file], name, { type: file.type, lastModified: 0 }) : file;
 
     const { error: uploadError } = await supabase
       .storage
       .from('attachments')
-      .upload(path, file, { upsert: false, contentType: file.type || 'application/octet-stream' });
+      .upload(path, body, { upsert: false, contentType: file.type || 'application/octet-stream' });
 
-    if (uploadError) { failedFiles.push(file.name); continue; }
+    if (uploadError) { failedFiles.push(file.name); onProgress?.(i + 1); continue; }
 
     const { error: rowError } = await supabase.from('attachments').insert({
-      complaint_id: complaint.id,
-      // En una denúncia anònima el nom original no es desa: pot identificar qui denuncia
-      filename:     formData.isAnonymous ? neutralName(file.name, i) : file.name,
+      complaint_id: complaintId,
+      filename:     name,
       storage_path: path,
       file_size:    file.size,
       mime_type:    file.type,
     });
-    if (rowError) failedFiles.push(file.name);
+    if (rowError) {
+      failedFiles.push(file.name);
+      // Sense la seva fila, ningú el veuria ni l'esborraria: es treu del bucket
+      await supabase.storage.from('attachments').remove([path]);
+    }
+    onProgress?.(i + 1);
   }
-
-  // 3. Write audit log entry
-  await supabase.from('audit_logs').insert({
-    complaint_id:    complaint.id,
-    organization_id: organizationId ?? null,
-    action:          'created',
-    details:         { channel: 'web', language: formData.language ?? 'ca' },
-  });
-
-  return { trackingCode, failedFiles, error: null };
+  return { failedFiles };
 }
 
 const clean = (v) => (typeof v === 'string' ? v.trim() || null : v ?? null);
@@ -200,7 +231,9 @@ export async function getComplaintByCode(trackingCode) {
  */
 export async function requestMeetingByCode(trackingCode) {
   if (channelDemo()) return (await demo()).requestMeetingByCode(trackingCode);
-  const { error } = await supabase.rpc('request_meeting_by_code', { p_code: trackingCode });
+  const { data, error } = await supabase.rpc('request_meeting_by_code', { p_code: trackingCode });
+  // Amb la migració 014, un codi que no existeix no dona error: retorna buit (vegeu 014_endurecimiento.sql)
+  if (!error && data == null) return { error: new Error('complaint-not-found') };
   return { error };
 }
 
@@ -274,7 +307,8 @@ async function withRedesign(run) {
   if (redesign !== false) {
     const first = await run(REDESIGN_COLUMNS);
     if (!first.error) { redesign = true; return first; }
-    if (redesign === true) return first;
+    // Un corte de red o un error del servidor no vol dir que falti la 012: es retorna l'error i no es decideix res
+    if (redesign === true || !isMissingSchema(first.error)) return first;
   }
   const base = await run([]);
   if (!base.error) redesign = false;
@@ -340,7 +374,8 @@ export async function getReporterMessages(trackingCode) {
 /** Portal de seguiment: qui denuncia envia un missatge amb el seu codi. Returns { error } */
 export async function sendReporterMessage(trackingCode, content) {
   if (channelDemo()) return (await demo()).sendReporterMessage(trackingCode, content);
-  const { error } = await supabase.rpc('send_reporter_message', { p_code: trackingCode, p_content: content });
+  const { data, error } = await supabase.rpc('send_reporter_message', { p_code: trackingCode, p_content: content });
+  if (!error && data == null) return { error: new Error('complaint-not-found') };
   return { error };
 }
 
@@ -503,8 +538,8 @@ export async function registerComplaint(form, actorName = '') {
   if (redesign !== false) {
     const { data, error } = await supabase.rpc('register_complaint', { ...base, p_incident_when: when });
     if (!error) return { id: data, trackingCode, error: null };
-    // Permís o dades no vàlides: la funció nova existeix i ha dit que no
-    if (['42501', '22023'].includes(error.code)) return { id: null, trackingCode: null, error };
+    // Només si la funció nova no existeix es prova la d'abans (un error de xarxa no ho diu)
+    if (!isMissingSchema(error)) return { id: null, trackingCode: null, error };
   }
   // Sense la migració 012: la funció d'abans, amb el «quan» al final de la descripció
   const { data, error } = await supabase.rpc('register_complaint', { ...base, p_description: withWhen(base.p_description, when, form.whenLabel ?? 'Cuándo') });
@@ -547,11 +582,12 @@ export async function getAuditLogs(complaintId) {
   if (DEMO_MODE) return (await demo()).getAuditLogs(complaintId);
   const { data, error } = await supabase
     .from('audit_logs')
-    .select('id, action, details, created_at, actor_id, actor:profiles(full_name)')
+    .select('*, actor:profiles(full_name)')
     .eq('complaint_id', complaintId)
     .order('created_at', { ascending: true });
-  // L'autor surt del perfil (actor_id el posa la base de dades), no d'un text del navegador
-  return { logs: (data ?? []).map(l => ({ ...l, details: { ...(l.details ?? {}), actor_name: l.actor?.full_name ?? l.details?.actor_name } })), error };
+  // L'autor el posa la base de dades, no el navegador: el nom que tenia en aquell moment (actor_name,
+  // migració 014) o, sense la 014, el nom actual del perfil
+  return { logs: (data ?? []).map(l => ({ ...l, details: { ...(l.details ?? {}), actor_name: l.actor_name ?? l.actor?.full_name ?? l.details?.actor_name } })), error };
 }
 
 /**

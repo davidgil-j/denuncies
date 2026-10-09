@@ -1,0 +1,53 @@
+# Integración continua del repositorio de origin. No usa ningún secreto ni toca ningún Supabase:
+# las pruebas de base de datos van en memoria (PGlite) y las de navegador, en modo demo y con red simulada.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-y-base-de-datos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run db:test
+      - run: npm run test:logic
+
+  navegador:
+    runs-on: ubuntu-latest
+    needs: build-y-base-de-datos
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Playwright no es dependencia del proyecto: se instala solo en la máquina de la integración
+      - run: npm i --no-save playwright@1.63.0
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+        env:
+          E2E_OUT: ${{ runner.temp }}/reportia-e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: capturas-e2e
+          path: ${{ runner.temp }}/reportia-e2e
+          retention-days: 7

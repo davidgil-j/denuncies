@@ -40,13 +40,20 @@ Deno.serve(async (req) => {
     if (user_id === user.id) return json({ error: 'self' }, 400);
 
     // Només usuaris de la mateixa organització, i mai l'últim administrador
-    const { data: target } = await adminClient.from('profiles').select('organization_id, role').eq('id', user_id).single();
+    const { data: target } = await adminClient.from('profiles').select('organization_id, role, full_name').eq('id', user_id).single();
     if (!target || target.organization_id !== profile.organization_id) return json({ error: 'Forbidden' }, 403);
     if (target.role === 'superadmin') {
       const { count } = await adminClient.from('profiles').select('id', { count: 'exact', head: true })
         .eq('organization_id', profile.organization_id).eq('role', 'superadmin');
       if ((count ?? 0) <= 1) return json({ error: 'last-admin' }, 400);
     }
+
+    // Queda al registre d'activitat de l'empresa qui ha tret qui de l'equip (abans no en quedava rastre)
+    const { error: logError } = await adminClient.from('audit_logs').insert({
+      complaint_id: null, organization_id: profile.organization_id, action: 'member_removed', actor_id: user.id,
+      details: { member_id: user_id, member_name: target.full_name ?? '', member_role: target.role, removed_by: user.id },
+    });
+    if (logError) return json({ error: 'delete-failed' }, 400);
 
     await adminClient.from('manager_permissions').delete().eq('manager_id', user_id);
     await adminClient.from('profiles').delete().eq('id', user_id);
