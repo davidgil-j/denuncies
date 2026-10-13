@@ -253,7 +253,7 @@ export default function V2Landing() {
                 return (
                   <figure key={value} className={i === say.index ? 'is-on' : undefined}>
                     <figcaption><Icon {...ICON} />{st(T => T.categories.find(c => c.value === value)?.label ?? value)}</figcaption>
-                    <Lp as="blockquote" pick={(x, T, l) => (l === 'en' ? `“${x.catSay[value]}”` : `«${x.catSay[value]}»`)} />
+                    <Lp as="blockquote" pick={x => x.catSay[value]} />
                   </figure>
                 );
               })}

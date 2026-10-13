@@ -119,7 +119,7 @@ function seed() {
     is_anonymous: true, created_at: at(6, 7, 52), updated_at: at(5, 9, 30), department: 'Muelle de carga', incident_date: day(8),
     description: 'Dos carretillas elevadoras del muelle de carga llevan semanas con la alarma de marcha atrás estropeada y una de ellas pierde líquido de frenos. Se comunicó al encargado, pero se siguen usando a diario porque faltan máquinas. El viernes casi atropellan a un compañero.',
   }, [
-    { sender: 'manager', content: 'Gracias por avisar. Hoy mismo hemos retirado las dos carretillas para revisarlas. ¿Sabe si hay más máquinas con el mismo problema?', created_at: at(5, 9, 34) },
+    { sender: 'manager', content: 'Gracias por avisar. Hoy mismo hemos retirado las dos carretillas para revisarlas. ¿Sabes si hay más máquinas con el mismo problema?', created_at: at(5, 9, 34) },
   ], [
     st(at(5, 9, 30), 'received', 'reviewing', nuria, 'Se retiran del servicio las carretillas 4 y 7 hasta su revisión.'),
     pr(at(5, 9, 31), 'normal', 'critical', nuria),
@@ -132,7 +132,7 @@ function seed() {
     created_at: at(12, 16, 20), updated_at: at(11, 10, 2), department: 'Recursos Humanos',
     description: 'En el último proceso de promoción interna para coordinador de almacén se descartó a las tres candidatas que se presentaron, aunque tenían mejor valoración en la evaluación anual que el candidato elegido. En mi entrevista me preguntaron si tenía previsto tener hijos. Pido que se revise el proceso.',
   }, [
-    { sender: 'manager', content: 'Buenos días. Hemos recibido su denuncia y la estamos revisando. Le escribiremos por este canal si necesitamos más información.', created_at: at(11, 10, 5) },
+    { sender: 'manager', content: 'Buenos días. Hemos recibido tu denuncia y la estamos revisando. Te escribiremos por este canal si necesitamos más información.', created_at: at(11, 10, 5) },
     { sender: 'reporter', content: 'Gracias. Puedo aportar el correo con la convocatoria y mi última evaluación anual si les sirve.', created_at: at(10, 19, 40) },
   ], [
     st(at(11, 10, 2), 'received', 'reviewing', laura),
@@ -144,8 +144,8 @@ function seed() {
     is_anonymous: true, created_at: at(25, 9, 15), updated_at: at(19, 12, 10), department: 'Contabilidad',
     description: 'Al cierre de cada trimestre se registran como ventas pedidos que el cliente todavía no ha confirmado, y se anulan a principios del trimestre siguiente. Pasó en marzo y en junio con importes altos. Creo que se hace para cumplir los objetivos de facturación.',
   }, [
-    { sender: 'manager', content: 'Hemos recibido su denuncia. La revisará el área de cumplimiento.', created_at: at(24, 8, 50) },
-    { sender: 'manager', content: '¿Podría indicar los números de pedido o los clientes afectados? Nos ayudaría a localizar los asientos.', created_at: at(21, 13, 0) },
+    { sender: 'manager', content: 'Hemos recibido tu denuncia. La revisará el área de cumplimiento.', created_at: at(24, 8, 50) },
+    { sender: 'manager', content: '¿Podrías indicar los números de pedido o los clientes afectados? Nos ayudaría a localizar los asientos.', created_at: at(21, 13, 0) },
     { sender: 'reporter', content: 'Son pedidos de dos clientes de la zona norte. Los números empiezan por PV-24 y se anularon entre el 2 y el 5 de julio.', created_at: at(20, 22, 15) },
   ], [
     st(at(24, 8, 48), 'received', 'reviewing', daniel),
@@ -160,8 +160,8 @@ function seed() {
     is_anonymous: true, created_at: at(33, 21, 3), updated_at: at(6, 11, 20), department: 'Oficinas centrales, planta 2',
     description: 'Un jefe de equipo grita y humilla en público a dos personas de su equipo, con insultos y amenazas de despido delante de todos. Pasa casi a diario desde que empezó el año. Las personas afectadas tienen miedo de denunciarlo ellas mismas.',
   }, [
-    { sender: 'manager', content: 'Hemos recibido su denuncia y la estamos revisando con prioridad.', created_at: at(32, 9, 12) },
-    { sender: 'manager', content: 'Para avanzar necesitamos saber en qué meses ocurrieron los hechos que describe y si alguien más los presenció. No hace falta que dé nombres: basta con indicar cuántas personas estaban presentes.', created_at: at(6, 11, 22) },
+    { sender: 'manager', content: 'Hemos recibido tu denuncia y la estamos revisando con prioridad.', created_at: at(32, 9, 12) },
+    { sender: 'manager', content: 'Para avanzar necesitamos saber en qué meses ocurrieron los hechos que describes y si alguien más los presenció. No hace falta que des nombres: basta con indicar cuántas personas estaban presentes.', created_at: at(6, 11, 22) },
   ], [
     st(at(32, 9, 10), 'received', 'reviewing', laura),
     ms(at(32, 9, 12), laura),
@@ -195,7 +195,7 @@ function seed() {
     is_anonymous: true, created_at: at(86, 10, 10), updated_at: at(10, 9, 0), department: 'Almacén central',
     description: 'Las salidas de emergencia de los pasillos 4 y 9 están bloqueadas con palés casi todos los días. En el simulacro de mayo no se pudo usar la del pasillo 9.',
   }, [
-    { sender: 'manager', content: 'Hemos recibido su denuncia y la estamos revisando.', created_at: at(85, 9, 30) },
+    { sender: 'manager', content: 'Hemos recibido tu denuncia y la estamos revisando.', created_at: at(85, 9, 30) },
     { sender: 'manager', content: '¿Sigue ocurriendo después de la reorganización del almacén de julio?', created_at: at(10, 9, 2) },
   ], [
     st(at(85, 9, 28), 'received', 'reviewing', nuria),
@@ -210,7 +210,7 @@ function seed() {
     is_anonymous: true, created_at: at(98, 12, 30), updated_at: at(96, 9, 0), department: 'Logística',
     description: 'Un compañero utiliza la furgoneta de la empresa los fines de semana para mudanzas particulares y la devuelve el lunes con el depósito vacío. Lo he visto al menos tres fines de semana seguidos.',
   }, [
-    { sender: 'manager', content: 'Hemos recibido su denuncia y la estamos revisando.', created_at: at(96, 9, 2) },
+    { sender: 'manager', content: 'Hemos recibido tu denuncia y la estamos revisando.', created_at: at(96, 9, 2) },
   ], [
     st(at(96, 9, 0), 'received', 'reviewing', admin),
     ms(at(96, 9, 2), admin),
@@ -221,7 +221,7 @@ function seed() {
     is_anonymous: true, created_at: at(101, 15, 0), updated_at: at(64, 10, 0), department: 'Compras',
     description: 'El responsable de compras adjudica desde hace meses los pedidos de material de embalaje a una empresa que, según el registro mercantil, administra su cuñado. Los precios son más altos que los de otros proveedores que se presentaron.',
   }, [
-    { sender: 'manager', content: 'Hemos recibido su denuncia. La estamos revisando.', created_at: at(97, 9, 15) },
+    { sender: 'manager', content: 'Hemos recibido tu denuncia. La estamos revisando.', created_at: at(97, 9, 15) },
   ], [
     st(at(97, 9, 12), 'received', 'reviewing', daniel),
     ms(at(97, 9, 15), daniel),
@@ -233,7 +233,7 @@ function seed() {
     is_anonymous: true, created_at: at(18, 13, 22), updated_at: at(9, 16, 0), department: 'Almacén central',
     description: 'Los residuos de cartón y plástico del almacén se mezclan con la basura general y salen en el mismo contenedor, aunque a los clientes se les factura el reciclaje de embalajes.',
   }, [
-    { sender: 'manager', content: 'Hemos recibido su denuncia y la estamos revisando.', created_at: at(16, 10, 0) },
+    { sender: 'manager', content: 'Hemos recibido tu denuncia y la estamos revisando.', created_at: at(16, 10, 0) },
   ], [
     st(at(16, 9, 58), 'received', 'reviewing', nuria),
     ms(at(16, 10, 0), nuria),
@@ -245,7 +245,7 @@ function seed() {
     is_anonymous: true, created_at: at(60, 9, 40), updated_at: at(15, 12, 0), department: 'Sistemas',
     description: 'Las cámaras del almacén graban también la zona de taquillas y vestuarios, y las grabaciones se guardan en un ordenador sin contraseña al que puede acceder cualquiera del turno.',
   }, [
-    { sender: 'manager', content: 'Hemos recibido su denuncia y la estamos revisando.', created_at: at(58, 10, 0) },
+    { sender: 'manager', content: 'Hemos recibido tu denuncia y la estamos revisando.', created_at: at(58, 10, 0) },
     { sender: 'manager', content: 'Se han reorientado las cámaras y las grabaciones se guardan ahora en un servidor con acceso restringido. Damos la denuncia por resuelta.', created_at: at(15, 12, 5) },
   ], [
     st(at(58, 9, 58), 'received', 'reviewing', admin),
@@ -288,7 +288,7 @@ function seed() {
     created_at: at(120, 18, 30), updated_at: at(35, 13, 0), department: 'Administración',
     description: 'Una compañera de mi departamento recibe mensajes de contenido sexual de un superior fuera del horario laboral. Me lo ha contado y me ha pedido que lo comunique, porque teme represalias si lo hace ella.',
   }, [
-    { sender: 'manager', content: 'Hemos recibido su denuncia. La trataremos con la máxima confidencialidad.', created_at: at(119, 9, 30) },
+    { sender: 'manager', content: 'Hemos recibido tu denuncia. La trataremos con la máxima confidencialidad.', created_at: at(119, 9, 30) },
     { sender: 'manager', content: 'La investigación ha concluido y se han tomado medidas. Cerramos el expediente.', created_at: at(35, 13, 5) },
   ], [
     st(at(119, 9, 28), 'received', 'reviewing', laura),
@@ -304,7 +304,7 @@ function seed() {
     is_anonymous: true, created_at: at(140, 11, 20), updated_at: at(38, 10, 0), department: 'Logística',
     description: 'En logística se pagan horas extra que no constan en el sistema de fichaje. Algunas semanas se pagan más horas de las que el almacén estuvo abierto.',
   }, [
-    { sender: 'manager', content: 'Hemos recibido su denuncia y la estamos revisando.', created_at: at(137, 9, 0) },
+    { sender: 'manager', content: 'Hemos recibido tu denuncia y la estamos revisando.', created_at: at(137, 9, 0) },
   ], [
     st(at(137, 8, 58), 'received', 'reviewing', daniel),
     ms(at(137, 9, 0), daniel),
