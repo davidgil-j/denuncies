@@ -16,7 +16,8 @@ for (const [w, h] of [[1440, 900], [1366, 768], [1280, 720], [1280, 700], [1180,
     if (h <= 768 && w >= 1280) ok(`${w}×${h} dos tarjetas por columna`, head.cols.length === 3 && head.cols.every(n => n >= 2), head.cols.join('/'));
   }
   ok(`${w}×${h} sin desbordar`, head.over <= 0);
-  ok(`${w}×${h} «Registrar caso» azul en el tablero`, /47, 84, 235/.test(head.reg), head.reg);
+  // En el móvil «Registrar caso» es un icono sin fondo en la cabecera (como «Buscar»): el único botón de color de la pantalla es el de la acción
+  ok(`${w}×${h} «Registrar caso» ${mobile ? 'como icono sin fondo' : 'azul'} en el tablero`, mobile ? head.reg === 'rgba(0, 0, 0, 0)' : /47, 84, 235/.test(head.reg), head.reg);
   await p.screenshot({ path: `${OUT}/${w}x${h}-P3-tablero-cabecera.png` });
   await p.goto('http://localhost:3111/admin/report', { waitUntil: 'networkidle' }); await p.waitForSelector('.rp-figs dd');
   ok(`${w}×${h} «Registrar caso» gris fuera del tablero`, !/47, 84, 235/.test(await p.evaluate(() => getComputedStyle(document.querySelector('.pn-register')).backgroundColor)));

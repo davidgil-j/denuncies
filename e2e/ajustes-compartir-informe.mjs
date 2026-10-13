@@ -207,7 +207,8 @@ ok('contratar: panel con los tres planes y sus precios', await page.locator('.st
 const mail = await page.getByRole('link', { name: 'Contratar por correo' }).getAttribute('href');
 ok('contratar: es el correo de siempre', mail.startsWith('mailto:info@reportia.es?subject=') && decodeURIComponent(mail).includes('Empresa Demo'), mail.slice(0, 60));
 await shot('G5-planes', { view: true });
-await page.getByRole('button', { name: 'Cerrar' }).click();
+// «Cerrar», exacto: en el móvil la pantalla tiene también «Cerrar sesión» al final
+await page.getByRole('button', { name: 'Cerrar', exact: true }).click();
 await page.getByRole('button', { name: 'Datos de facturación' }).click();
 await page.locator('#st-billing_tax_id').fill('12');
 await page.locator('#st-billing_email').fill('facturas@');
@@ -306,7 +307,8 @@ await page.goto(`${BASE}/admin/integration`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.sh-qr img');
 await openSteps();
 await page.getByRole('button', { name: 'Ya está hecho' }).click();
-await page.getByText('Puesta en marcha completada').first().waitFor();
+// Con los pasos abiertos lo dice debajo de la lista (en el móvil la línea plegada solo lleva «5 de 5»)
+await page.locator('.sh-next-label', { hasText: 'Puesta en marcha completada' }).waitFor();
 ok('compartir: 5 de 5 y «Puesta en marcha completada»', (await page.locator('.sh-steps-head > span').innerText()) === '5 de 5');
 await shot('G4-compartir-todo-listo', { view: true });
 await page.goto(`${BASE}/admin`, { waitUntil: 'networkidle' });
@@ -321,7 +323,14 @@ await page.goto(`${BASE}/admin/report`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.rp-figs dd');
 const year = new Date().getFullYear();
 ok('informe: se titula «Informe de {año}»', (await page.locator('h1').first().innerText()).trim() === `Informe de ${year}`);
-ok('informe: las cuatro cifras en una fila, en una sola tarjeta blanca, sin tarjeta azul ni rosa', await page.locator('.rp-fig.is-report').count() === 0 && await page.locator('.rp-figs').evaluate(el => getComputedStyle(el).backgroundColor) === 'rgb(255, 255, 255)' && await page.locator('.rp-fig').evaluateAll(els => els.every(e => getComputedStyle(e).backgroundColor === 'rgba(0, 0, 0, 0)')));
+if (mobile) {
+  // En el móvil: 2 × 2, sin tarjeta, cada cifra con una línea encima; los dos botones de exportar, al final y con nombre corto
+  const m = await page.evaluate(() => { const f = [...document.querySelectorAll('.rp-fig')].map(e => e.getBoundingClientRect()); const box = getComputedStyle(document.querySelector('.rp-figs')); const ex = document.querySelector('.rp-exports').getBoundingClientRect(); const last = document.querySelector('.rp-see').getBoundingClientRect(); return { rows: new Set(f.map(b => Math.round(b.top))).size, cols: new Set(f.map(b => Math.round(b.left))).size, bg: box.backgroundColor, line: getComputedStyle(document.querySelector('.rp-fig')).borderTopWidth, below: ex.top >= last.bottom, names: [...document.querySelectorAll('.rp-exports .ds-btn')].map(b => b.innerText.trim()).join('|') }; });
+  ok('informe en el móvil: las cuatro cifras en 2 × 2, sin tarjeta y con una línea encima', m.rows === 2 && m.cols === 2 && m.bg === 'rgba(0, 0, 0, 0)' && m.line === '1px' && await page.locator('.rp-fig.is-report').count() === 0, JSON.stringify(m));
+  ok('informe en el móvil: «Excel» y «PDF» al final de la pantalla', m.below && m.names === 'Excel|PDF', JSON.stringify(m));
+} else {
+  ok('informe: las cuatro cifras en una fila, en una sola tarjeta blanca, sin tarjeta azul ni rosa', await page.locator('.rp-fig.is-report').count() === 0 && await page.locator('.rp-figs').evaluate(el => getComputedStyle(el).backgroundColor) === 'rgb(255, 255, 255)' && await page.locator('.rp-fig').evaluateAll(els => els.every(e => getComputedStyle(e).backgroundColor === 'rgba(0, 0, 0, 0)')));
+}
 const figs = await page.locator('.rp-figs dd').allInnerTexts();
 ok('informe: cuatro cifras', figs.length === 4 && /^\d+$/.test(figs[0]) && /de \d+/.test(figs[1]) && /%/.test(figs[2]), figs.join(' | '));
 const bars = await page.locator('.rp-bar').count();

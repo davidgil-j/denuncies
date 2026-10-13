@@ -114,6 +114,9 @@ await page.waitForSelector('.cs-desc');
 await page.locator('.cs-next').getByRole('button', { name: 'Proponer la reunión' }).click();
 await page.locator('#cs-msg').fill('Te proponemos reunirnos el jueves a las 10:00 en la sala 2. Si no te va bien, dinos otro momento.');
 await page.locator('.ds-compose').getByRole('button', { name: 'Enviar' }).click();
+await page.locator('.ds-chat-msg.is-mine', { hasText: 'Te proponemos reunirnos el jueves' }).waitFor();
+// En el móvil la propuesta se escribe en la pestaña «Conversación»; el siguiente paso sigue en «Resumen»
+if (mobile) await page.getByRole('tab', { name: 'Resumen', exact: true }).click();
 await page.locator('.cs-next').getByRole('button', { name: 'Marcar la reunión como hecha' }).click();
 await toast('Reunión marcada como hecha');
 await page.locator('.cs-next').getByRole('button', { name: 'Iniciar la investigación' }).click();
@@ -130,6 +133,7 @@ const hist = await page.locator('.cs-hist').innerText();
 ok('5 · historial completo: acuse, reunión, investigación, resultado y cierre', ['reunión presencial', 'En investigación', 'resultado', 'Resuelta'].every(x => hist.includes(x)), hist.replace(/\n/g, ' ').slice(0, 160));
 await shot('5c-caso-cerrado');
 // 7 (primera parte) · PDF del caso
+if (mobile) await page.getByRole('button', { name: 'Más acciones' }).click(); // en el móvil, «Exportar PDF» está en «···»
 const casePdf = await save(() => page.getByRole('button', { name: 'Exportar PDF' }).click(), 'caso');
 ok('7 · PDF del caso', casePdf.endsWith('.pdf'), casePdf);
 // Quien informa ve la respuesta con su código

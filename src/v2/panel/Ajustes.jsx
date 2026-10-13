@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, Check, Circle, CircleAlert, Mail } from 'lucide-react';
+import { ArrowUpRight, Check, Circle, CircleAlert, LogOut, Mail } from 'lucide-react';
 import { updatePassword } from '../../lib/supabase.js';
 import { AIPI_URL, ANTIFRAU_URL, LANGS, fmt } from '../V2Layout.jsx';
 import { translations } from '../../translations.js';
@@ -34,7 +34,7 @@ function useUnsavedGuard(dirty) {
  * quién gestiona, tu seguridad y los datos de la empresa. Quien no administra solo ve «Tu seguridad».
  */
 export default function Ajustes() {
-  const { lang, p, org, isSuperadmin } = usePanel();
+  const { lang, t, p, org, isSuperadmin, channelPath, logout, leaving } = usePanel();
   useEffect(() => { document.title = `${p.nav.settings} · ${org?.name ?? ''}`; }, [p, org]);
   return (
     <div className="pn-page st">
@@ -47,6 +47,11 @@ export default function Ajustes() {
       ) : (
         <div className="st-col is-solo"><TuSeguridad /></div>
       )}
+      {/* En el móvil la cabecera no lleva la cuenta: «Ver el canal» y «Cerrar sesión» están aquí */}
+      <div className="st-phone">
+        {channelPath && <Button variant="soft" size="md" full href={channelPath} target="_blank" rel="noopener noreferrer" aria-label={p.viewChannelAria} iconEnd={<ArrowUpRight size={16} strokeWidth={1.8} aria-hidden="true" />}>{p.viewChannel}</Button>}
+        <Button variant="soft" size="md" full onClick={logout} busy={leaving} icon={<LogOut size={16} strokeWidth={1.8} aria-hidden="true" />}>{leaving ? t.loggingOut : p.logout}</Button>
+      </div>
     </div>
   );
 }

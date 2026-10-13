@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Ellipsis, Pencil, Check, X, Paperclip, Download, CircleAlert, LockKeyhole, Archive, Eraser, CalendarPlus,
-  MessageSquareReply, RotateCcw, Search, Eye, Scale, Flag, FileText, MessageSquare, SlidersHorizontal, CalendarDays, CircleCheck, User, History,
+  MessageSquareReply, RotateCcw, Search, Eye, Scale, Flag, FileText, FileDown, MessageSquare, Send, SlidersHorizontal, CalendarDays, CircleCheck, User, History,
 } from 'lucide-react';
 import {
   getComplaintById, getReporterIdentity, getMessages, sendMessage, getAuditLogs, updateComplaint, addComplaintNote,
@@ -13,7 +13,7 @@ import './texts.js'; // textos del panel (lado Gestionar)
 import { fmt } from '../V2Layout.jsx';
 import { deadlineInfo, fDateTime, fLong, fShort, auditText, PRIORITIES } from '../admin/adminKit.jsx';
 import { extensionUntil } from '../../lib/deadlines.js';
-import { Button, IconButton, Card, Chip, Field, StepBar, ChatThread, ChatComposer, Dialog, Menu, MenuItem, Skeleton } from '../ui/index.js';
+import { Button, IconButton, Card, Chip, Field, Segmented, StepBar, ChatThread, ChatComposer, Dialog, Menu, MenuItem, Skeleton, cx } from '../ui/index.js';
 import { deadlineLook } from '../ui/DeadlineChip.jsx';
 import { usePanel, Tp, caseState, caseTitle, historyText, blanksError, sameAsColumn, OUTCOMES, CLOSED } from './kit.jsx';
 import { AiSummary, AiDraft } from './Ia.jsx';
@@ -27,6 +27,7 @@ const LOCALE = { ca: 'ca-ES', es: 'es-ES', en: 'en-GB' };
 /**
  * Ficha de un caso: el siguiente paso en una franja con su único botón de color; lo que ha contado, la
  * conversación en su bloque y las notas internas aparte; y, a la derecha, una sola columna de gestión.
+ * En el móvil va en tres pestañas (Resumen, Conversación y Gestión), con el siguiente paso fijo abajo.
  */
 export default function Caso() {
   const { id } = useParams();
@@ -43,6 +44,12 @@ export default function Caso() {
   const [loadErr, setLoadErr] = useState(false);
   const [dialog, setDialog] = useState(null); // ack | close | extend | suppress | fiscal
   const [note, setNote] = useState(''); // la nota interna que se está escribiendo
+  // Solo cuentan en el móvil: la pestaña a la vista, la descripción entera o resumida y el campo de la nota abierto
+  const [tab, setTab] = useState('summary');
+  const [fullDesc, setFullDesc] = useState(false);
+  const [cutDesc, setCutDesc] = useState(false);
+  const descRef = useRef(null);
+  const [noteOpen, setNoteOpen] = useState(false);
   const [text, setText] = useState('');
   const [outcome, setOutcome] = useState('');
   const [dErr, setDErr] = useState('');
@@ -73,9 +80,12 @@ export default function Caso() {
     // el aviso de «mensaje nuevo» desaparecería para quien sí tiene que hacerlo)
     if (complaint && can('reply', complaint.category) && (msgs ?? []).some(m => m.sender === 'reporter' && !m.is_read)) markMessagesRead(complaint.id);
   }
-  useEffect(() => { loadAll(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
+  // Al abrir otro caso la ficha vuelve a «Resumen», con la descripción plegada y el campo de la nota cerrado
+  useEffect(() => { setTab('summary'); setFullDesc(false); setNoteOpen(false); loadAll(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
   useEffect(() => { listAssignees().then(({ people: list }) => setPeople(list ?? [])); }, []);
   useEffect(() => { if (c) document.title = `${c.reference} · ${org?.name ?? ''}`; }, [c, org]);
+  // En el móvil la descripción se corta a unas líneas: «Leer entero» solo aparece si de verdad hay más texto
+  useEffect(() => { const el = descRef.current; if (el && !fullDesc) setCutDesc(el.scrollHeight > el.clientHeight + 1); }, [c?.description, fullDesc, tab]);
 
   async function refresh() {
     const [{ complaint }, { messages: msgs }, { logs: l }] = await Promise.all([getComplaintById(id), getMessages(id), getAuditLogs(id)]);
@@ -274,6 +284,7 @@ export default function Caso() {
   }
   // «Proponer la reunión»: deja el mensaje preparado en la conversación para que se edite y se envíe
   function proposeMeeting() {
+    setTab('conv');
     setDraft(tpl('meetTpl'));
     requestAnimationFrame(() => { const el = document.getElementById('cs-msg'); el?.scrollIntoView({ block: 'center' }); el?.focus(); });
   }
@@ -321,13 +332,15 @@ export default function Caso() {
     : '';
 
   return (
-    <div className="pn-page cs">
+    <div className="pn-page cs" data-tab={tab}>
       <div className="cs-bar">
         <Link className="pn-back" to={backTo}><ArrowLeft size={14} strokeWidth={1.8} aria-hidden="true" />{p.back}</Link>
         <div className="cs-bar-tools">
-          <Button variant="soft" size="xs" onClick={exportPdf}>{p.exportOne}</Button>
-          {(canEdit || canDelete) && (
+          <Button variant="soft" size="xs" className="cs-export" onClick={exportPdf}>{p.exportOne}</Button>
+          {/* En el móvil el menú «···» está siempre, porque lleva también «Exportar PDF» */}
+          <span className={cx('cs-more', !(canEdit || canDelete) && 'is-phone-only')}>
             <Menu label={p.more} trigger={props => <IconButton variant="soft" size="xs" label={p.more} {...props}><Ellipsis size={16} strokeWidth={1.8} aria-hidden="true" /></IconButton>}>
+              <MenuItem className="pn-phone-only" icon={<FileDown size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={exportPdf}>{p.exportOne}</MenuItem>
               {canEdit && info.canExtend && <MenuItem icon={<CalendarPlus size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={() => open('extend')}>{p.extend}</MenuItem>}
               {canEdit && c.status === 'investigating' && <MenuItem icon={<MessageSquareReply size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={() => change({ status: 'waiting' }, p.statusOk)}>{p.toWaiting}</MenuItem>}
               {canEdit && c.status === 'waiting' && <MenuItem icon={<Search size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={() => change({ status: 'investigating' }, p.statusOk)}>{p.toInvestigating}</MenuItem>}
@@ -335,7 +348,7 @@ export default function Caso() {
               {canEdit && answered && <MenuItem icon={<RotateCcw size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={() => change({ status: 'investigating' }, p.statusOk)}>{p.reopen}</MenuItem>}
               {canDelete && <><div className="ds-menu-sep" /><MenuItem danger icon={<Eraser size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={() => open('suppress')}>{p.suppress}</MenuItem></>}
             </Menu>
-          )}
+          </span>
         </div>
       </div>
 
@@ -385,7 +398,7 @@ export default function Caso() {
             </p>
             {c.extension_reason && <p className="cs-ext">{c.extension_reason}</p>}
           </div>
-          <div className="cs-next-do">
+          <div className={cx('cs-next-do', next?.ok && 'is-action')}>
             {next && <span className="cs-next-label">{p.next}</span>}
             {next ? (
               next.ok
@@ -402,13 +415,22 @@ export default function Caso() {
         </section>
       )}
 
+      {/* Solo en el móvil: la ficha en tres pestañas */}
+      <Segmented
+        className="cs-tabs" mode="tabs" tone="line" label={p.tabsLabel} value={tab} onChange={setTab}
+        options={[{ value: 'summary', label: p.tabSummary, controls: 'cs-pane-summary' }, { value: 'conv', label: p.tabConv, controls: 'cs-pane-conv' }, { value: 'manage', label: p.tabManage, controls: 'cs-pane-manage' }]}
+      />
+
       <div className="cs-grid">
         <div className="cs-main">
           {/* Solo con la IA encendida; apagada, la ficha es exactamente la de siempre */}
+          <div className="cs-pane" id="cs-pane-summary">
           {AI_ENABLED && !erased && <AiSummary c={c} canEdit={canEdit} onUseTitle={title => change({ title })} onGenerated={refresh} />}
           <Card as="section" className="cs-told" aria-labelledby="cs-told">
             <h2 className="pn-sec-t" id="cs-told">{ti(FileText)}{p.told}</h2>
-            <p className="cs-desc">{c.description}</p>
+            <p ref={descRef} className={cx('cs-desc', !fullDesc && 'is-short')} id="cs-desc-p">{c.description}</p>
+            {/* En el móvil, una descripción larga se resume y se abre con «Leer entero» */}
+            {cutDesc && <button type="button" className="pn-link cs-desc-more" aria-expanded={fullDesc} aria-controls="cs-desc-p" onClick={() => setFullDesc(v => !v)}>{fullDesc ? p.readLess : p.readAll}</button>}
             {(facts.length > 0 || files.length > 0) && (
               <dl className="cs-facts">
                 {facts.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
@@ -432,12 +454,14 @@ export default function Caso() {
               </dl>
             )}
           </Card>
+          </div>
 
+          <div className="cs-pane" id="cs-pane-conv">
           {/* La conversación, en su bloque: cabecera con el tinte, las burbujas por lado y la caja pegada abajo */}
           <section className="pn-block is-tint cs-conv" aria-labelledby="cs-conv">
             <div className="pn-block-head">
               <h2 className="pn-sec-t" id="cs-conv">{ti(MessageSquare)}{p.conv}</h2>
-              <span className="pn-block-tag"><LockKeyhole size={14} strokeWidth={1.8} aria-hidden="true" />{p.convNote}</span>
+              <span className="pn-block-tag"><LockKeyhole size={14} strokeWidth={1.8} aria-hidden="true" /><span className="pn-desk-only">{p.convNote}</span><span className="pn-phone-only">{p.convNotePhone}</span></span>
             </div>
             <div className="pn-block-body">
               <ChatThread lang={lang} messages={thread} label={p.conv} empty={c.status === 'received' ? p.convEmptyFirst : p.convEmpty} />
@@ -445,7 +469,7 @@ export default function Caso() {
                 <>
                   {sendErr && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />{p.msgErr}</p>}
                   {blankErr && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />{blankErr}</p>}
-                  <ChatComposer lang={lang} id="cs-msg" className="cs-compose" stacked value={draft} onChange={v => { setDraft(v); if (blankErr) setBlankErr(''); }} onSend={send} busy={sending} placeholder={c.is_anonymous ? p.msgPh : p.msgPhIdent} sendLabel={p.send}
+                  <ChatComposer lang={lang} id="cs-msg" className="cs-compose" stacked value={draft} onChange={v => { setDraft(v); if (blankErr) setBlankErr(''); }} onSend={send} busy={sending} placeholder={c.is_anonymous ? p.msgPh : p.msgPhIdent} sendLabel={<><span className="cs-send-t">{p.send}</span><Send className="cs-send-ico" size={18} strokeWidth={2} aria-hidden="true" /></>}
                     actions={AI_ENABLED ? <AiDraft c={c} kinds={['ack', 'question', 'answer']} current={draft} onApply={setDraft} align="start" /> : undefined} />
                 </>
               ) : <p className="cs-locked"><LockKeyhole size={16} strokeWidth={1.8} aria-hidden="true" />{p.noReply}</p>}
@@ -471,18 +495,21 @@ export default function Caso() {
                   </ul>
                 )}
                 {canEdit && (
-                  <form className="cs-note-form" onSubmit={saveNote}>
-                    <Field label={p.notePh} hideLabel placeholder={p.notePh} value={note} maxLength={2000} onChange={e => setNote(e.target.value)} />
+                  <form className={cx('cs-note-form', noteOpen && 'is-open')} onSubmit={saveNote}>
+                    <Field id="cs-note" label={p.notePh} hideLabel placeholder={p.notePh} value={note} maxLength={2000} onChange={e => setNote(e.target.value)} />
                     <Button type="submit" variant="soft" size="md" disabled={!note.trim()} busy={busy && !dialog && !!note.trim()}>{p.noteSave}</Button>
                   </form>
                 )}
               </div>
             </section>
           )}
+          {/* En el móvil el campo de la nota se abre con este enlace */}
+          {!erased && canEdit && !noteOpen && <button type="button" className="pn-link cs-note-add" onClick={() => { setNoteOpen(true); requestAnimationFrame(() => document.getElementById('cs-note')?.focus()); }}>{p.addNote}</button>}
+          </div>
         </div>
 
         {/* Una sola columna de gestión: secciones con su título y una línea entre ellas */}
-        <Card as="aside" className="cs-side">
+        <Card as="aside" className="cs-side" id="cs-pane-manage">
           {!erased && (
             <section className="cs-sec" aria-labelledby="cs-manage">
               <h2 className="pn-sec-t" id="cs-manage">{ti(SlidersHorizontal)}{p.manageT}</h2>

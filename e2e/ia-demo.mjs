@@ -89,6 +89,8 @@ const skeleton = (page) => page.evaluate(() => [...document.querySelectorAll('.c
   ok('«Usar como título» cambia el título (antes era el neutro: referencia y tema)', h1Before !== 'Comentarios y trato humillante hacia varias compañeras' && await p2.getByRole('button', { name: 'Usar como título' }).count() === 0, h1Before);
   // Redactar en la conversación: propone, no envía
   await p2.locator('.pn-toast').waitFor({ state: 'detached', timeout: 8000 }).catch(() => {});
+  // En el móvil la caja de escribir (y «Redactar con IA») está en la pestaña «Conversación»
+  if (mobile) await p2.getByRole('tab', { name: 'Conversación', exact: true }).click();
   await p2.getByRole('button', { name: 'Redactar con IA' }).click();
   await shot(p2, 'IA-encendida-menu-redactar', { view: true });
   await p2.getByRole('button', { name: 'Pedir más datos' }).click();
@@ -109,6 +111,7 @@ const skeleton = (page) => page.evaluate(() => [...document.querySelectorAll('.c
   ok('«Dejar mi texto» conserva lo escrito', (await p2.locator('#cs-msg').inputValue()) === 'Esto lo he escrito yo.');
   await p2.locator('#cs-msg').fill('');
   // En el acuse
+  if (mobile) await p2.getByRole('tab', { name: 'Resumen', exact: true }).click();
   await p2.getByRole('button', { name: 'Enviar el acuse de recibo' }).first().click();
   await p2.locator('dialog[open]').getByRole('button', { name: 'Redactar con IA' }).click();
   await p2.waitForFunction(() => document.querySelector('dialog[open] textarea')?.value.startsWith('Hemos recibido su comunicación'), null, { timeout: 8000 });
@@ -149,12 +152,13 @@ const skeleton = (page) => page.evaluate(() => [...document.querySelectorAll('.c
   await p2.evaluate(() => localStorage.setItem('reportia-panel-lang', 'ca'));
   await p2.goto(`${ON}${CASE}`, { waitUntil: 'networkidle' });
   await p2.waitForSelector('.ai-text');
-  ok('catalán', await p2.getByRole('button', { name: 'Tornar a generar' }).isVisible() && await p2.getByRole('button', { name: 'Redactar amb IA' }).isVisible());
+  const draftSeen = async (name) => { if (mobile) await p2.locator('.cs-tabs [role=tab]').nth(1).click(); return p2.getByRole('button', { name }).isVisible(); };
+  ok('catalán', await p2.getByRole('button', { name: 'Tornar a generar' }).isVisible() && await draftSeen('Redactar amb IA'));
   await shot(p2, 'IA-encendida-catala');
   await p2.evaluate(() => localStorage.setItem('reportia-panel-lang', 'en'));
   await p2.reload({ waitUntil: 'networkidle' });
   await p2.waitForSelector('.ai-text');
-  ok('inglés', await p2.getByRole('button', { name: 'Generate again' }).isVisible() && await p2.getByRole('button', { name: 'Draft with AI' }).isVisible());
+  ok('inglés', await p2.getByRole('button', { name: 'Generate again' }).isVisible() && await draftSeen('Draft with AI'));
   await shot(p2, 'IA-encendida-english');
   await on.ctx.close();
 }

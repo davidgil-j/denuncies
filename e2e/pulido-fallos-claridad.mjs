@@ -113,6 +113,9 @@ await shot('A4-plantilla-sin-completar');
 await page.locator('#cs-msg').fill('Te proponemos reunirnos el jueves a las 10:00 en la sala 2. Si no te va bien, dinos otro momento.');
 ok('A4 · al escribir, el aviso se va', await page.getByText('Completa lo que falta antes de enviar').count() === 0);
 await page.locator('.ds-compose').getByRole('button', { name: 'Enviar' }).click();
+await page.locator('.ds-chat-msg.is-mine', { hasText: 'Te proponemos reunirnos el jueves' }).waitFor();
+// En el móvil la propuesta se escribe en la pestaña «Conversación»; el siguiente paso sigue en «Resumen»
+if (mobile) await page.getByRole('tab', { name: 'Resumen', exact: true }).click();
 await page.locator('.cs-next').getByRole('button', { name: 'Marcar la reunión como hecha' }).waitFor();
 ok('A4 · completa, se envía', true);
 await page.getByRole('button', { name: 'Añadir un título' }).click();

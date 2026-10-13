@@ -29,6 +29,8 @@ async function shot(name, { full = true } = {}) {
   } else await page.screenshot({ path, fullPage: full });
 }
 const toast = async (text) => { await page.getByText(text).first().waitFor({ timeout: 8000 }); };
+// En el móvil la ficha va en tres pestañas (Resumen, Conversación y Gestión): cada parte se abre con la suya
+const part = async (name) => { if (mobile) await page.getByRole('tab', { name, exact: true }).click(); };
 
 // 1 · Acceso sin empresa y con empresa
 await page.addInitScript(() => { try { localStorage.setItem('reportia-panel-lang', 'es'); } catch {} });
@@ -151,6 +153,17 @@ if (!mobile) {
 ok('ficha: siguiente paso = enviar el acuse', await page.locator('.cs-next').getByRole('button', { name: 'Enviar el acuse de recibo' }).isVisible());
 ok('ficha: plazo legal de la reunión y lo que queda', await page.locator('.cs-deadlines').getByText(/para la reunión \(plazo legal: 7 días\)/).isVisible());
 ok('ficha: el «cuándo» en su casilla', await page.locator('.cs-facts').getByText('Desde septiembre').isVisible());
+if (mobile) {
+  // En el móvil: «← Tablero» y «···» en lugar de la cabecera del panel, tres pestañas y el siguiente paso fijo abajo
+  const m = await page.evaluate(() => { const b = document.querySelector('.cs-next-do .ds-btn').getBoundingClientRect(); return { head: getComputedStyle(document.querySelector('.pn-head')).display, nav: document.querySelector('.ds-nav').getBoundingClientRect().height, tabs: [...document.querySelectorAll('.cs-tabs [role=tab]')].map(t => t.innerText.trim()), fixed: getComputedStyle(document.querySelector('.cs-next-do')).position, bottom: Math.round(innerHeight - b.bottom), h: Math.round(b.height), tint: getComputedStyle(document.querySelector('.cs-next')).backgroundColor }; });
+  ok('ficha en el móvil: sin la cabecera ni la barra del panel; arriba, «Tablero» y «···»', m.head === 'none' && m.nav === 0 && await page.locator('.cs-bar').getByRole('link', { name: 'Tablero' }).isVisible() && await page.getByRole('button', { name: 'Más acciones' }).isVisible(), JSON.stringify(m));
+  ok('ficha en el móvil: tres pestañas (Resumen, Conversación y Gestión)', m.tabs.join('|') === 'Resumen|Conversación|Gestión', m.tabs.join('|'));
+  ok('ficha en el móvil: el siguiente paso, fijo abajo, en un botón de 44 px y sin caja de color', m.fixed === 'fixed' && m.bottom >= 0 && m.bottom <= 24 && m.h === 44 && m.tint === 'rgba(0, 0, 0, 0)', JSON.stringify(m));
+  ok('ficha en el móvil: en «Resumen» no se ven la conversación ni la gestión', !(await page.locator('.cs-conv').isVisible()) && !(await page.locator('.cs-side').isVisible()));
+  ok('ficha en el móvil: la descripción larga se corta y se abre con «Leer entero»', await page.getByRole('button', { name: 'Leer entero' }).isVisible());
+  await page.getByRole('button', { name: 'Leer entero' }).click();
+  ok('«Leer entero» enseña el texto completo', await page.locator('.cs-desc').evaluate(el => el.scrollHeight <= el.clientHeight + 1) && await page.getByRole('button', { name: 'Leer menos' }).isVisible());
+}
 await shot('G3-caso');
 
 // 5 · El recorrido del caso: acuse → reunión → investigación → respuesta y cierre
@@ -163,7 +176,15 @@ ok('tras el acuse: «Proponer la reunión»', true);
 await page.locator('.cs-next').getByRole('button', { name: 'Proponer la reunión' }).click();
 ok('la propuesta queda escrita para revisarla, sin enviar', (await page.locator('#cs-msg').inputValue()).includes('[día]'));
 await page.locator('#cs-msg').fill('Te proponemos reunirnos el jueves a las 10:00 en la sala 2. Si no te va bien, dinos otro momento.');
+if (mobile) {
+  // La propuesta abre «Conversación», con la caja de escribir fija abajo
+  const m = await page.evaluate(() => { const f = document.querySelector('.cs-compose'); const b = f.getBoundingClientRect(); return { tab: document.querySelector('.cs-tabs [aria-selected=true]').innerText.trim(), fixed: getComputedStyle(f).position, bottom: Math.round(innerHeight - b.bottom), next: getComputedStyle(document.querySelector('.cs-next-do')).display }; });
+  ok('en el móvil, «Proponer la reunión» abre «Conversación» con la caja de escribir fija abajo', m.tab === 'Conversación' && m.fixed === 'fixed' && m.bottom === 0 && m.next === 'none', JSON.stringify(m));
+  await shot('M5-caso-conversacion', { full: false });
+}
 await page.locator('.ds-compose').getByRole('button', { name: 'Enviar' }).click();
+await page.locator('.ds-chat-msg.is-mine', { hasText: 'Te proponemos reunirnos el jueves' }).waitFor();
+await part('Resumen');
 await page.locator('.cs-next').getByRole('button', { name: 'Marcar la reunión como hecha' }).waitFor();
 await shot('G3-caso-reunion');
 await page.locator('.cs-next').getByRole('button', { name: 'Marcar la reunión como hecha' }).click();
@@ -192,10 +213,17 @@ if (await page.getByRole('button', { name: 'Añadir un título' }).count()) {
   await page.getByRole('heading', { level: 1, name: 'Comentarios sexuales del responsable del turno de noche' }).waitFor();
   ok('se puede añadir un título propio; después se cambia con el lápiz', await page.getByRole('button', { name: 'Cambiar el título' }).count() === 1 && /REF-7P2MQA · Acoso laboral o sexual/.test(await page.locator('.cs-meta').innerText()));
 }
+await part('Gestión');
+if (mobile) await shot('M5-caso-gestion');
 await page.getByLabel('Quién lo lleva').selectOption({ label: 'Núria Soler Vidal' });
 await page.locator('.cs-hist').getByText(/asignado a Núria Soler Vidal/).waitFor();
 ok('quién lo lleva: se guarda y queda en el historial', true);
 // Notas internas: en su bloque ámbar, con su rótulo, aparte de la conversación
+await part('Conversación');
+if (mobile) {
+  ok('en el móvil, sin notas no hay caja ámbar: solo el enlace «Añadir nota interna»', !(await page.locator('.cs-notes').isVisible()));
+  await page.getByRole('button', { name: 'Añadir nota interna' }).click();
+}
 await page.getByPlaceholder('Añadir una nota para el equipo').fill('Hablar con RR. HH. antes del jueves.');
 await page.locator('.cs-notes').getByRole('button', { name: 'Guardar nota', exact: true }).click();
 await toast('Nota guardada');
@@ -203,7 +231,9 @@ await page.locator('.cs-notes').getByText('Hablar con RR. HH. antes del jueves.'
 ok('la nota queda en «Notas internas», con su rótulo, y no en la conversación', await page.locator('.cs-notes').getByText('Hablar con RR. HH. antes del jueves.').isVisible() && await page.locator('.cs-notes').getByText('Nota interna · no la ve quien informa').isVisible() && await page.locator('.cs-conv').getByText('Hablar con RR. HH.').count() === 0);
 ok('conversación en su bloque, con la cabecera tintada', await page.locator('.cs-conv .pn-block-head').evaluate(el => getComputedStyle(el).backgroundColor) === 'rgb(232, 237, 255)');
 ok('una sola columna de gestión', await page.locator('.cs-side').count() === 1 && await page.locator('.cs-side .ds-card').count() === 0 && await page.locator('.cs-side .cs-sec').count() >= 4);
+if (mobile) await shot('M5-caso-nota');
 // Responder y cerrar
+await part('Resumen');
 await page.locator('.cs-next').getByRole('button', { name: 'Responder y cerrar' }).click();
 await page.getByRole('dialog').getByRole('button', { name: 'Enviar y cerrar', exact: true }).click();
 ok('no cierra sin resultado', await page.getByText('Elige un resultado.').isVisible());
@@ -216,11 +246,13 @@ await page.locator('.cs-next-note.is-done').waitFor();
 ok('caso cerrado con resultado y respuesta final', (await page.locator('.cs-next-note.is-done').innerText()).startsWith('Cerrada el'));
 await shot('G3-caso-cerrado');
 // Remitir al Fiscal: diálogo propio
+await part('Gestión');
 await page.getByRole('button', { name: 'Remitir al Ministerio Fiscal' }).click();
 ok('remitir al Fiscal avisa de que no se puede deshacer', await page.getByRole('dialog').getByText('No se puede deshacer').isVisible());
 await shot('G3-fiscal', { full: false });
 await page.getByRole('dialog').getByRole('button', { name: 'Cancelar', exact: true }).click();
-// PDF del caso
+// PDF del caso: en el móvil está dentro de «···»
+if (mobile) await page.getByRole('button', { name: 'Más acciones' }).click();
 const [pdf] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.getByRole('button', { name: 'Exportar PDF' }).click()]);
 await pdf.saveAs(`${TMP}/caso-${W}.pdf`);
 ok('PDF del caso', readFileSync(`${TMP}/caso-${W}.pdf`).subarray(0, 5).toString() === '%PDF-', pdf.suggestedFilename());
@@ -232,6 +264,7 @@ ok('el caso cerrado está en «Cerradas»', await page.locator('.ds-kcol').nth(2
 // 6 · Identidad con registro (caso con datos)
 await page.goto(`${BASE}/admin/complaints/c-w2lc9pxa`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.cs');
+await part('Gestión');
 if (await page.getByRole('button', { name: 'Ver la identidad' }).count()) {
   await page.getByRole('button', { name: 'Ver la identidad' }).click();
   await page.locator('.cs-ident').waitFor();
@@ -286,13 +319,26 @@ await shot('G1-cambiar-contrasena');
 // 9 · Otro idioma y cierre de sesión
 await page.goto(`${BASE}/admin`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.ds-case');
-await page.locator('.pn-avatar').click();
-await shot('G2-menu-cuenta', { full: false });
-await page.getByRole('button', { name: 'English' }).click();
-await page.keyboard.press('Escape');
-await page.getByText(/need action today/).waitFor();
-await shot('G2-tablero-ingles');
-await page.locator('.pn-avatar').click();
+if (mobile) {
+  // En el móvil la cabecera no lleva la cuenta: el idioma, «Ver el canal» y «Cerrar sesión» están en «Equipo y ajustes»
+  const bar = await page.evaluate(() => { const n = document.querySelector('.ds-nav').getBoundingClientRect(); const on = getComputedStyle(document.querySelector('.ds-nav-item[aria-current="page"]')); return { h: Math.round(n.height), bottom: Math.round(innerHeight - n.bottom), color: on.color, bg: on.backgroundColor, avatar: getComputedStyle(document.querySelector('.pn-me')).display, tools: document.querySelectorAll('.pn-tools .ds-btn').length }; });
+  ok('móvil: barra inferior discreta (60 px, la pantalla actual en el color de acento y sin píldora)', bar.h === 60 && bar.bottom === 0 && bar.color === 'rgb(47, 84, 235)' && bar.bg === 'rgba(0, 0, 0, 0)', JSON.stringify(bar));
+  ok('móvil: arriba solo la empresa, buscar y registrar', bar.avatar === 'none' && bar.tools === 2, JSON.stringify(bar));
+  await page.getByRole('link', { name: 'Ajustes' }).click();
+  await page.locator('.st-phone').waitFor();
+  ok('móvil: «Ver el canal» y «Cerrar sesión», al final de «Equipo y ajustes»', await page.locator('.st-phone').getByRole('link', { name: /Ver el canal/ }).getAttribute('href') === '/canal/demo' && await page.locator('.st-phone').getByRole('button', { name: 'Cerrar sesión' }).isVisible());
+  await page.getByRole('button', { name: 'English' }).click();
+  await page.getByRole('heading', { level: 1, name: 'Team and settings' }).waitFor();
+  await shot('G2-ajustes-ingles');
+} else {
+  await page.locator('.pn-avatar').click();
+  await shot('G2-menu-cuenta', { full: false });
+  await page.getByRole('button', { name: 'English' }).click();
+  await page.keyboard.press('Escape');
+  await page.getByText(/need action today/).waitFor();
+  await shot('G2-tablero-ingles');
+  await page.locator('.pn-avatar').click();
+}
 await page.getByRole('button', { name: 'Sign out' }).click();
 await page.waitForURL(/\/admin\/login/);
 ok('cerrar sesión vuelve al acceso', true);

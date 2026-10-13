@@ -161,8 +161,8 @@ export default function Informe() {
           )}
         </div>
         <div className="pn-actions rp-exports">
-          <Button variant="soft" size="md" disabled={!ready} busy={exporting === 'xlsx'} onClick={() => doExport('xlsx')} icon={<FileSpreadsheet size={16} strokeWidth={1.8} aria-hidden="true" />}>{r.xls}</Button>
-          <Button variant="soft" size="md" disabled={!ready} busy={exporting === 'pdf'} onClick={() => doExport('pdf')} icon={<FileText size={16} strokeWidth={1.8} aria-hidden="true" />}>{r.pdf}</Button>
+          <Button variant="soft" size="md" aria-label={r.xls} disabled={!ready} busy={exporting === 'xlsx'} onClick={() => doExport('xlsx')} icon={<FileSpreadsheet size={16} strokeWidth={1.8} aria-hidden="true" />}><span className="pn-desk-only">{r.xls}</span><span className="pn-phone-only">{r.xlsShort}</span></Button>
+          <Button variant="soft" size="md" aria-label={r.pdf} disabled={!ready} busy={exporting === 'pdf'} onClick={() => doExport('pdf')} icon={<FileText size={16} strokeWidth={1.8} aria-hidden="true" />}><span className="pn-desk-only">{r.pdf}</span><span className="pn-phone-only">{r.pdfShort}</span></Button>
         </div>
       </div>
 

@@ -361,6 +361,13 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 36p
 .ds-seg.is-scroll::-webkit-scrollbar { display: none; }
 .ds-seg.is-scroll .ds-seg-item { flex: none; }
 @media (max-width: 640px) { .ds-seg-item { min-height: 40px; } .ds-seg.is-loose .ds-seg-item { min-height: 44px; } }
+/* Pestañas subrayadas (tone="line"): las columnas del tablero y las partes de la ficha, en el móvil */
+.ds-seg.is-line { flex-wrap: nowrap; gap: 20px; padding: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; box-shadow: none; overflow-x: auto; scrollbar-width: none; }
+.ds-seg.is-line::-webkit-scrollbar { display: none; }
+.ds-seg.is-line .ds-seg-item { flex: none; min-height: 44px; padding: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; font-size: 15px; }
+.ds-seg.is-line .ds-seg-item[aria-selected="true"] { border-bottom-color: var(--report); background: none; color: var(--ink); }
+.ds .ds-seg.is-line .ds-seg-item:focus-visible { outline-offset: -2px; }
+@media (max-width: 360px) { .ds-seg.is-line { gap: 14px; } }
 
 /* ── Progreso por segmentos ────────────────────────────────────────── */
 .ds-steps { display: flex; align-items: center; gap: 14px; }
@@ -386,7 +393,13 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 36p
 .ds-steps.is-ink .ds-steps-seg.is-done::before { background: var(--on-ink-accent); }
 .ds-steps.is-ink .ds-steps-seg[aria-current="step"] .ds-steps-name { color: #FFFFFF; }
 @media (max-width: 640px) { .ds-steps.is-compact .ds-steps-count { display: none; } .ds-steps-name { overflow-wrap: anywhere; } }
-@media (max-width: 640px) { .ds-steps.is-line .ds-steps-name { font-size: 12px; overflow-wrap: normal; } .ds-steps.is-line .ds-steps-seg { padding-right: 4px; } }
+/* En el móvil los nombres van a 12 px y cada paso ocupa, como mínimo, lo que mide su palabra más larga: en una
+   pantalla de 320 px «Investigando» no se monta sobre el paso siguiente */
+@media (max-width: 640px) {
+  .ds-steps.is-line.ds-steps-bar { grid-auto-columns: minmax(min-content, 1fr); }
+  .ds-steps.is-line .ds-steps-name { font-size: 12px; overflow-wrap: normal; }
+  .ds-steps.is-line .ds-steps-seg { padding-right: 4px; }
+}
 
 /* ── Menú del panel ────────────────────────────────────────────────── */
 /* En el ordenador, texto: la pantalla en la que se está va en negrita y subrayada con el acento */
@@ -399,19 +412,19 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 36p
 .ds-nav-ico { display: none; }
 .ds-nav-short { display: none; }
 @media (max-width: 640px) {
-  /* En el móvil: barra fija abajo con las 4 opciones */
+  /* En el móvil: barra fija abajo con las 4 opciones, discreta. Icono y nombre; la pantalla actual, en el color de acento */
   .ds-nav {
     position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
-    gap: 0; padding: 8px 8px calc(14px + env(safe-area-inset-bottom)); background: #FFFFFF; border-top: 1px solid var(--line);
+    gap: 0; height: calc(60px + env(safe-area-inset-bottom)); padding: 0 0 env(safe-area-inset-bottom); background: #FFFFFF; border-top: 1px solid var(--line);
   }
-  .ds-nav-item { flex-direction: column; justify-content: center; gap: 4px; min-height: 52px; padding: 6px 0; border: 0; border-radius: 10px; font-size: 12px; font-weight: 600; }
-  .ds .ds-nav-item[aria-current="page"] { color: var(--ink); font-weight: 700; }
-  .ds-nav-ico { display: flex; align-items: center; justify-content: center; width: 52px; height: 30px; border-radius: 10px; }
-  .ds-nav-item[aria-current="page"] .ds-nav-ico { background: var(--report-soft); color: var(--report-soft-ink); }
+  .ds-nav-item { flex-direction: column; justify-content: center; gap: 3px; padding: 0; border: 0; font-size: 12px; font-weight: 500; }
+  .ds .ds-nav-item[aria-current="page"] { color: var(--report); font-weight: 700; }
+  .ds .ds-nav-item:focus-visible { outline-offset: -4px; }
+  .ds-nav-ico { display: flex; align-items: center; justify-content: center; }
   .ds-nav-long { display: none; }
   .ds-nav-short { display: inline; }
   /* El contenido no queda tapado por la barra fija */
-  .ds-pane:has(.ds-nav) > .ds-pane-body { padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important; }
+  .ds-pane:has(.ds-nav) > .ds-pane-body { padding-bottom: calc(60px + env(safe-area-inset-bottom)) !important; }
 }
 
 /* ── Tarjeta de caso ───────────────────────────────────────────────── */
@@ -465,12 +478,27 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 36p
 .ds-kcol-empty { padding: 4px 2px; font-size: 14px; color: var(--muted); }
 .ds-kcol-foot { padding: 0 2px; font-size: 14px; font-weight: 600; }
 @media (max-width: 640px) {
+  /* En el móvil, una lista: las columnas son pestañas subrayadas («Nuevas 5») y cada caso, una fila con su línea.
+     La barra de urgencia sigue a la izquierda. Sin cajas. */
   .ds-kanban { display: block; }
-  .ds-kanban-tabs { display: flex; margin-bottom: 14px; }
+  .ds-seg.ds-kanban-tabs { display: flex; }
+  .ds-skel.ds-kanban-tabs { display: block; margin-bottom: 8px; }
+  .ds-kcol { gap: 0; }
   .ds-kcol[data-off] { display: none; }
   /* El título de la columna ya está en su pestaña: aquí se deja solo para lectores de pantalla (y para no saltar de h1 a h3) */
   .ds-kcol-head { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .ds-kcol-list { gap: 0; }
+  .ds-kcol-empty { padding: 14px 0; }
+  .ds-kcol-foot { padding: 8px 0 0; }
+  .ds-case { gap: 4px; padding: 11px 28px 11px 12px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; }
+  .ds-case.is-overdue { box-shadow: inset 3px 0 0 var(--danger-ink); }
+  .ds-case.is-soon { box-shadow: inset 3px 0 0 var(--warn-ink); }
+  /* La flecha de la derecha: cada fila abre su caso */
+  .ds-case::after { content: ''; position: absolute; right: 6px; top: 50%; width: 7px; height: 7px; margin-top: -4px; border-top: 1.5px solid var(--muted); border-right: 1.5px solid var(--muted); transform: rotate(45deg); pointer-events: none; }
+  .ds-case-skel { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; padding: 12px 0 12px 12px; }
 }
+/* El recuento de cada pestaña del tablero (solo se ve en el móvil) */
+.ds-kanban-n { margin-left: 2px; font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* ── Conversación ──────────────────────────────────────────────────── */
 .ds-chat { display: flex; flex-direction: column; gap: 12px; padding: 4px 0; }
@@ -568,6 +596,7 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 36p
 @media (forced-colors: active) {
   .ds-seg-item:is([aria-pressed="true"], [aria-checked="true"], [aria-selected="true"]),
   .ds .ds-nav-item[aria-current="page"] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+  .ds-seg.is-line .ds-seg-item[aria-selected="true"] { background: Highlight; color: HighlightText; }
   .ds-steps-seg::before, .ds-steps.is-ink .ds-steps-seg::before { background: GrayText; }
   .ds-steps-seg.is-done::before, .ds-steps.is-ink .ds-steps-seg.is-done::before { background: CanvasText; }
   .ds-btn { border: 1px solid ButtonText; }

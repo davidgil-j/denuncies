@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { SlidersHorizontal, ChevronDown, FileSpreadsheet, FileText, CircleAlert, MessageSquare, Clock, CircleCheck } from 'lucide-react';
+import { SlidersHorizontal, ChevronDown, Download, FileSpreadsheet, FileText, CircleAlert, MessageSquare, Clock, CircleCheck } from 'lucide-react';
 import { listComplaints, getRetentionDue, hasRedesign } from '../../lib/supabase.js';
 import { fmt } from '../V2Layout.jsx';
 import { STATUS_ORDER, PRIORITIES, fLong, fShort } from '../admin/adminKit.jsx';
@@ -179,17 +179,22 @@ export default function Tablero() {
 
   return (
     <div className="pn-page">
-      <div className="pn-top">
+      <div className="pn-top tb-top">
         <div className="pn-hello">
           <Tp as="h1" className="ds-h1" lang={lang} pick={x => x.nav.board} />
           {/* Cuántos casos piden algo hoy. Mientras carga, la línea guarda su sitio */}
           <Tp as="p" className="pn-lead" lang={lang} pick={x => (loading ? '\u00a0' : need === 0 ? x.need0 : need === 1 ? x.need1 : fmt(x.needN, { n: need }))} />
         </div>
         <div className="pn-actions">
-          <Button variant="soft" size="md" onClick={() => setFiltering(true)} icon={<SlidersHorizontal size={16} strokeWidth={1.8} aria-hidden="true" />}>
-            {p.filter}{active > 0 && <span className="pn-count">{active}</span>}
+          {/* En el móvil los dos quedan como iconos junto al título: su nombre va en aria-label */}
+          <Button variant="soft" size="md" className="pn-act" aria-label={active > 0 ? `${p.filter} (${active})` : p.filter} onClick={() => setFiltering(true)} icon={<SlidersHorizontal size={16} strokeWidth={1.8} aria-hidden="true" />}>
+            <span className="pn-act-t">{p.filter}</span>{active > 0 && <span className="pn-count">{active}</span>}
           </Button>
-          <Menu label={p.export} trigger={props => <Button variant="soft" size="md" busy={exporting} iconEnd={<ChevronDown size={16} strokeWidth={1.8} aria-hidden="true" />} {...props}>{p.export}</Button>}>
+          <Menu label={p.export} trigger={props => (
+            <Button variant="soft" size="md" className="pn-act" aria-label={p.export} busy={exporting} {...props}>
+              <Download className="pn-act-ico" size={16} strokeWidth={1.8} aria-hidden="true" /><span className="pn-act-t">{p.export}</span><ChevronDown className="pn-act-t" size={16} strokeWidth={1.8} aria-hidden="true" />
+            </Button>
+          )}>
             <MenuItem icon={<FileSpreadsheet size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={() => doExport('xlsx')} disabled={loading || !shown.length}>{p.exportXls}</MenuItem>
             <MenuItem icon={<FileText size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={() => doExport('pdf')} disabled={loading || !shown.length}>{p.exportPdf}</MenuItem>
           </Menu>

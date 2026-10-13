@@ -136,6 +136,7 @@ export default function Panel() {
   const ctx = {
     lang, setLang, t, tr, p, profile, email: session?.user?.email ?? '', permissions, isSuperadmin, can, canRegister,
     allowedCategories, org, saveOrg, members, setMembers, notify, channelPath, refreshProfile: loadProfile, mfaSetup,
+    logout, leaving,
   };
 
   const here = `${location.pathname}${location.search}`;
@@ -221,7 +222,7 @@ export default function Panel() {
                     </>
                   )}
                   <Menu
-                    label={p.account} className="pn-me"
+                    label={p.account} className={cx('pn-me', mfaSetup && 'is-setup')}
                     trigger={props => <button type="button" className="pn-avatar" {...props}><span className="ds-vh">{`${p.account}: ${name}`}</span><span aria-hidden="true" style={{ display: 'contents' }}><Avatar name={name} /></span></button>}
                   >
                     <div className="ds-menu-head"><b>{name}</b><span>{isSuperadmin ? t.roleSuperadmin : t.roleManager}</span></div>

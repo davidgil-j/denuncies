@@ -6,7 +6,8 @@ import { cx } from './text.jsx';
  *   toggle: botones independientes con uno marcado (el selector de idioma);
  *   radio: grupo de radio de verdad; se recorre con Tab y también con las flechas;
  *   tabs: pestañas (las columnas del tablero en el móvil); cada opción puede llevar `controls`.
- * options: [{ value, label, ariaLabel, lang }]. loose: cada opción es su propio botón. tone: white | bg | plain (el idioma: sin marco).
+ * options: [{ value, label, ariaLabel, lang }]. loose: cada opción es su propio botón.
+ * tone: white | bg | plain (el idioma: sin marco) | line (pestañas subrayadas).
  */
 export default function Segmented({ options, value, onChange, mode = 'toggle', label, loose = false, scroll = false, tone = 'white', className }) {
   const ref = useRef(null);
@@ -26,7 +27,7 @@ export default function Segmented({ options, value, onChange, mode = 'toggle', l
 
   const role = { toggle: 'group', radio: 'radiogroup', tabs: 'tablist' }[mode];
   return (
-    <div ref={ref} role={role} aria-label={label} className={cx('ds-seg', loose && 'is-loose', scroll && 'is-scroll', tone === 'bg' && 'is-bg', tone === 'plain' && 'is-plain', className)} onKeyDown={onKeyDown}>
+    <div ref={ref} role={role} aria-label={label} className={cx('ds-seg', loose && 'is-loose', scroll && 'is-scroll', tone === 'bg' && 'is-bg', tone === 'plain' && 'is-plain', tone === 'line' && 'is-line', className)} onKeyDown={onKeyDown}>
       {options.map((o, i) => {
         const on = o.value === value;
         const state = mode === 'toggle' ? { 'aria-pressed': on }

@@ -123,8 +123,10 @@ for (const [w, h] of [[360, 640], [390, 844]]) {
   await withKeyboard(async () => { await dialogFits('acuse con teclado'); await page.screenshot({ path: `${OUT}/movil-${w}x${h}-acuse-con-teclado.png` }); });
   await page.getByRole('dialog').getByRole('button', { name: 'Enviar el acuse', exact: true }).click();
   await page.locator('.cs-next').getByRole('button', { name: 'Proponer la reunión' }).waitFor();
+  // La caja de escribir está en la pestaña «Conversación», fija abajo
+  await page.getByRole('tab', { name: 'Conversación', exact: true }).click();
   await page.locator('#cs-msg').focus();
-  await withKeyboard(async () => { await reachable(page.locator('.ds-compose button[type=submit]'), 'ficha con teclado · Enviar mensaje'); });
+  await withKeyboard(async () => { await reachable(page.locator('.ds-compose button[type=submit]'), 'ficha con teclado · Enviar mensaje'); await page.screenshot({ path: `${OUT}/movil-${w}x${h}-conversacion-con-teclado.png` }); });
   await page.goto(`${B}/admin/complaints/c-j6yb3kmv`, { waitUntil: 'networkidle' });
   await page.waitForSelector('.cs-desc');
   await page.locator('.cs-next').getByRole('button', { name: 'Responder y cerrar' }).click();

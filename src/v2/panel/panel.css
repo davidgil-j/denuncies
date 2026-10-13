@@ -58,19 +58,30 @@
 .pn-found b { font-size: 15px; font-weight: 600; color: var(--ink); }
 @media (hover: hover) { .pn-found button:hover { background: var(--soft); } }
 
+/* Lo que solo se ve en el ordenador o solo en el móvil (un nombre corto, una opción de menú) */
+@media (min-width: 641px) { .pn-phone-only { display: none !important; } }
+@media (max-width: 640px) { .pn-desk-only { display: none !important; } }
+
+/* ── El panel en el móvil ──
+   Todo va sobre blanco y sin cajas: títulos, líneas finas y filas. Arriba, la empresa, buscar y registrar; abajo, la
+   barra de las cuatro pantallas. La cuenta («Ver el canal», el idioma y «Cerrar sesión») está en Equipo y ajustes. */
 @media (max-width: 640px) {
-  .pn-head-in { height: 52px; gap: 8px; padding: 0 16px; }
+  .ds-split.pn .ds-pane.is-manage, .pn-plain { background: var(--surface); }
+  .pn-head-in { height: 52px; gap: 8px; padding: 0 6px 0 16px; }
   .pn-brand { flex: 1; }
-  .pn-tools { gap: 4px; }
+  .pn-tools { gap: 0; }
   .pn-view { display: none; }
   .pn-view-item { display: flex; }
-  .pn-register.ds-btn { width: 44px; padding: 0; }
+  .pn-me:not(.is-setup) { display: none; }
+  .pn-tools .ds-btn svg { width: 20px; height: 20px; }
+  .ds .pn-head .pn-register.ds-btn { width: 44px; padding: 0; border-color: transparent; background: transparent; color: var(--ink); }
   .pn-register-t { display: none; }
   /* En el móvil el avatar es pequeño, pero se toca en un cuadrado de 44 px */
   .pn-avatar { min-width: 44px; min-height: 44px; }
   .pn-main { padding: 18px 16px 24px; gap: 16px; }
   .pn-page { gap: 16px; }
-  .pn-toast-zone { bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .pn-toast-zone { bottom: calc(72px + env(safe-area-inset-bottom)); }
+  .ds-split.pn:has(.cs) ~ .pn-toast-zone { bottom: calc(104px + env(safe-area-inset-bottom)); }
 }
 
 /* ── Piezas del panel ──────────────────────────────────────────────── */
@@ -128,6 +139,27 @@
 .pn-check { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 15px; font-weight: 500; color: var(--ink); cursor: pointer; }
 .pn-check input { width: 18px; height: 18px; accent-color: var(--report); }
 .pn-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.pn-act-ico { display: none; }
+@media (max-width: 640px) {
+  /* El tablero: «Filtrar» y «Exportar» son dos iconos junto al título */
+  .tb-top { flex-wrap: nowrap; align-items: flex-start; gap: 8px; }
+  .tb-top .pn-hello { flex: 1; gap: 2px; }
+  .pn-lead { font-size: 14px; }
+  .tb-top .pn-actions { flex: none; flex-wrap: nowrap; gap: 0; margin: -6px -10px 0 0; }
+  .ds .pn-act.ds-btn { position: relative; width: 44px; padding: 0; border-color: transparent; background: transparent; }
+  .pn-act svg { width: 20px; height: 20px; }
+  .pn-act-t { display: none; }
+  .pn-act-ico { display: block; }
+  .pn-act .pn-count { position: absolute; top: 3px; right: 1px; min-width: 16px; height: 16px; padding: 0 4px; font-size: 11px; }
+  /* Los avisos, sin caja: una fila con su punto entre dos líneas */
+  .pn-notices { display: block; border-top: 1px solid var(--line); }
+  .pn-notice { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; }
+  .pn-notice-line { min-height: 44px; padding: 0; gap: 8px; }
+  .pn-notice-see { font-size: 0; }
+  .pn-notice-see svg { width: 18px; height: 18px; }
+  .pn-notice-body { padding: 0 0 14px 16px; }
+  .pn-banner { padding: 12px 0; border-width: 1px 0; border-radius: 0; background: none; }
+}
 
 /* ── Acceso: una barra con la empresa y una tarjeta de 400 px ──────── */
 .ac-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 56px; padding: 0 32px; border-bottom: 1px solid var(--line); background: var(--surface); }
@@ -243,17 +275,104 @@
 .cs-hist b { font-weight: 600; }
 .cs-hist time { font-size: 13px; color: var(--muted); }
 .cs-hist q { quotes: none; font-size: 13px; color: var(--muted); }
+/* Las tres partes de la ficha. En el ordenador van todas a la vista; en el móvil son tres pestañas */
+.cs-pane { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.ds-seg.cs-tabs, .cs-desc-more, .cs-note-add, .cs-more.is-phone-only, .cs-send-ico { display: none; }
 @media (max-width: 960px) { .cs-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── La ficha en el móvil ──
+   Arriba, «← Tablero» y «···» en lugar de la cabecera del panel. Después el título, el paso a paso y tres pestañas:
+   Resumen, Conversación y Gestión. El siguiente paso queda fijo abajo; en Conversación, lo fijo es la caja de escribir. */
 @media (max-width: 640px) {
+  html:has(.cs) { scroll-padding-top: 60px; scroll-padding-bottom: calc(124px + env(safe-area-inset-bottom)); }
+  .ds-split.pn:has(.cs) .pn-head { display: none; }
+  .ds-split.pn .ds-pane:has(.cs) > .ds-pane-body { padding-bottom: 0 !important; }
+  .cs { gap: 14px; }
+  .cs:has(.cs-next-do.is-action) { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  /* La caja de escribir crece hasta tres líneas: la página le guarda ese sitio para que nunca tape el último mensaje */
+  .cs[data-tab="conv"]:has(.cs-compose) { padding-bottom: calc(108px + env(safe-area-inset-bottom)); }
+  .cs[data-tab="conv"]:has(.cs-compose .ds-chips:not(:empty)) { padding-bottom: calc(160px + env(safe-area-inset-bottom)); }
+
+  .cs-bar { position: sticky; z-index: 15; top: 0; flex-wrap: nowrap; height: 52px; margin: -18px -16px 4px; padding: 0 6px 0 16px; border-bottom: 1px solid var(--line); background: var(--surface); }
+  .cs-bar .pn-back { min-height: 44px; font-size: 15px; }
+  .ds .cs-bar .pn-back { color: var(--ink); }
+  .cs-bar .pn-back svg { width: 18px; height: 18px; }
+  .cs-bar .cs-export { display: none; }
+  .cs-more.is-phone-only { display: inline-flex; }
+  .ds .cs-more .ds-btn.is-icon { border-color: transparent; background: transparent; }
+  .cs-more .ds-btn svg { width: 20px; height: 20px; }
+
   .cs-title h1 { font-size: 20px; }
-  .cs-next { padding: 14px 16px; }
-  .cs-next-do { flex: 1 1 100%; min-width: 0; }
+  .cs-meta > span:first-child { flex-basis: 100%; }
+  .cs-erased { padding: 12px 0; border-width: 1px 0; border-radius: 0; background: none; }
+  /* El paso a paso y los plazos: sin franja de color, con una línea encima */
+  .cs-next { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; padding: 14px 0; border-top: 1px solid var(--line); border-radius: 0; background: none; }
+  .cs-next-main { flex: none; gap: 10px; }
+  .cs-deadlines { gap: 6px 14px; }
+  .cs-next-do { flex: none; min-width: 0; }
+  .cs-next-do.is-action { position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; gap: 6px; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--surface); }
+  .cs-next-do.is-action .cs-next-label { font-weight: 600; color: var(--muted); }
+  .cs-next-do.is-action .ds-btn { --h: 44px; }
+
+  .ds-seg.cs-tabs { display: flex; }
+  .cs-grid { display: flex; flex-direction: column; gap: 0; }
+  .cs-main, .cs-pane { gap: 14px; }
+  .cs[data-tab="summary"] :is(#cs-pane-conv, #cs-pane-manage),
+  .cs[data-tab="conv"] :is(#cs-pane-summary, #cs-pane-manage),
+  .cs[data-tab="manage"] :is(#cs-pane-summary, #cs-pane-conv) { display: none; }
+  /* En Conversación solo quedan el título y las pestañas: todo el sitio es para los mensajes */
+  .cs[data-tab="conv"] .cs-meta, .cs[data-tab="conv"] .cs-next > :not(.is-action) { display: none; }
+  .cs[data-tab="conv"] .cs-next { display: contents; }
+  .cs[data-tab="conv"]:has(.cs-compose) .cs-next-do.is-action { display: none; }
+
+  /* Resumen */
+  .cs .cs-told.ds-card, .cs .ai-card.ds-card, .cs .cs-side.ds-card { padding: 0; border-radius: 0; background: none; box-shadow: none; }
+  .cs .ai-card.ds-card { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .cs-told { gap: 10px; }
+  .cs-desc.is-short { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; line-clamp: 6; overflow: hidden; }
+  .cs-desc-more { display: inline-block; font-size: 14px; }
   .cs-facts > div { flex-direction: column; gap: 2px; }
   .cs-facts dt { width: auto; padding-top: 0; }
-  .pn-block-head { padding: 8px 16px; }
-  .pn-block-body { padding: 16px; }
-  .cs-side { padding: 0 16px; }
+
+  /* Conversación: una línea con el tinte dice quién la lee, los mensajes y la caja de escribir fija abajo */
+  .cs-conv.pn-block { border: 0; border-radius: 0; background: none; overflow: visible; }
+  .cs-conv .pn-block-head { justify-content: flex-start; min-height: 36px; padding: 6px 12px; border: 0; border-radius: 8px; }
+  .cs-conv .pn-block-head .pn-sec-t { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .cs-conv .pn-block-body { gap: 14px; padding: 14px 0 0; }
+  .cs-conv .ds-chat { gap: 14px; padding: 0; }
+  .cs-compose.ds-compose.is-stacked { position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); border-radius: 0; background: var(--surface); }
+  .cs-compose > .ds-input { height: auto; min-height: 44px; max-height: 92px; padding: 10px 12px; border-color: var(--field-line); border-radius: 10px; field-sizing: content; }
+  .cs-compose .ds-compose-row { display: contents; }
+  .cs-compose .ds-chips { grid-column: 1 / -1; grid-row: 1; }
+  .cs-compose .ds-chips:empty { display: none; }
+  /* El menú de «Redactar con IA» se abre hacia arriba: la caja está pegada al borde de abajo de la pantalla */
+  .cs-compose .ds-menu-panel { top: auto; bottom: calc(100% + 8px); }
+  .cs-compose .ds-compose-row > .ds-btn { width: 44px; padding: 0; }
+  .cs-send-t { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .cs-send-ico { display: block; }
+  .ds .cs .cs-compose > .ds-input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-color: var(--field-line); }
+  .cs .cs-compose:has(> .ds-input:focus-visible) { outline: none; }
+
+  /* Notas internas: la caja ámbar solo existe si hay notas o se está escribiendo una; si no, basta el enlace */
+  .cs-notes.pn-block { border-radius: 10px; }
+  .cs-notes:not(:has(.cs-notes-list, .cs-note-form.is-open)) { display: none; }
+  .cs-notes .pn-block-head { flex-wrap: nowrap; justify-content: flex-start; gap: 6px; min-height: 0; padding: 12px 12px 0; border-bottom: 0; }
+  .cs-notes .pn-sec-t { flex: none; gap: 0; font-size: 0; line-height: 0; }
+  .cs-notes .pn-sec-t svg { width: 13px; height: 13px; }
+  .cs-notes .pn-block-tag { font-size: 12px; }
+  .cs-notes .pn-block-body { gap: 10px; padding: 6px 12px 12px; }
+  .cs-notes-list li { flex-direction: column-reverse; }
+  .cs-notes-empty { display: none; }
+  .cs-note-add { display: inline-block; font-size: 14px; }
   .cs-note-form { flex-direction: column; align-items: stretch; }
+  .cs-note-form:not(.is-open) { display: none; }
+
+  /* Gestión: las secciones, una debajo de otra con su línea */
+  .cs-sec { padding: 16px 0; }
+  .cs-sec:first-child { padding-top: 2px; }
+}
+@supports not (field-sizing: content) {
+  @media (max-width: 640px) { .cs-compose > .ds-input { height: 44px; } }
 }
 
 /* ── Ayudas de IA (solo con VITE_AI_ENABLED=1) ─────────────────────── */
@@ -290,7 +409,8 @@
 .rg-code .print-only { display: none; }
 .rg-next { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 860px) { .rg { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 640px) { .rg-form { padding: 16px; } .rg-actions .ds-btn { flex: 1 1 auto; } .rg-code .code-big { font-size: 32px; } }
+/* En el móvil el formulario va directamente sobre la página, sin caja */
+@media (max-width: 640px) { .rg-form.ds-card { padding: 0; border-radius: 0; background: none; box-shadow: none; } .rg-actions .ds-btn { flex: 1 1 auto; } .rg-code .code-big { font-size: 32px; } }
 
 /* ── Informe ───────────────────────────────────────────────────────── */
 .rp-title { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; min-width: 0; }
@@ -340,16 +460,24 @@
 .rp-see { align-self: flex-start; }
 .rp-exports .ds-btn, .rp-see.ds-btn { white-space: nowrap; }
 @media (max-width: 860px) { .rp-charts { grid-template-columns: minmax(0, 1fr); } }
+/* El informe en el móvil: el título con el periodo al lado, las cuatro cifras en 2 × 2 con una línea encima, cada
+   gráfico como una sección con su línea y, al final, los dos botones de exportar */
 @media (max-width: 640px) {
-  .rp-exports .ds-btn { flex: 1 1 auto; }
-  .rp-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 16px; padding: 16px 0; }
-  .rp-fig { padding: 0 16px; }
-  .rp-fig:nth-child(odd) { border-left: 0; }
+  .rp > .pn-top { display: contents; }
+  .rp-title { flex-wrap: nowrap; align-items: center; justify-content: space-between; gap: 12px; }
+  .rp-period { flex: none; }
+  .rp-period .ds-input { width: 104px; min-width: 0; height: 44px; border-color: var(--field-line); }
+  .rp-exports { order: 9; flex-wrap: nowrap; }
+  .rp-exports .ds-btn { flex: 1 1 0; min-width: 0; }
+  .rp-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; padding: 0; border: 0; border-radius: 0; background: none; }
+  .rp-fig { padding: 14px 0; border-left: 0; border-top: 1px solid var(--line); }
   .rp-fig dd { font-size: 26px; }
+  .rp-charts { gap: 16px; }
+  .rp .rp-card.ds-card { gap: 12px; padding: 16px 0 0; border-top: 1px solid var(--line); border-radius: 0; background: none; box-shadow: none; }
   .rp-bars { gap: 8px; }
   .rp-bars.is-dense { gap: 4px; }
-  .rp-topics { grid-template-columns: minmax(0, 118px) minmax(0, 1fr) 20px; gap: 10px 8px; font-size: 13px; }
-  .rp-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
+  .rp-topics { grid-template-columns: minmax(0, 150px) minmax(0, 1fr) 20px; gap: 10px 12px; }
+  .rp-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; }
 }
 
 /* ── Compartir el canal: la puesta en marcha en una línea y una lista de cuatro filas ── */
@@ -409,15 +537,23 @@ button.sh-step:disabled { cursor: progress; }
   .sh-what { width: 100%; }
   .sh-body { flex-basis: 320px; }
 }
+/* Compartir en el móvil: la puesta en marcha en una fila que se abre, y cada cosa con su línea, su vista previa
+   y su botón a todo el ancho */
 @media (max-width: 640px) {
-  .sh-steps-body { grid-template-columns: minmax(0, 1fr); }
-  .sh-steps-next { flex-basis: 100%; order: 5; }
-  .sh-cards { padding: 0 16px; }
-  .sh-item { padding: 16px 0; }
-  .sh-body { flex-basis: 100%; }
+  .sh-steps { margin-bottom: -16px; border-width: 1px 0 0; border-radius: 0; background: none; }
+  .sh-steps > [role="status"] { padding: 12px 0; }
+  .sh-steps-head { flex-wrap: nowrap; padding: 0; }
+  .sh-progress, .sh-steps-next { display: none; }
+  .sh-steps-see { flex: 1; justify-content: flex-end; min-height: 44px; font-size: 0; }
+  .sh-steps-see svg { width: 18px; height: 18px; }
+  .sh-steps-body { grid-template-columns: minmax(0, 1fr); padding: 0 0 16px; border-top: 0; }
+  .sh-cards.ds-card { padding: 0; border-radius: 0; background: none; box-shadow: none; }
+  .sh-item { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; padding: 16px 0; }
+  .sh-item:first-child { border-top: 1px solid var(--line); }
+  .sh-what { width: auto; }
+  .sh-body { flex: none; }
   .sh-acts { width: 100%; }
   .sh-acts .ds-btn:not(.is-icon) { flex: 1 1 auto; }
-  .sh-steps-see { min-height: 44px; }
 }
 
 /* ── Equipo y ajustes: secciones con título y filas con línea ──────── */
@@ -459,8 +595,16 @@ button.sh-step:disabled { cursor: progress; }
 .st-plan-price { color: var(--ink); }
 .st-plan-price b { font-weight: 700; }
 @media (max-width: 420px) { .st-two { grid-template-columns: minmax(0, 1fr); } }
+/* «Ver el canal» y «Cerrar sesión» al final de la pantalla: solo en el móvil, donde la cabecera no lleva la cuenta */
+.st-phone { display: none; }
 /* En el móvil los enlaces de una fila se tocan bien: 44 px de alto */
-@media (max-width: 640px) { .st-link, .st-ext { min-height: 44px; } }
+@media (max-width: 640px) {
+  .st-link, .st-ext { min-height: 44px; }
+  .st-phone { display: flex; flex-direction: column; gap: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+  /* Las tarjetas pasan a ser secciones con una línea encima */
+  .st-grid, .st-col { gap: 16px; }
+  .st-card.ds-card { padding: 16px 0 0; border-top: 1px solid var(--line); border-radius: 0; background: none; box-shadow: none; }
+}
 
 /* Quién gestiona: la lista y el panel de permisos */
 .tm-list { display: flex; flex-direction: column; }
@@ -513,7 +657,11 @@ button.sh-step:disabled { cursor: progress; }
 .sg-acc > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 0; border-top: 1px solid var(--line); }
 .sg-acc dt { font-size: 13px; color: var(--muted); }
 .sg-acc dd { font-size: 15px; overflow-wrap: anywhere; }
-@media (max-width: 640px) { .sg-main { padding: 16px; } .sg-btns .ds-btn { flex: 1 1 auto; } }
+@media (max-width: 640px) {
+  .sg-grid { gap: 16px; }
+  .sg-main.ds-card, .sg-side.ds-card { padding: 16px 0 0; border-top: 1px solid var(--line); border-radius: 0; background: none; box-shadow: none; }
+  .sg-btns .ds-btn { flex: 1 1 auto; }
+}
 
 @media print {
   body * { visibility: hidden !important; }
