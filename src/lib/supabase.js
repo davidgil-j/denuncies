@@ -154,6 +154,22 @@ export async function saveComplaint({ formData, files, organizationId, attempt }
   return { trackingCode, complaintId: id, attempt: next, error: null };
 }
 
+// Tipus de cada arxiu segons l'extensió: són els que accepta el magatzem (migració 015). No es fa servir
+// el tipus que diu el navegador perquè sovint ve buit (HEIC a Windows, .msg) o és genèric.
+const MIME = {
+  pdf: 'application/pdf', txt: 'text/plain', csv: 'text/csv', rtf: 'application/rtf',
+  doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  odt: 'application/vnd.oasis.opendocument.text', ods: 'application/vnd.oasis.opendocument.spreadsheet', odp: 'application/vnd.oasis.opendocument.presentation',
+  zip: 'application/zip', eml: 'message/rfc822', msg: 'application/vnd.ms-outlook',
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', heic: 'image/heic', heif: 'image/heif',
+  tif: 'image/tiff', tiff: 'image/tiff', bmp: 'image/bmp',
+  mp4: 'video/mp4', mov: 'video/quicktime', m4v: 'video/x-m4v', avi: 'video/x-msvideo', webm: 'video/webm', '3gp': 'video/3gpp',
+  mp3: 'audio/mpeg', m4a: 'audio/mp4', wav: 'audio/wav', ogg: 'audio/ogg', aac: 'audio/aac', opus: 'audio/opus', amr: 'audio/amr',
+};
+export const mimeOf = (name, fallback = '') => MIME[(String(name).split('.').pop() || '').toLowerCase()] ?? (fallback || 'application/octet-stream');
+
 /**
  * Puja els adjunts d'una denúncia acabada de desar. La ruta del bucket no porta el nom original: Storage
  * rebutja accents i caràcters especials, i el nom pot identificar qui denuncia. En una denúncia anònima
@@ -167,12 +183,13 @@ export async function uploadAttachments({ complaintId, files, isAnonymous, onPro
     const ext  = (file.name.includes('.') ? file.name.split('.').pop() : '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
     const path = `${complaintId}/${i + 1}-${crypto.randomUUID()}${ext ? `.${ext}` : ''}`;
     const name = isAnonymous ? neutralName(file.name, i) : file.name;
-    const body = isAnonymous ? new File([file], name, { type: file.type, lastModified: 0 }) : file;
+    const type = mimeOf(file.name, file.type);
+    const body = isAnonymous ? new File([file], name, { type, lastModified: 0 }) : file;
 
     const { error: uploadError } = await supabase
       .storage
       .from('attachments')
-      .upload(path, body, { upsert: false, contentType: file.type || 'application/octet-stream' });
+      .upload(path, body, { upsert: false, contentType: type });
 
     if (uploadError) { failedFiles.push(file.name); onProgress?.(i + 1); continue; }
 
@@ -181,7 +198,7 @@ export async function uploadAttachments({ complaintId, files, isAnonymous, onPro
       filename:     name,
       storage_path: path,
       file_size:    file.size,
-      mime_type:    file.type,
+      mime_type:    type,
     });
     if (rowError) {
       failedFiles.push(file.name);
@@ -316,23 +333,6 @@ async function withRedesign(run) {
 }
 
 /**
- * Fetch all complaints (for admin panel — requires service role or RLS policy).
- */
-export async function getAllComplaints({ status, page = 1, limit = 20 } = {}) {
-  if (DEMO_MODE) return (await demo()).getAllComplaints({ status, page, limit });
-  let query = supabase
-    .from('complaints')
-    .select(COMPLAINT_COLUMNS, { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .range((page - 1) * limit, page * limit - 1);
-
-  if (status) query = query.eq('status', status);
-
-  const { data, count, error } = await query;
-  return { data, count, error };
-}
-
-/**
  * Fetch messages for a complaint (both reporter and manager messages).
  * Returns { messages, error }
  */
@@ -376,30 +376,6 @@ export async function sendReporterMessage(trackingCode, content) {
   if (channelDemo()) return (await demo()).sendReporterMessage(trackingCode, content);
   const { data, error } = await supabase.rpc('send_reporter_message', { p_code: trackingCode, p_content: content });
   if (!error && data == null) return { error: new Error('complaint-not-found') };
-  return { error };
-}
-
-/**
- * Update complaint status (admin action).
- */
-export async function updateComplaintStatus(id, status, adminNote = null, priority = null) {
-  if (DEMO_MODE) return (await demo()).updateComplaintStatus(id, status, adminNote, priority);
-  const updates = { status, updated_at: new Date().toISOString() };
-  if (priority) updates.priority = priority;
-
-  const { error } = await supabase
-    .from('complaints')
-    .update(updates)
-    .eq('id', id);
-
-  if (!error && adminNote) {
-    await supabase.from('audit_logs').insert({
-      complaint_id: id,
-      action:       `status_changed_to_${status}`,
-      details:      { note: adminNote },
-    });
-  }
-
   return { error };
 }
 
@@ -455,7 +431,12 @@ export async function extendDeadline(complaintId, reason, actorName = '') {
 export async function anonymizeComplaint(complaintId, reason, actorName = '') {
   if (DEMO_MODE) return (await demo()).anonymize(complaintId, reason, actorName);
   const { data: files } = await supabase.from('attachments').select('storage_path').eq('complaint_id', complaintId);
-  const paths = (files ?? []).map(f => f.storage_path).filter(Boolean);
+  // També el que hi hagi a la carpeta del cas encara que no tingui fila (una pujada que va fallar a mitges)
+  const { data: inFolder } = await supabase.storage.from('attachments').list(complaintId, { limit: 1000 });
+  const paths = [...new Set([
+    ...(files ?? []).map(f => f.storage_path).filter(Boolean),
+    ...(inFolder ?? []).filter(o => o?.name && o.id !== null).map(o => `${complaintId}/${o.name}`),
+  ])];
   if (paths.length) {
     const { error: rmError } = await supabase.storage.from('attachments').remove(paths);
     if (rmError) return { error: rmError };
@@ -588,35 +569,6 @@ export async function getAuditLogs(complaintId) {
   // L'autor el posa la base de dades, no el navegador: el nom que tenia en aquell moment (actor_name,
   // migració 014) o, sense la 014, el nom actual del perfil
   return { logs: (data ?? []).map(l => ({ ...l, details: { ...(l.details ?? {}), actor_name: l.actor_name ?? l.actor?.full_name ?? l.details?.actor_name } })), error };
-}
-
-/**
- * Afegeix una entrada al registre d'activitat (canvi d'estat, de prioritat, resposta…).
- * details: { from, to, note, actor_name, … }. Returns { error }
- */
-export async function logComplaintEvent({ complaintId, organizationId = null, action, details = {} }) {
-  if (DEMO_MODE) return (await demo()).logComplaintEvent({ complaintId, action, details });
-  const { error } = await supabase.from('audit_logs').insert({
-    complaint_id: complaintId, organization_id: organizationId, action, details,
-  });
-  return { error };
-}
-
-/**
- * Elimina una denúncia, amb els seus missatges, adjunts i fitxers. Si RLS no ho permet,
- * no s'esborra cap fila i es retorna error. Returns { error }
- */
-export async function deleteComplaint(id) {
-  if (DEMO_MODE) return (await demo()).deleteComplaint(id);
-  // Els fitxers del bucket no s'esborren en cascada: s'eliminen abans, mentre les files
-  // d'adjunts encara existeixen (la política de storage les necessita per autoritzar-ho).
-  const { data: files } = await supabase.from('attachments').select('storage_path').eq('complaint_id', id);
-  const paths = (files ?? []).map(f => f.storage_path).filter(Boolean);
-  if (paths.length) await supabase.storage.from('attachments').remove(paths);
-  const { data, error } = await supabase.from('complaints').delete().eq('id', id).select('id');
-  if (error) return { error };
-  if (!data?.length) return { error: new Error('not-allowed') };
-  return { error: null };
 }
 
 /** Enllaç temporal (60 s) per descarregar un adjunt del bucket privat. Returns { url, demo, error } */
@@ -841,16 +793,8 @@ export async function getAllProfiles() {
     .order('created_at', { ascending: true });
 
   if (error) return { profiles: [], error };
-
-  // Enrich with email from auth (via a join-like approach)
-  const { data: users } = await supabase.auth.admin?.listUsers?.() ?? { data: null };
-
-  const profiles = data.map(p => {
-    const authUser = users?.users?.find(u => u.id === p.id);
-    return { ...p, email: authUser?.email ?? '' };
-  });
-
-  return { profiles, error: null };
+  // Sense la migració 008 el correu no es pot llegir des del navegador (només el servidor el veu)
+  return { profiles: data.map(p => ({ ...p, email: '' })), error: null };
 }
 
 export async function getManagerPermissions(managerId) {
@@ -936,35 +880,6 @@ async function callFunction(name, body) {
 }
 
 // ── Stats ──────────────────────────────────────────────────────────────
-
-/**
- * Global complaint counts (total, open, resolved) for the dashboard stat cards.
- * allowedCategories = null means superadmin (all), [] means no access.
- */
-export async function getComplaintStats(allowedCategories = null) {
-  const openStatuses     = ['received', 'reviewing', 'investigating', 'waiting'];
-  const resolvedStatuses = ['resolved', 'closed'];
-  if (DEMO_MODE) return (await demo()).getComplaintStats(allowedCategories);
-
-  if (allowedCategories !== null && allowedCategories.length === 0) {
-    return { total: 0, open: 0, resolved: 0 };
-  }
-
-  const applyFilter = (q) => {
-    if (allowedCategories !== null && allowedCategories.length > 0) {
-      q = q.in('category', allowedCategories);
-    }
-    return q;
-  };
-
-  const [{ count: total }, { count: open }, { count: resolved }] = await Promise.all([
-    applyFilter(supabase.from('complaints').select('id', { count: 'exact', head: true })),
-    applyFilter(supabase.from('complaints').select('id', { count: 'exact', head: true }).in('status', openStatuses)),
-    applyFilter(supabase.from('complaints').select('id', { count: 'exact', head: true }).in('status', resolvedStatuses)),
-  ]);
-
-  return { total: total ?? 0, open: open ?? 0, resolved: resolved ?? 0 };
-}
 
 // ── Helpers ────────────────────────────────────────────────────────────
 

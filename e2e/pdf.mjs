@@ -13,5 +13,15 @@ await p.goto('http://localhost:3111/admin/report', { waitUntil: 'networkidle' })
 await save(() => p.getByRole('button', { name: /PDF/ }).click(), 'informe-ca.pdf');
 await p.goto('http://localhost:3111/admin/integration', { waitUntil: 'networkidle' }); await p.waitForSelector('.sh-qr img');
 await save(() => p.locator('.sh-poster').getByRole('button', { name: /PDF/ }).click(), 'cartell-ca.pdf');
-console.log(errs.length ? 'PROBLEMAS: ' + errs.join(' | ') : 'PDF del caso, informe y cartel con Manrope, sin errores');
+// Justificante de quien denuncia: en Manrope (versión ligera) y sin la hora en los metadatos
+await save(() => p.evaluate(() => import('/src/v2/lib/receipt.js').then(m => m.downloadReceipt({
+  code: 'K7QX-2MPD', title: 'Justificant d’enviament', rows: [['Codi', 'K7QX-2MPD'], ['Enviada', '9 d’octubre de 2026, 10:24'], ['Adreça', 'https://exemple/canal/demo/consulta']],
+  nextTitle: 'Què passa ara', next: [['Et confirmen que l’han rebuda', 'Com a tard el 16 d’octubre'], ['La investiguen', '—'], ['Et responen', 'Com a tard el 9 de gener']],
+  notes: ['Guarda aquest codi: és l’única manera de tornar.', '«Ningú no pot prendre represàlies» · l·l · ç'],
+}))), 'justificant-ca.pdf');
+const rc = (await import('node:fs')).readFileSync(`${OUT}/justificant-ca.pdf`, 'latin1');
+// (jsPDF declara siempre las 14 letras de serie, aunque no las use: se comprueba que lleva Manrope)
+if (!/\/BaseFont \/[A-Z+]*Manrope/.test(rc)) errs.push('el justificante no va en Manrope');
+if (!/CreationDate \(D:\d{8}000000\+00'00'\)/.test(rc)) errs.push('el justificante lleva la hora o la zona horaria');
+console.log(errs.length ? 'PROBLEMAS: ' + errs.join(' | ') : 'PDF del caso, informe, cartel y justificante con Manrope, sin errores');
 await b.close();

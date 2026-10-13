@@ -9,6 +9,7 @@ import {
   markMessagesRead, extendDeadline, anonymizeComplaint, getAttachmentUrl, markMeetingHeld, markFiscalReferral, listAssignees, hasRedesign, AI_ENABLED,
 } from '../../lib/supabase.js';
 import { translations } from '../../translations.js';
+import './texts.js'; // textos del panel (lado Gestionar)
 import { fmt } from '../V2Layout.jsx';
 import { deadlineInfo, fDateTime, fLong, fShort, auditText, PRIORITIES } from '../admin/adminKit.jsx';
 import { extensionUntil } from '../../lib/deadlines.js';
@@ -16,13 +17,8 @@ import { Button, IconButton, Card, Chip, Chips, Field, StepBar, ChatThread, Chat
 import { deadlineLook } from '../ui/DeadlineChip.jsx';
 import { usePanel, Tp, caseState, caseTitle, relDay, historyText, blanksError, sameAsColumn, OUTCOMES, CLOSED } from './kit.jsx';
 import { AiSummary, AiDraft } from './Ia.jsx';
+import { formatBytes } from '../../lib/format.js';
 
-function fileSize(bytes) {
-  if (!bytes && bytes !== 0) return '';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1).replace('.0', '')} MB`;
-}
 
 /** Ficha de un caso: qué ha contado, la conversación y un único botón con el siguiente paso */
 export default function Caso() {
@@ -65,8 +61,9 @@ export default function Caso() {
     setC(complaint ?? null);
     setMessages(msgs ?? []);
     setLogs(l ?? []);
-    // Al abrirlo, los mensajes de quien informa quedan leídos
-    if (complaint && (msgs ?? []).some(m => m.sender === 'reporter' && !m.is_read)) markMessagesRead(complaint.id);
+    // Al abrirlo, los mensajes de quien informa quedan leídos (solo si quien lo abre puede responder: si no,
+    // el aviso de «mensaje nuevo» desaparecería para quien sí tiene que hacerlo)
+    if (complaint && can('reply', complaint.category) && (msgs ?? []).some(m => m.sender === 'reporter' && !m.is_read)) markMessagesRead(complaint.id);
   }
   useEffect(() => { loadAll(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
   useEffect(() => { listAssignees().then(({ people: list }) => setPeople(list ?? [])); }, []);
@@ -161,6 +158,8 @@ export default function Caso() {
     if (e2) { setDErr(p.ackPartial); refresh(); return; }
     sentRef.current = null;
     setDialog(null);
+    // Si el acuse salió de lo escrito en la conversación, se vacía el campo
+    if (draft.trim() && draft.trim() === text.trim()) setDraft('');
     notify(p.ackSent);
     refresh();
   }
@@ -220,6 +219,8 @@ export default function Caso() {
     if (ok) setDialog(null);
   }
   async function send(body) {
+    // Con el caso en «Recibida», el primer mensaje es el acuse de recibo: se abre su diálogo con lo escrito
+    if (c.status === 'received' && canEdit) { open('ack', body); return; }
     // Una plantilla a medio rellenar («el [día] a las [hora]») no sale hacia quien informa
     const missing = blanksError(body, p);
     setBlankErr(missing);
@@ -394,7 +395,7 @@ export default function Caso() {
                         {files.map(a => (
                           <li key={a.id}>
                             <button type="button" className="cs-file" onClick={() => download(a)} aria-label={fmt(p.downloadAria, { name: a.filename })}>
-                              <Paperclip size={15} strokeWidth={2} aria-hidden="true" /><span>{a.filename}</span><small>{fileSize(a.file_size)}</small><Download size={15} strokeWidth={2} aria-hidden="true" />
+                              <Paperclip size={15} strokeWidth={2} aria-hidden="true" /><span title={a.filename}>{a.filename}</span><small>{formatBytes(a.file_size)}</small><Download size={15} strokeWidth={2} aria-hidden="true" />
                             </button>
                             {fileNote?.id === a.id && <span className={`cs-file-note${fileNote.err ? ' is-err' : ''}`} role="status">{fileNote.text}</span>}
                           </li>

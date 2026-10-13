@@ -1,4 +1,4 @@
-import React, { useId, useState } from 'react';
+import React, { useId, useState, useEffect } from 'react';
 import { translations } from '../../translations.js';
 import Segmented from './Segmented.jsx';
 import { cx, Txt } from './text.jsx';
@@ -11,7 +11,17 @@ import { cx, Txt } from './text.jsx';
  *   canMove(item, from, to): si ese paso está permitido (por defecto, cualquiera).
  * Arrastrar es un atajo: lo mismo se hace con el botón de cada tarjeta, que funciona con el teclado.
  */
-export default function Kanban({ lang, columns, renderCard, onMove, canMove = () => true, getId = item => item.id, className }) {
+// moveLabel(item, de, a): qué hace de verdad la flecha de la tarjeta (si no, «Mover a «columna»»)
+export default function Kanban({ lang, columns, renderCard, onMove, canMove = () => true, moveLabel, getId = item => item.id, className }) {
+  // En el móvil las columnas se ven de una en una, con pestañas: entonces cada una es un panel de pestaña
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(max-width: 640px)').matches);
+  useEffect(() => {
+    const m = window.matchMedia?.('(max-width: 640px)');
+    if (!m) return undefined;
+    const on = () => setNarrow(m.matches);
+    m.addEventListener('change', on);
+    return () => m.removeEventListener('change', on);
+  }, []);
   const uid = useId();
   const [tab, setTab] = useState(columns[0]?.id);
   const [drag, setDrag] = useState(null); // { id, from }
@@ -42,7 +52,7 @@ export default function Kanban({ lang, columns, renderCard, onMove, canMove = ()
           return (
             <section
               key={col.id} id={`${uid}-${col.id}`} className={cx('ds-kcol', over === col.id && drag?.from !== col.id && 'is-over')}
-              data-off={col.id === current ? undefined : ''} aria-labelledby={`${uid}-${col.id}-t`}
+              data-off={col.id === current ? undefined : ''} aria-labelledby={`${uid}-${col.id}-t`} role={narrow ? 'tabpanel' : undefined}
               onDragOver={e => { if (drag) { e.preventDefault(); setOver(col.id); } }}
               onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setOver(null); }}
               onDrop={e => drop(e, col)}
@@ -67,7 +77,7 @@ export default function Kanban({ lang, columns, renderCard, onMove, canMove = ()
                         {renderCard(item, {
                           column: col,
                           dragging: drag?.id === id,
-                          move: movable ? { col: next.name, onMove: () => onMove(item, col.id, next.id) } : undefined,
+                          move: movable ? { col: next.name, label: moveLabel?.(item, col.id, next.id), onMove: () => onMove(item, col.id, next.id) } : undefined,
                         })}
                       </li>
                     );

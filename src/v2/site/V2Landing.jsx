@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import {
   HandCoins, UserRoundX, Scale, HardHat, DatabaseZap, Handshake, Calculator, Leaf,
-  ArrowRight, ArrowUpRight, Check, Copy, Link2, Plus,
+  ArrowRight, ArrowUpRight, Check, Copy, Link2, Plus, Pause, Play, Server, LockKeyhole, UsersRound, ShieldCheck,
 } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { BOE_URL, ICON, boeArt, fmt, Stable, stableOf, Swap } from '../V2Layout.jsx';
@@ -21,9 +21,13 @@ const HOW = ['canal', 'formulario', 'codigo', 'panel'];
 // Cada quant passa sol al pas (o a l'exemple) següent
 const STEP_MS = 3000;
 const SAY_MS = 3600;
-// La foto de l'inici (public/landing/inicio-N.webp, fetes amb scripts/landing-fotos.mjs).
-// PROVISIONAL: mentre es tria la foto, ?foto=2 i ?foto=3 ensenyen les altres dues candidates.
-const FOTOS = ['1', '2', '3'];
+// Fotos de l'inici (1) i del tancament (2): public/landing/inicio-N*.webp, fetes amb scripts/landing-fotos.mjs.
+// Quatre mides: el navegador baixa la que toca segons l'amplada (un mòbil petit, ~55 KB en lloc de ~100 KB)
+const photo = (n) => ({
+  wide: `/landing/inicio-${n}-d.webp 1440w, /landing/inicio-${n}.webp 2400w`,
+  tall: `/landing/inicio-${n}-s.webp 720w, /landing/inicio-${n}-m.webp 1100w`,
+  src: `/landing/inicio-${n}-d.webp`,
+});
 // Cada xifra clau enllaça amb el seu article: és l'índex dins de landing.oblRefs
 const FIG_REF = [0, 1, 1, 3];
 
@@ -78,6 +82,8 @@ function useCycle(count, ms) {
   const [held, setHeld] = useState(false);
   const [seen, setSeen] = useState(false);
   const [live, setLive] = useState(false);
+  // Detenido a mano (botón de pausa, o al elegir un elemento con un clic): no vuelve a arrancar solo (WCAG 2.2.2)
+  const [stopped, setStopped] = useState(false);
   useEffect(() => {
     setLive(!calm());
     const el = ref.current;
@@ -86,13 +92,19 @@ function useCycle(count, ms) {
     io.observe(el);
     return () => io.disconnect();
   }, []);
-  const running = live && seen && !held;
+  const running = live && seen && !held && !stopped;
   useEffect(() => {
     if (!running) return undefined;
     const id = setInterval(() => setIndex(i => (i + 1) % count), ms);
     return () => clearInterval(id);
   }, [running, count, ms]);
-  return { ref, index, live, running, pick: i => { setIndex(i); setHeld(true); }, release: () => setHeld(false) };
+  return {
+    ref, index, live, running, stopped,
+    pick: i => { setIndex(i); setHeld(true); },
+    choose: i => { setIndex(i); setStopped(true); },
+    release: () => setHeld(false),
+    toggle: () => setStopped(s => !s),
+  };
 }
 
 /**
@@ -107,11 +119,7 @@ export default function V2Landing() {
   const t = s.landing;
   const tl = s.lp;
   const tv = translations[lang].v2;
-  const ta = translations[lang].v2admin;
   const [copied, setCopied] = useState(false);
-  const [query] = useSearchParams();
-  const foto = FOTOS.includes(query.get('foto')) ? query.get('foto') : FOTOS[0];
-  const fotoEnd = foto === '2' ? '1' : '2';
   const root = useReveal();
   const how = useCycle(HOW.length, STEP_MS);
   const say = useCycle(CATS.length, SAY_MS);
@@ -135,8 +143,8 @@ export default function V2Landing() {
       {/* ── 1 · Inici: una foto a pantalla completa, el titular, una frase i els dos botons ── */}
       <section className="v2-lp-hero" aria-labelledby="v2-land-title">
         <picture className="v2-lp-hero-bg">
-          <source media="(max-width: 719px)" srcSet={`/landing/inicio-${foto}-m.webp`} />
-          <img src={`/landing/inicio-${foto}.webp`} alt="" width="2400" height="1500" decoding="async" fetchpriority="high" />
+          <source media="(max-width: 719px)" srcSet={photo(1).tall} sizes="100vw" />
+          <img src={photo(1).src} srcSet={photo(1).wide} sizes="100vw" alt="" width="1440" height="900" decoding="async" fetchpriority="high" />
         </picture>
         <div className="v2-wrap v2-lp-hero-in">
           <Lp as="h1" className="v2-lp-h1" id="v2-land-title" pick={x => <><span>{x.titleA}</span> <span>{x.titleB}</span></>} />
@@ -147,6 +155,7 @@ export default function V2Landing() {
             </Link>
             <Link className="v2-btn v2-btn-ghostnavy" to={`${DEMO_PATH}?lang=${lang}`}>{st(T => T.v2site.navDemo)}</Link>
           </div>
+          <Tx as="p" className="v2-lp-hero-trial" pick={x => fmt(x.trialNote, { days: TRIAL_DAYS })} />
         </div>
       </section>
 
@@ -166,7 +175,7 @@ export default function V2Landing() {
               {HOW.map((shot, i) => (
                 <li
                   key={shot} className={i === how.index ? 'is-on' : i < how.index ? 'is-done' : undefined}
-                  onMouseEnter={() => how.pick(i)} onClick={() => how.pick(i)}
+                  onMouseEnter={() => how.pick(i)} onClick={() => how.choose(i)}
                 >
                   <span className="v2-lp-phone">
                     <img src={`/landing/${shot}-${lang}.webp`} alt={tl.howAlt[i]} width="810" height="1440" loading="lazy" decoding="async" />
@@ -183,6 +192,11 @@ export default function V2Landing() {
             <div className="v2-lp-step-line" aria-hidden="true">
               {HOW.map((shot, i) => <Lp as="p" key={shot} className={i === how.index ? 'is-on' : undefined} pick={x => x.howLine[i]} />)}
             </div>
+            {how.live && (
+              <button type="button" className="v2-lp-pause" onClick={how.toggle}>
+                {how.stopped ? <Play {...ICON} /> : <Pause {...ICON} />}{how.stopped ? tl.play : tl.pause}
+              </button>
+            )}
           </div>
 
           {/* El que veu l'empresa: la llista de denúncies, en gran */}
@@ -249,7 +263,7 @@ export default function V2Landing() {
                 const Icon = CAT_ICONS[value];
                 return (
                   <li key={value}>
-                    <button type="button" className="v2-lp-chip" aria-pressed={i === say.index} onClick={() => say.pick(i)} onMouseEnter={() => say.pick(i)}>
+                    <button type="button" className="v2-lp-chip" aria-pressed={i === say.index} onClick={() => say.choose(i)} onMouseEnter={() => say.pick(i)}>
                       <Icon {...ICON} />{st(T => T.categories.find(c => c.value === value)?.label ?? value)}
                       {/* l'exemple, per a qui no veu la peça gran */}
                       <span className="v2-vh">: {tl.catSay[value]}</span>
@@ -258,6 +272,11 @@ export default function V2Landing() {
                 );
               })}
             </ul>
+            {say.live && (
+              <button type="button" className="v2-lp-pause" onClick={say.toggle}>
+                {say.stopped ? <Play {...ICON} /> : <Pause {...ICON} />}{say.stopped ? tl.play : tl.pause}
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -351,6 +370,24 @@ export default function V2Landing() {
         </div>
       </section>
 
+      {/* ── 4b · Seguretat i privacitat: quatre peces curtes, totes comprovades ── */}
+      <section className="v2-lp-sec is-white v2-lp-secu" id="seguridad" aria-labelledby="v2-lp-sec-t">
+        <div className="v2-wrap">
+          <header className="v2-lp-head">
+            <Tx as="h2" className="v2-sec-title" id="v2-lp-sec-t" k="secTitle" />
+          </header>
+          <ul className="v2-lp-secu-list">
+            {[Server, LockKeyhole, UsersRound, ShieldCheck].map((Icon, i) => (
+              <li key={i}>
+                <Icon {...ICON} />
+                <h3>{t.sec[i].t}</h3>
+                <p>{t.sec[i].d}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
       {/* ── 5 · Preus ── */}
       <section className="v2-lp-sec is-soft" id="precios" aria-labelledby="v2-lp-price-t">
         <div className="v2-wrap">
@@ -422,8 +459,8 @@ export default function V2Landing() {
       <section className="v2-lp-end" id="contacto" aria-labelledby="v2-lp-end-t">
         {/* la foto que no s'ha fet servir a l'inici: la pàgina s'obre i es tanca amb foto */}
         <picture className="v2-lp-end-bg">
-          <source media="(max-width: 719px)" srcSet={`/landing/inicio-${fotoEnd}-m.webp`} />
-          <img src={`/landing/inicio-${fotoEnd}.webp`} alt="" width="2400" height="1500" loading="lazy" decoding="async" />
+          <source media="(max-width: 719px)" srcSet={photo(2).tall} sizes="100vw" />
+          <img src={photo(2).src} srcSet={photo(2).wide} sizes="100vw" alt="" width="1440" height="900" loading="lazy" decoding="async" />
         </picture>
         <div className="v2-wrap">
           <Tx as="h2" className="v2-sec-title" id="v2-lp-end-t" k="endTitle" />

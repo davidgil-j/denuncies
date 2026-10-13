@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { ArrowUpRight, Check, CircleAlert, Ellipsis, Download, FileText, Link2, ShieldCheck } from 'lucide-react';
 import { translations } from '../../translations.js';
+import './texts.js'; // textos del panel (lado Gestionar)
 import { LANGS, AIPI_URL, Swap, fmt } from '../V2Layout.jsx';
 import { copyText } from '../admin/adminKit.jsx';
 import { Button, IconButton, Card, Menu, MenuItem, Segmented, Skeleton } from '../ui/index.js';

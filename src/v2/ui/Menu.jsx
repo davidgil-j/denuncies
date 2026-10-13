@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useId } from 'react';
 import { Link } from 'react-router-dom';
 import { cx } from './text.jsx';
 
@@ -10,6 +10,7 @@ import { cx } from './text.jsx';
 export default function Menu({ label, trigger, align = 'end', children, className }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const panelId = useId();
   useEffect(() => {
     if (!open) return undefined;
     const down = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
@@ -20,9 +21,9 @@ export default function Menu({ label, trigger, align = 'end', children, classNam
   }, [open]);
   return (
     <div className={cx('ds-menu', className)} ref={ref}>
-      {trigger({ 'aria-expanded': open, 'aria-haspopup': 'true', onClick: () => setOpen(o => !o) })}
+      {trigger({ 'aria-expanded': open, 'aria-controls': open ? panelId : undefined, onClick: () => setOpen(o => !o) })}
       {open && (
-        <div className={cx('ds-menu-panel ds-on-white', align === 'start' && 'is-start')} role="group" aria-label={label} onClick={e => { if (e.target.closest('[data-close]')) setOpen(false); }}>
+        <div id={panelId} className={cx('ds-menu-panel ds-on-white', align === 'start' && 'is-start')} role="group" aria-label={label} onClick={e => { if (e.target.closest('[data-close]')) setOpen(false); }}>
           {children}
         </div>
       )}

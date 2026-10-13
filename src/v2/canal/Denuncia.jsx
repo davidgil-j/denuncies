@@ -57,7 +57,8 @@ export default function Denuncia() {
   const clear = (k) => setErrors(e => { if (!e[k]) return e; const n = { ...e }; delete n[k]; return n; });
 
   // Título neutro: el historial del navegador no debe decir que se está enviando una denuncia
-  useEffect(() => { document.title = `${t.ethics} · ${org.name}`; }, [t, org]);
+  // (cada paso con su título, para quien usa lector de pantalla; «Enviada» pone el suyo)
+  useEffect(() => { if (!sent) document.title = `${fmt(T.ds.stepOf, { n: step, total: 3 })} · ${t.ethics} · ${org.name}`; }, [t, org, step, sent]);
 
   // Al cambiar de paso: arriba y con el foco en el título
   useEffect(() => {
@@ -215,7 +216,7 @@ export default function Denuncia() {
             <div className="tell">
               <Card className="tell-main">
                 <Field
-                  as="textarea" id="dn-description" rows={9} label={<Tc lang={lang} k="what" />} value={draft.description}
+                  as="textarea" id="dn-description" rows={9} maxLength={20000} label={<Tc lang={lang} k="what" />} value={draft.description}
                   error={errors.description && t[errors.description]}
                   onChange={e => { set({ description: e.target.value }); if (e.target.value.trim().length >= MIN_DESC) clear('description'); }}
                 />
@@ -282,12 +283,12 @@ export default function Denuncia() {
                   <Card as="fieldset" className="ident-data">
                     <legend className="ds-vh">{t.yourData}</legend>
                     <Field
-                      id="dn-email" type="email" inputMode="email" autoComplete="email" label={<Tc lang={lang} k="email" />} tag={t.required}
+                      id="dn-email" type="email" inputMode="email" autoComplete="email" maxLength={200} label={<Tc lang={lang} k="email" />} tag={t.required}
                       value={draft.email} error={errors.email && t[errors.email]} onChange={e => { set({ email: e.target.value }); clear('email'); }}
                     />
                     <div className="ident-two">
-                      <Field autoComplete="name" label={<Tc lang={lang} k="name" />} tag={t.optional} value={draft.name} onChange={e => set({ name: e.target.value })} />
-                      <Field type="tel" inputMode="tel" autoComplete="tel" label={<Tc lang={lang} k="phone" />} tag={t.optional} value={draft.phone} onChange={e => set({ phone: e.target.value })} />
+                      <Field autoComplete="name" maxLength={200} label={<Tc lang={lang} k="name" />} tag={t.optional} value={draft.name} onChange={e => set({ name: e.target.value })} />
+                      <Field type="tel" inputMode="tel" autoComplete="tel" maxLength={50} label={<Tc lang={lang} k="phone" />} tag={t.optional} value={draft.phone} onChange={e => set({ phone: e.target.value })} />
                     </div>
                   </Card>
                 )}

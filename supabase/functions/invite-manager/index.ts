@@ -44,6 +44,12 @@ Deno.serve(async (req) => {
     const cleanName = String(full_name ?? '').trim().slice(0, 120);
     if (!cleanEmail || !cleanName) return json({ error: 'invalid' }, 400);
 
+    // Com a molt 20 invitacions al dia per empresa: el correu d'invitació porta el nom que escriu qui convida
+    const since = new Date(Date.now() - 86400000).toISOString();
+    const { count: sent } = await adminClient.from('audit_logs').select('id', { count: 'exact', head: true })
+      .eq('organization_id', profile.organization_id).eq('action', 'member_invited').gte('created_at', since);
+    if ((sent ?? 0) >= 20) return json({ error: 'invite-limit' }, 429);
+
     // Un correu que ja té compte només es pot tornar a convidar si és d'aquesta empresa i encara no hi ha entrat.
     // Mai no s'adopta ni s'esborra un compte d'una altra empresa o sense empresa (migració 014: find_auth_user).
     // Sense la 014, la funció no existeix i es continua com abans, però sense esborrar ningú.
@@ -59,6 +65,12 @@ Deno.serve(async (req) => {
     });
     // Resposta genèrica: no es revela si el correu ja té compte (a Reportia o a una altra empresa)
     if (error || !data?.user) return json({ error: 'invite-failed' }, 400);
+
+    // Queda al registre de l'empresa (i compta per al límit diari)
+    await adminClient.from('audit_logs').insert({
+      complaint_id: null, organization_id: profile.organization_id, action: 'member_invited', actor_id: user.id,
+      details: { member_id: data.user.id, member_name: cleanName, invited_by: user.id },
+    });
 
     // Ja era una invitació pendent d'aquesta empresa: s'ha reenviat el correu i prou
     if (existing) return json({ user: { id: data.user.id } });

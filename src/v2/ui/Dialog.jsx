@@ -14,7 +14,11 @@ export default function Dialog({ open, onClose, title, children, actions, side =
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) d.showModal?.();
+    if (open && !d.open) {
+      d.showModal?.();
+      // showModal() enfoca el primer botón (la X): si hay un campo marcado con autoFocus, el foco va allí
+      d.querySelector('[autofocus], [data-autofocus]')?.focus();
+    }
     if (!open && d.open) d.close();
   }, [open]);
   return (

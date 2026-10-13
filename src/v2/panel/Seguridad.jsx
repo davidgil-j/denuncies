@@ -6,6 +6,7 @@ import { Swap, fmt } from '../V2Layout.jsx';
 import { copyText } from '../admin/adminKit.jsx';
 import { Button, Card, OtpInput, Skeleton } from '../ui/index.js';
 import { usePanel, Tp } from './kit.jsx';
+import './texts.js'; // textos del panel (lado Gestionar)
 
 const NONE = '–';
 

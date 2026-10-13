@@ -2,7 +2,7 @@
    que no lleva esa clase, no recibe nada de aquí. */
 
 .ds {
-  --font: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font: 'Manrope Variable', 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   --bg: #F2F4F8;
   --surface: #FFFFFF;
@@ -458,7 +458,7 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 40p
 @media (min-width: 641px) {
   .ds-split { --banner-h: 0px; }
   .ds-split.has-banner { --banner-h: 41px; }
-  .ds-split-banner { position: sticky; top: 0; z-index: 20; min-height: 41px; flex-wrap: nowrap; white-space: nowrap; overflow: hidden; }
+  .ds-split-banner { position: sticky; top: 0; z-index: 20; min-height: 41px; }
   .ds-split:not(.is-entry) .ds-pane.is-tab { position: sticky; top: calc(16px + var(--banner-h)); align-self: flex-start; height: calc(100vh - 32px - var(--banner-h)); height: calc(100dvh - 32px - var(--banner-h)); }
 }
 
@@ -482,3 +482,23 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 40p
 .ds-offline svg { flex: none; color: var(--on-ink-warn); }
 /* Párrafos de entrada sin una palabra suelta en la última línea */
 .ds-lead { text-wrap: pretty; }
+
+/* ── Accesibilidad (auditoría C) ───────────────────────────────────────
+   C-1 · En el móvil, la barra fija de abajo del panel no tapa el elemento con el foco (WCAG 2.4.11). */
+@media (max-width: 640px) {
+  html:has(.pn) { scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+}
+/* C-3 · Contraste alto de Windows (colores forzados): se ve qué opción está elegida, la página actual,
+   los pasos hechos y el borde de los botones. */
+@media (forced-colors: active) {
+  .ds-seg-item:is([aria-pressed="true"], [aria-checked="true"], [aria-selected="true"]),
+  .ds .ds-nav-item[aria-current="page"] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+  .ds-steps-seg::before, .ds-steps.is-ink .ds-steps-seg::before { background: GrayText; }
+  .ds-steps-seg.is-done::before, .ds-steps.is-ink .ds-steps-seg.is-done::before { background: CanvasText; }
+  .ds-btn { border: 1px solid ButtonText; }
+}
+
+/* D-7 · El esqueleto del tablero tiene la forma final: en el móvil, pestañas y una sola columna */
+@media (max-width: 640px) {
+  .ds-kanban.is-skel .ds-kcol:not(:nth-child(2)) { display: none; }
+}

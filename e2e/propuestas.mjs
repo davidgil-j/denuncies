@@ -24,7 +24,7 @@ for (const [w, h] of [[1440, 900], [1366, 768], [1280, 720], [1280, 700], [1180,
     await p.screenshot({ path: `${OUT}/${w}-P1-registrar-gris-en-informe.png` });
     await p.goto('http://localhost:3111/admin/nueva', { waitUntil: 'networkidle' }); await p.waitForSelector('.rg-form');
     const txt = await p.locator('.pn-page').innerText();
-    ok(`${w} P2 · «Registrar un caso» y sin «denuncia» en la pantalla`, txt.includes('Registrar un caso') && !/denuncia/i.test(txt) && txt.includes('Recibido el'), (txt.match(/[^\n]*denuncia[^\n]*/i) ?? [''])[0]);
+    ok(`${w} P2 · «Registrar un caso» y sin «denuncia» en la pantalla`, txt.includes('Registrar un caso') && !/denuncia/i.test(txt) && txt.includes('Recibida el'), (txt.match(/[^\n]*denuncia[^\n]*/i) ?? [''])[0]);
     await p.screenshot({ path: `${OUT}/${w}-P2-registrar-un-caso.png` });
     await p.goto('http://localhost:3111/admin/ajustes', { waitUntil: 'networkidle' }); await p.waitForSelector('.tm-list li');
     const sec = p.locator('section[aria-labelledby="st-sec-t"]');

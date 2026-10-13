@@ -1,5 +1,6 @@
 import { fmt } from '../V2Layout.jsx';
 import { daysBetween } from '../../lib/deadlines.js';
+import { localeOf } from '../../lib/format.js';
 
 // Terminis de la Llei 2/2023, en dies de calendari de Madrid (com la base de dades): src/lib/deadlines.js
 export { deadlineInfo, daysBetween, ACK_DAYS, RESP_MONTHS } from '../../lib/deadlines.js';
@@ -11,10 +12,7 @@ export { ANSWERED } from '../../lib/deadlines.js';
 export const PRIORITIES = ['low', 'normal', 'high', 'critical'];
 export const PERMS = ['can_view', 'can_edit', 'can_reply', 'can_delete'];
 
-
-export function localeOf(lang) {
-  return lang === 'en' ? 'en-GB' : lang === 'es' ? 'es-ES' : 'ca-ES';
-}
+export { localeOf };
 
 export function fDate(iso, lang, opts = { day: 'numeric', month: 'short', year: 'numeric' }) {
   if (!iso) return '';
@@ -29,13 +27,6 @@ export function fShort(iso, lang) {
 }
 export function fLong(iso, lang) {
   return fDate(iso, lang, { day: 'numeric', month: 'long', year: 'numeric' });
-}
-
-export function relDay(iso, t) {
-  const n = daysBetween(iso, new Date());
-  if (n <= 0) return t.today;
-  if (n === 1) return t.yesterday;
-  return fmt(t.daysAgo, { n });
 }
 
 // ── Pla de l'organització ───────────────────────────────────────────────

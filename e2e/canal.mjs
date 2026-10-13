@@ -171,7 +171,7 @@ await page.waitForSelector('.ds-hero');
 await shot('00-entrada-catalan');
 await page.getByRole('link', { name: 'Començar a denunciar' }).click();
 await page.waitForSelector('.cats');
-await page.goto(`${BASE}/canal/demo/denuncia?lang=en`, { waitUntil: 'networkidle' });
+await page.goto(`${BASE}/canal/demo/formulario?lang=en`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.cats');
 await shot('D1-ingles');
 await page.goto(`${BASE}/canal/no-existe?lang=es`, { waitUntil: 'networkidle' });

@@ -54,3 +54,15 @@ Las capturas de antes y después están en `capturas/pulido-2/antes` y `capturas
 - **Avisos de confirmación**: dicen qué ha pasado («Acuse enviado. El caso está en curso.», «Invitación enviada a …»).
 - **Tono**: todo el producto en «tú», en los tres idiomas.
 - **Radios, botones y chips**: salen de las mismas piezas (`src/v2/ui`), así que son iguales en todas las pantallas.
+
+## Revisión de la «Mejora total» (fase 4, 9 de octubre de 2026)
+
+Cada pantalla del canal y del panel a 1470×800, 1366×768, 1280×700, 390×844 y 360×640, en catalán, castellano e inglés (180 combinaciones), con medida automática de desbordes, textos cortados, botones partidos y palabras sueltas al final de los títulos, y revisión a ojo de las capturas.
+
+**Resultado:** ningún desborde ni texto cortado de verdad (las dos alarmas eran falsas: los botones «Copiar» reservan el ancho de «Copiado», y un subtítulo largo de la política de privacidad del canal en catalán acaba en dos palabras). Los estados nuevos de esta fase también tienen diseño y texto: canal sin conexión con «Volver a intentarlo», mensajes que no cargan en «Mi caso», búsqueda que no carga, sesión cerrada por inactividad y foto que no se puede limpiar.
+
+**Propuestas (cambian la estructura de una pantalla: no se han hecho):**
+
+1. **Tablero en el móvil con el aviso de supresión.** A 360×640, cuando hay casos que suprimir, el aviso ocupa la primera pantalla y las tarjetas empiezan debajo. Propuesta: en el móvil, plegarlo en una línea («3 casos que suprimir ›») que se despliega al tocarla.
+2. **Ficha del caso: título largo.** Con títulos sacados del texto («En el último proceso de promoción interna para…»), el título ocupa dos líneas grandes a 1280. Propuesta: tope de una línea en pantallas bajas, con el título completo al pasar el ratón.
+3. **Panel con el menú abajo en el móvil.** «Registrar caso» queda como un botón redondo junto a la búsqueda. Funciona, pero es fácil no verlo. Propuesta: que aparezca también dentro de la columna «Nuevas» cuando está vacía.

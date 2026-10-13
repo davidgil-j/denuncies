@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { Turnstile } from '@marsidev/react-turnstile';
-import { LayoutDashboard, Smartphone, ArrowRight, CircleAlert } from 'lucide-react';
+import { LayoutDashboard, Smartphone, ArrowRight, CircleAlert, Clock } from 'lucide-react';
 import { translations } from '../../translations.js';
+import './texts.js'; // textos del panel (lado Gestionar)
 import { signInAdmin, getAdminSession, getMfaState, verifyLoginCode, signOutAdmin, getOrganizationBySlug, IS_DEMO } from '../../lib/supabase.js';
 import { LANGS, detectLang, fmt } from '../V2Layout.jsx';
 import { EMAIL_RE, authErrorKey } from '../site/fields.jsx';
@@ -48,7 +49,7 @@ export function AccessLayout() {
   }, [from]);
 
   const tab = org
-    ? <SideTab side="report" label={p.report} icon="back" to={`/canal/${org.slug}/denuncia?lang=${lang}`} ariaLabel={p.reportAria} />
+    ? <SideTab side="report" label={p.report} icon="back" to={`/canal/${org.slug}/formulario?lang=${lang}`} ariaLabel={p.reportAria} />
     : <SideTab side="report" label={p.home} icon="back" to={`/?lang=${lang}`} ariaLabel={p.homeAria} />;
 
   return (
@@ -60,7 +61,7 @@ export function AccessLayout() {
             <div className="pn-brand">{org ? <><OrgMark name={org.name} /><b>{org.name}</b></> : <><OrgMark name="Reportia" /><b>Reportia</b></>}</div>
             <Segmented
               tone="bg" label={p.language} value={lang} onChange={setLang}
-              options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: translations[l].langName, lang: l }))}
+              options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: `${l.toUpperCase()} · ${translations[l].langName}`, lang: l }))}
             />
           </div>
           <div className="ac-body"><Outlet context={{ lang, org, from }} /></div>
@@ -82,6 +83,8 @@ export default function Acceso() {
   // Si se llegó desde una pantalla del panel, se vuelve a ella después de entrar
   const target = typeof location.state?.from === 'string' && location.state.from.startsWith('/admin') ? location.state.from : '/admin';
   const [step, setStep] = useState('password'); // password | code
+  // Se acaba de cerrar la sesión por inactividad (A1-13)
+  const idle = new URLSearchParams(location.search).get('idle') === '1';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
@@ -97,7 +100,7 @@ export default function Acceso() {
   const turnstileRef = useRef(null);
   const [narrow] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 420px)').matches);
 
-  useEffect(() => { document.title = `${p.manage} · ${org?.name ?? 'Reportia'}`; }, [p, org]);
+  useEffect(() => { document.title = `${step === 'code' ? `${p.codeTitle} · ` : ''}${p.manage} · ${org?.name ?? 'Reportia'}`; }, [p, org, step]);
 
   // Con la sesión abierta: si falta el código de los dos pasos, se pide; si no, al panel
   useEffect(() => {
@@ -188,6 +191,7 @@ export default function Acceso() {
         <Tp as="h1" className="ds-h1" lang={lang} k="manage" />
         <Tp as="p" className="ac-lead" lang={lang} pick={x => (org ? fmt(x.accessLead, { org: org.name }) : x.accessLeadNoOrg)} />
       </div>
+      {idle && <p className="ac-idle" role="status"><Clock size={18} strokeWidth={2.2} aria-hidden="true" />{p.idleOut}</p>}
       <div className="ac-fields">
         <Field
           id="ac-email" type="email" inputMode="email" label={p.email} value={email} error={errors.email}

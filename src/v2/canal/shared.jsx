@@ -6,6 +6,7 @@ import { translations } from '../../translations.js';
 import { madridDay, addMonthsDay, dayToDate, ACK_DAYS, RESP_MONTHS } from '../../lib/deadlines.js';
 import { Stable, fmt, quickExit } from '../V2Layout.jsx';
 import { Button, Chip, OrgMark } from '../ui/index.js';
+import { LOCALES } from '../../lib/format.js';
 
 // Las 9 categorías, en el orden de la pantalla. El valor que se guarda no cambia.
 export const CATEGORIES = ['harassment', 'fraud', 'discrimination', 'safety', 'data', 'conflict', 'accounting', 'environmental', 'other'];
@@ -26,7 +27,7 @@ export const Tc = forwardRef(function Tc({ lang, k, vars, pick, ...rest }, ref) 
   return <Stable ref={ref} lang={lang} pick={(T, l) => (pick ? pick(T.canal, T, l) : fmt(T.canal[k], vars))} {...rest} />;
 });
 
-const LOCALE = { ca: 'ca-ES', es: 'es-ES', en: 'en-GB' };
+const LOCALE = LOCALES;
 /** «13 de octubre» */
 export const dayMonth = (date, lang) => new Date(date).toLocaleDateString(LOCALE[lang] ?? 'es-ES', { day: 'numeric', month: 'long' });
 /** «7 oct» */

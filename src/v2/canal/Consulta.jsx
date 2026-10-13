@@ -6,6 +6,7 @@ import { getComplaintByCode, getReporterMessages, sendReporterMessage, requestMe
 import { fmt } from '../V2Layout.jsx';
 import { Button, IconButton, ChatThread, ChatComposer, Dialog, Field, StepBar, cx } from '../ui/index.js';
 import { CanalHead, Tc, respDue, dayMonth, dayShort } from './shared.jsx';
+import { LOCALES } from '../../lib/format.js';
 
 // Formato real del código: 8 caracteres con guion en medio (A3B7-C9X2). Se acepta pegado con o sin
 // guion, con espacios, o dentro de un texto como la línea del justificante.
@@ -36,9 +37,10 @@ export default function Consulta() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null); // codeErr | codeShort | codeBusy
   const [result, setResult] = useState(null);
+  useEffect(() => { document.title = `${result ? t.docCase : t.docLookup} · ${t.ethics} · ${org.name}`; }, [t, org, result]);
   const inputRef = useRef(null);
 
-  useEffect(() => { document.title = `${t.ethics} · ${org.name}`; }, [t, org]);
+
 
   async function search(e, override) {
     e?.preventDefault();
@@ -100,7 +102,7 @@ export default function Consulta() {
   );
 }
 
-const LOCALE = { ca: 'ca-ES', es: 'es-ES', en: 'en-GB' };
+const LOCALE = LOCALES;
 const fLongDay = (iso, lang) => new Date(iso).toLocaleDateString(LOCALE[lang] ?? 'es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
 
 /** Línea de tiempo y petición de reunión: a la izquierda en el ordenador, en el menú «···» en el móvil */
@@ -152,6 +154,8 @@ function MiCaso({ lang, org, c, onRefresh, onLeave }) {
   const code = c.tracking_code;
   const p = progress(c);
   const [messages, setMessages] = useState(null);
+  const [msgErr, setMsgErr] = useState(false); // no se han podido cargar (no es lo mismo que «no hay»)
+  const [msgTry, setMsgTry] = useState(0);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [sendErr, setSendErr] = useState(false);
@@ -164,9 +168,12 @@ function MiCaso({ lang, org, c, onRefresh, onLeave }) {
   useEffect(() => { headRef.current?.focus({ preventScroll: true }); }, []);
   useEffect(() => {
     let alive = true;
-    getReporterMessages(code).then(({ messages: m }) => { if (alive) setMessages(m ?? []); });
+    setMsgErr(false);
+    getReporterMessages(code)
+      .then(({ messages: m, error }) => { if (!alive) return; setMsgErr(!!error); setMessages(error ? [] : (m ?? [])); })
+      .catch(() => { if (alive) { setMsgErr(true); setMessages([]); } });
     return () => { alive = false; };
-  }, [code]);
+  }, [code, msgTry]);
 
   async function send(text) {
     setSending(true);
@@ -218,7 +225,9 @@ function MiCaso({ lang, org, c, onRefresh, onLeave }) {
           <div className="mc-thread">
             {messages === null
               ? <div className="mc-skel" aria-hidden="true"><span className="ds-skel" style={{ width: '60%', height: 52 }} /><span className="ds-skel" style={{ width: '45%', height: 52 }} /></div>
-              : <ChatThread lang={lang} messages={thread} empty={t.msgEmpty}><span ref={endRef} /></ChatThread>}
+              : msgErr
+                ? <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={2.2} aria-hidden="true" />{t.msgLoadErr} <Button variant="soft" size="xs" onClick={() => { setMessages(null); setMsgTry(n => n + 1); }}>{t.retry}</Button></p>
+                : <ChatThread lang={lang} messages={thread} empty={t.msgEmpty}><span ref={endRef} /></ChatThread>}
           </div>
           <div className="mc-compose">
             {p.answered && (

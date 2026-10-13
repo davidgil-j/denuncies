@@ -410,12 +410,6 @@ export async function listComplaints({ categories = null } = {}) {
   return { complaints: rows, error: null };
 }
 
-export async function getAllComplaints({ status, page = 1, limit = 20 } = {}) {
-  await wait();
-  const all = db().complaints.filter(c => !status || c.status === status).sort(byDateDesc);
-  return { data: clone(all.slice((page - 1) * limit, page * limit)), count: all.length, error: null };
-}
-
 export async function getComplaintById(id) {
   await wait(300);
   const c = db().complaints.find(x => x.id === id);
@@ -436,56 +430,12 @@ export async function getReporterIdentity(id) {
   return { identity: { reporter_name: c.reporter_name ?? null, reporter_email: c.reporter_email ?? null, reporter_phone: c.reporter_phone ?? null }, error: null };
 }
 
-export async function getComplaintStats(allowedCategories = null) {
-  if (allowedCategories !== null && allowedCategories.length === 0) return { total: 0, open: 0, resolved: 0 };
-  const rows = db().complaints.filter(c => !allowedCategories || allowedCategories.includes(c.category));
-  return {
-    total: rows.length,
-    open: rows.filter(c => OPEN.includes(c.status)).length,
-    resolved: rows.filter(c => DONE.includes(c.status)).length,
-  };
-}
-
-// Mateixa semàntica que la versió real: el registre només s'escriu si hi ha nota
-export async function updateComplaintStatus(id, status, adminNote = null, priority = null) {
-  await wait();
-  const s = db();
-  const c = s.complaints.find(x => x.id === id);
-  if (!c) return { error: { message: 'not-found' } };
-  c.status = status;
-  if (priority) c.priority = priority;
-  c.updated_at = new Date().toISOString();
-  if (adminNote) s.audit.push({ id: `a${++s.seq}`, complaint_id: id, action: `status_changed_to_${status}`, details: { note: adminNote }, created_at: c.updated_at });
-  save();
-  return { error: null };
-}
-
-export async function deleteComplaint(id) {
-  await wait(300);
-  const s = db();
-  const before = s.complaints.length;
-  s.complaints = s.complaints.filter(c => c.id !== id);
-  if (s.complaints.length === before) return { error: { message: 'not-found' } };
-  delete s.messages[id];
-  // Com a la BD (on delete set null): el registre es conserva sense vincle
-  s.audit.forEach(a => { if (a.complaint_id === id) a.complaint_id = null; });
-  save();
-  return { error: null };
-}
-
 export async function getAuditLogs(complaintId) {
   await wait(150);
   const logs = db().audit
     .filter(a => a.complaint_id === complaintId)
     .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   return { logs: clone(logs), error: null };
-}
-
-export async function logComplaintEvent({ complaintId, action, details = {} }) {
-  const s = db();
-  s.audit.push({ id: `a${++s.seq}`, complaint_id: complaintId, action, details, created_at: new Date().toISOString() });
-  save();
-  return { error: null };
 }
 
 // ── Missatges ───────────────────────────────────────────────────────────
@@ -740,6 +690,7 @@ export async function requestMeetingByCode(code) {
   await wait(200);
   const c = byCode(code);
   if (!c) return { error: { message: 'complaint-not-found' } };
+  if (['resolved', 'closed', 'archived'].includes(c.status)) return { error: { message: 'complaint-closed' } };
   if (!c.meeting_requested) {
     const s = db();
     const now = new Date().toISOString();

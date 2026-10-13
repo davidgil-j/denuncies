@@ -11,14 +11,16 @@
 // · buildExcelWorkbook / buildSummaryPDF / buildComplaintPDF retornen el document sense descarregar-lo
 //   (útil per a previsualitzacions i proves).
 
-import ExcelJS from 'exceljs';
+// ExcelJS (938 KB) només es baixa en exportar a Excel: els PDF no el necessiten
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { translations } from '../../translations.js';
+import '../panel/texts.js'; // textos del panel (lado Gestionar)
 import { deadlineInfo } from '../../lib/deadlines.js';
+import { LOCALES } from '../../lib/format.js';
 
 const LANGS = ['ca', 'es', 'en'];
-const LOCALE = { ca: 'ca-ES', es: 'es-ES', en: 'en-GB' };
+const LOCALE = LOCALES;
 const STATUS_ORDER = ['received', 'reviewing', 'investigating', 'waiting', 'resolved', 'closed', 'archived'];
 const CLOSED = new Set(['resolved', 'closed', 'archived']);
 const PRIORITY_ORDER = ['critical', 'high', 'normal', 'low'];
@@ -62,7 +64,8 @@ function dict(lang) {
     locale: LOCALE[L],
     channel: tr.v2?.channelName ?? '',
     status: s => tr.v2admin?.status?.[s] ?? tr.status?.[s] ?? s ?? '',
-    category: c => cats[c] ?? c ?? '',
+    // El mismo nombre de tema que en el canal y el panel
+    category: c => tr.canal?.cats?.[c]?.[0] ?? cats[c] ?? c ?? '',
     priority: p => t.priorities[p] ?? p ?? '',
     mode: c => (isIdentified(c) ? t.identified : t.anonymous),
     langName: l => t.langNames[l] ?? (l ? String(l).toUpperCase() : ''),
@@ -209,6 +212,7 @@ export async function buildExcelWorkbook(complaints = [], lang = 'es', { now = n
   const list = Array.isArray(complaints) ? complaints : [];
   const org = list.map(orgOf).find(Boolean) ?? '';
 
+  const { default: ExcelJS } = await import('exceljs');
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Reportia';
   wb.lastModifiedBy = 'Reportia';
@@ -233,11 +237,11 @@ export async function buildExcelWorkbook(complaints = [], lang = 'es', { now = n
     { key: 'deadline', header: t.cDeadline,      date: true },
     { key: 'answered', header: t.cAnswered,      date: true },
     { key: 'lang',     header: t.cLang },
-    { key: 'via',      header: D.x.channel ?? 'Vía de entrada' },
-    { key: 'when',     header: D.x.when ?? 'Cuándo' },
-    { key: 'meetReq',  header: D.x.meetingReq ?? 'Reunión pedida',     date: true },
-    { key: 'meetHeld', header: D.x.meetingHeld ?? 'Reunión celebrada', date: true },
-    { key: 'outcome',  header: D.x.outcome ?? 'Resultado' },
+    { key: 'via',      header: D.x.channel },
+    { key: 'when',     header: D.x.when },
+    { key: 'meetReq',  header: D.x.meetingReq,     date: true },
+    { key: 'meetHeld', header: D.x.meetingHeld, date: true },
+    { key: 'outcome',  header: D.x.outcome },
   ];
   const colIndex = Object.fromEntries(cols.map((c, i) => [c.key, i + 1]));
 

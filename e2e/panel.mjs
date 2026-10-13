@@ -39,7 +39,7 @@ if (!mobile) ok('sin empresa, la franja lleva a la portada', (await page.locator
 await shot('G1-acceso-sin-empresa');
 await page.goto(`${BASE}/admin/login?from=demo`, { waitUntil: 'networkidle' });
 await page.getByText('Entra con tu correo de Empresa Demo.').waitFor();
-if (!mobile) ok('con empresa, la franja lleva al paso 1', (await page.locator('.ds-tab').getAttribute('href')).startsWith('/canal/demo/denuncia'));
+if (!mobile) ok('con empresa, la franja lleva al paso 1', (await page.locator('.ds-tab').getAttribute('href')).startsWith('/canal/demo/formulario'));
 await page.getByRole('button', { name: 'Entrar' }).click();
 ok('acceso: avisa si falta el correo', await page.getByText('Escribe un correo válido.').isVisible());
 await page.getByLabel('Correo').fill('laura.puig@empresa-demo.es');
@@ -108,12 +108,12 @@ await page.getByRole('dialog').getByRole('button', { name: 'Cerrar' }).click();
 
 // 4 · Mover con el teclado abre la ficha con el acuse preparado
 if (!mobile) {
-  const move = page.locator('.ds-kcol').first().locator('.ds-case', { hasText: 'Comentarios sexuales' }).getByRole('button', { name: /Mover a «En curso»/ });
+  const move = page.locator('.ds-kcol').first().locator('.ds-case', { hasText: 'Comentarios sexuales' }).getByRole('button', { name: /Enviar el acuse de recibo/ });
   await page.locator('.ds-kcol').first().locator('.ds-case', { hasText: 'Comentarios sexuales' }).getByRole('link').focus();
   await page.keyboard.press('Tab');
   await page.waitForTimeout(300);
-  ok('con Tab, el foco llega al botón «Mover a…»', await move.evaluate(el => document.activeElement === el));
-  ok('«Mover a…» visible (flecha con nombre) al llegar con el teclado', await move.evaluate(el => getComputedStyle(el).opacity === '1' && /Mover a/.test(el.getAttribute('title'))));
+  ok('con Tab, el foco llega a la flecha de la tarjeta', await move.evaluate(el => document.activeElement === el));
+  ok('la flecha («Enviar el acuse de recibo») visible al llegar con el teclado', await move.evaluate(el => getComputedStyle(el).opacity === '1' && /Enviar el acuse de recibo/.test(el.getAttribute('title'))));
   await shot('G2-tablero-mover-con-teclado', { full: false });
   await page.keyboard.press('Enter');
 } else {

@@ -4,7 +4,7 @@ import { listComplaints } from '../../lib/supabase.js';
 import { fmt } from '../V2Layout.jsx';
 import { STATUS_ORDER, OPEN, ANSWERED, deadlineInfo, daysBetween, localeOf } from '../admin/adminKit.jsx';
 import { Button, Card, Field, Skeleton, cx } from '../ui/index.js';
-import { usePanel, Tp } from './kit.jsx';
+import { usePanel, Tp, meetingInfo } from './kit.jsx';
 
 const BAR_MAX = 168; // altura, en px, de la barra del mes con más denuncias
 const NONE = '–';
@@ -77,7 +77,9 @@ export default function Informe() {
     const byCatOpen = count(open.map(x => x.c), 'category');
     const byStatus = count(live.map(x => x.c), 'status');
     const late = answered.filter(x => x.d.resp.state === 'late').length;
-    const openOverdue = open.filter(x => x.d.next.state === 'overdue').length;
+    // Vencidas: el acuse o la respuesta, o una reunión pedida que no se ha celebrado a tiempo
+    const meetLate = (x) => { const m = meetingInfo(x.c, now); return !!m?.pending && m.days < 0; };
+    const openOverdue = open.filter(x => x.d.next.state === 'overdue' || meetLate(x)).length;
     // Acuses enviados después de los 7 días: también es un plazo incumplido, aunque luego se respondiera a tiempo
     const lateAck = live.filter(x => x.d.ack.late).length;
 

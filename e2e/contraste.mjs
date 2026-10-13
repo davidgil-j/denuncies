@@ -52,7 +52,7 @@ const go = async (path, sel) => { await page.goto(B + path, { waitUntil: 'networ
 await go('/canal/demo?lang=es', '.ds-hero'); await check('canal · entrada');
 await page.locator('.entry-linkbtn').first().click(); await page.locator('dialog[open]').waitFor(); await check('canal · canales externos'); await page.keyboard.press('Escape');
 await page.locator('.entry-linkbtn').nth(1).click(); await page.locator('dialog[open]').waitFor(); await check('canal · qué guardamos'); await page.keyboard.press('Escape');
-await go('/canal/demo/denuncia?lang=es', '.cats'); await check('canal · paso 1');
+await go('/canal/demo/formulario?lang=es', '.cats'); await check('canal · paso 1');
 await page.getByRole('radio', { name: /Fraude/ }).click(); await check('canal · paso 1 con tema elegido');
 await page.getByRole('button', { name: 'Continuar' }).click(); await page.waitForSelector('#dn-description');
 await page.getByRole('button', { name: 'Continuar' }).click(); await check('canal · paso 2 con error');

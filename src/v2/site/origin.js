@@ -32,7 +32,7 @@ function sync() {
   setMeta('meta[property="og:description"]', desc);
   setMeta('meta[property="og:title"]', document.title);
   setOgUrl(publicUrl(window.location.pathname));
-  setMeta('meta[property="og:image"]', publicUrl('/og.png'));
+  setMeta('meta[property="og:image"]', publicUrl('/og.jpg'));
 }
 
 /**

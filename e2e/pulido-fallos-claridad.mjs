@@ -37,7 +37,7 @@ await shot('B7-entrada-boton-mira-tu-caso');
 await again.click();
 await page.waitForURL(/consulta/);
 ok('B7 · lleva a escribir el código', await page.getByLabel('Tu código').waitFor({ timeout: 8000 }).then(() => true, () => false));
-await page.goto(`${B}/canal/demo/denuncia?lang=es`, { waitUntil: 'networkidle' });
+await page.goto(`${B}/canal/demo/formulario?lang=es`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.cats');
 await page.getByRole('radio', { name: /Fraude/ }).click();
 await page.getByRole('button', { name: 'Continuar' }).click();
@@ -72,7 +72,8 @@ if (!mobile) {
   const look = await card.evaluate(el => getComputedStyle(el).boxShadow);
   ok('B5 · al pasar el ratón, borde azul', /47, 84, 235/.test(look), look);
   const boxes = await card.evaluate(el => { const r = x => { const b = x.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; }; const m = el.querySelector('.ds-case-move'); const hit = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]; const chips = [...el.querySelectorAll('.ds-chip')].map(r); const range = document.createRange(); range.selectNodeContents(el.querySelector('.ds-case-link')); const title = [...range.getClientRects()].map(b => [b.left, b.top, b.right, b.bottom]); return { visible: getComputedStyle(m).opacity === '1', text: m.innerText.trim(), label: m.getAttribute('aria-label'), covers: chips.some(c => hit(r(m), c)) || title.some(c => hit(r(m), c)) }; });
-  ok('B6 · «Mover a…»: solo la flecha, con su nombre, y no tapa ni los chips ni el título', boxes.visible && boxes.text === '' && /Mover a/.test(boxes.label) && !boxes.covers, JSON.stringify(boxes));
+  // (desde la auditoría C-12, la flecha se llama como lo que hace: «Enviar el acuse de recibo» o «Responder y cerrar»)
+  ok('B6 · la flecha: solo el icono, con el nombre de lo que hace, y no tapa ni los chips ni el título', boxes.visible && boxes.text === '' && /Enviar el acuse de recibo|Responder y cerrar/.test(boxes.label) && !boxes.covers, JSON.stringify(boxes));
   await shot('B5-B6-tarjeta-al-pasar-el-raton', { clip: page.locator('.ds-kcol').first() });
   await page.mouse.move(5, 5);
   await page.keyboard.press('Tab');
@@ -185,7 +186,7 @@ await page.goto(`${B}/admin/report`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.rp-figs dd');
 const after = { open: await page.locator('.rp-facts dd').nth(0).innerText(), total: await page.locator('.rp-figs dd').first().innerText() };
 const statusTable = await page.locator('.rp-table').innerText();
-ok('A2 · Informe: una abierta menos, las recibidas igual, y una fila «Suprimidos»', Number(after.open) === Number(before.open) - 1 && after.total === before.total && /Suprimidos \(art\. 32\)\s+1/.test(statusTable), `abiertas ${before.open} → ${after.open} · ${statusTable.replace(/\s+/g, ' ').slice(-60)}`);
+ok('A2 · Informe: una abierta menos, las recibidas igual, y una fila «Suprimidas»', Number(after.open) === Number(before.open) - 1 && after.total === before.total && /Suprimidas \(art\. 32\)\s+1/.test(statusTable), `abiertas ${before.open} → ${after.open} · ${statusTable.replace(/\s+/g, ' ').slice(-60)}`);
 await page.locator('.rp-table').scrollIntoViewIfNeeded();
 await shot('A2-informe-suprimidos-aparte');
 

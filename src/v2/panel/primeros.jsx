@@ -79,7 +79,7 @@ export function StepsRing({ state, p }) {
   if (folded) {
     return (
       <span className="pn-steps-wrap is-folded">
-        <Link className="pn-steps-pill" to="/admin/integration" aria-label={aria}>{o.title} · {state.count}/{STEPS.length}</Link>
+        <Link className="pn-steps-pill" to="/admin/integration" aria-label={`${o.title} · ${state.count}/${STEPS.length}. ${fmt(o.missing, { list: joinList(missing, o.and) })}`}>{o.title} · {state.count}/{STEPS.length}</Link>
         {fold}
       </span>
     );

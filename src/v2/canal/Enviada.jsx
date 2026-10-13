@@ -25,6 +25,7 @@ export default function Enviada() {
   const secure = () => setSent(s => (s ? { ...s, secured: true } : s));
 
   useEffect(() => { headRef.current?.focus({ preventScroll: true }); }, []);
+  useEffect(() => { document.title = `${t.docSent} · ${t.ethics} · ${org.name}`; }, [t, org]);
 
   // Las pruebas se suben aquí, con el código ya a la vista: si se corta, la denuncia y su código ya están
   useEffect(() => {
@@ -70,7 +71,7 @@ export default function Enviada() {
     setBusy(true);
     try {
       const { downloadReceipt } = await import('../lib/receipt.js');
-      downloadReceipt({
+      await downloadReceipt({
         code, title: t.rcTitle, url: `${window.location.origin}${base}/consulta`,
         rows: [[t.rcCode, code], [t.rcSent, dateTime(createdAt, lang)], [t.rcUrl, `${window.location.origin}${base}/consulta`]],
         nextTitle: t.nextT,

@@ -8,6 +8,8 @@ export const ACK_DAYS = 7;
 export const RESP_MONTHS = 3;
 export const EXT_MONTHS = 6;
 export const ANSWERED = ['resolved', 'closed', 'archived'];
+// A partir de cuántos días un plazo está «a punto de vencer»: el chip ámbar y el filtro del tablero dicen lo mismo
+export const SOON = { ack: 6, meeting: 6, resp: 14 };
 const DAY = 86400000;
 
 const ymd = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -49,9 +51,9 @@ export function extensionUntil(createdAt) { return dayToDate(addMonthsDay(madrid
  * un máximo de 3 meses, o hasta la fecha ampliada (extended_until). Las fechas de acuse y de respuesta
  * las guarda la base de datos (acknowledged_at, answered_at); sin ellas, se deducen del estado.
  * Un caso reabierto conserva la fecha de su primera respuesta: no vuelve a tener cuenta atrás.
- * soonAck y soonResp: a partir de cuántos días un plazo está «a punto de vencer».
+ * soonAck y soonResp: a partir de cuántos días un plazo está «a punto de vencer» (por defecto, SOON).
  */
-export function deadlineInfo(c, now = new Date(), { answeredAt: answeredOverride, ackAt: ackOverride, soonAck = 2, soonResp = 14 } = {}) {
+export function deadlineInfo(c, now = new Date(), { answeredAt: answeredOverride, ackAt: ackOverride, soonAck = SOON.ack, soonResp = SOON.resp } = {}) {
   const received = new Date(c.created_at);
   const recDay = madridDay(c.created_at);
   const ackDueDay = recDay + ACK_DAYS;

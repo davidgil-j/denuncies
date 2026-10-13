@@ -2,9 +2,9 @@ import React from 'react';
 import { Chip } from './Chip.jsx';
 import { translations } from '../../translations.js';
 import { fmt } from '../V2Layout.jsx';
+// A partir de cuántos días un plazo se considera cercano (ámbar): el mismo umbral que el filtro del tablero
+import { SOON } from '../../lib/deadlines.js';
 
-// A partir de cuántos días un plazo se considera cercano (ámbar)
-const SOON = { ack: 6, meeting: 6, resp: 14 };
 const PREFIX = { ack: 'ack', meeting: 'meet', resp: 'resp' };
 
 /** Color y textos (largo y corto) de un plazo según los días que quedan */

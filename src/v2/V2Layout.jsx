@@ -2,6 +2,8 @@ import React, { forwardRef, useCallback, useEffect, useLayoutEffect, useRef } fr
 import { Link, useOutletContext } from 'react-router-dom';
 import { ArrowLeft, LogOut, Lock } from 'lucide-react';
 import { translations } from '../translations.js';
+// Manrope (la mateixa del producte) també a la web pública
+import '@fontsource-variable/manrope';
 import './v2.css';
 
 export const LANGS = ['ca', 'es', 'en'];
@@ -37,7 +39,8 @@ export function savedLang() {
 
 export function detectLang() {
   const nav = (typeof navigator !== 'undefined' && navigator.language || '').toLowerCase();
-  if (nav.startsWith('es')) return 'es';
+  // Gallego y euskera: castellano, que es el idioma del producto que les queda más cerca (G-3)
+  if (nav.startsWith('es') || nav.startsWith('gl') || nav.startsWith('eu')) return 'es';
   if (nav.startsWith('en')) return 'en';
   return 'ca';
 }
@@ -219,7 +222,7 @@ export default function V2Layout({ lang, setLang, org, homeTo, children }) {
                 type="button"
                 lang={l}
                 aria-pressed={lang === l}
-                aria-label={translations[l].langName}
+                aria-label={`${l.toUpperCase()} · ${translations[l].langName}`}
                 onClick={() => { holdScroll(); setLang(l); }}
               >
                 {l.toUpperCase()}

@@ -151,7 +151,7 @@ if (!AI_ON) {
 } else if (SCENE === 'sin013') {
   await page.waitForSelector('.ai-card');
   await page.getByRole('button', { name: 'Resumir con IA' }).click();
-  await page.getByText('La IA no ha podido responder. Vuelve a intentarlo.').waitFor({ timeout: 8000 });
+  await page.getByText('La IA no ha podido responder. Inténtalo de nuevo.').waitFor({ timeout: 8000 });
   ok('sin la 013 (o sin la función): la IA avisa del fallo y la ficha sigue funcionando', await page.locator('.ai-text').count() === 1 && await page.locator('.cs-desc').isVisible());
   ok('sin la 013: no se escribe nada desde el navegador', log.every(l => !(l.method === 'PATCH' && l.path === '/rest/v1/complaints')));
   await page.locator('#cs-msg').fill('Mensaje escrito a mano.');

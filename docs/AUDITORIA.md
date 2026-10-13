@@ -30,9 +30,9 @@ Pruebas que cubren lo arreglado: `npm run db:test` (bloque «Endurecimiento (014
 | A1-8 | La huella del código no lleva secreto: con una copia de la base de datos, los códigos salen en minutos. | media | `010:41-46`. | Ver A1-1b. | 💡 |
 | A1-9 | Las notas internas aceptaban cualquier contenido, de cualquier tamaño, con un autor inventado. | baja | `010:392-398`; prueba [5]. | 014: solo el texto de la nota, con tope de 5.000 caracteres; el autor lo pone la base de datos. | ✅ fase 3 |
 | A1-10 | La entrada «created» del registro se podía repetir en denuncias de otra empresa. | baja | `008:294-296`; prueba [6]. | 014: una sola por denuncia, y con la función de envío la escribe el servidor. | ✅ fase 3 |
-| A1-11 | Un gestor con solo «ver» marca como leídos los mensajes de quien informa, y el aviso desaparece para quien debe responder. | baja | `010:508-511`; prueba [9]. | Exigir permiso de respuesta en la política. | ⏳ fase 4 |
-| A1-12 | Funciones del servidor con CORS `*` y sin tope de invitaciones por día. | baja | `invite-manager:3-6`… | CORS al dominio de `SITE_URL`; tope de ~20 invitaciones/día. | ⏳ fase 4 |
-| A1-13 | El panel no cierra la sesión por inactividad. | baja | `supabase.js:42-48`. | Cierre tras 30 min sin actividad + límite de sesión en Supabase (👤). | 💡 👤 |
+| A1-11 | Un gestor con solo «ver» marca como leídos los mensajes de quien informa, y el aviso desaparece para quien debe responder. | baja | `010:508-511`; prueba [9]. | Exigir permiso de respuesta en la política. | ✅ fase 4 (migración 015) |
+| A1-12 | Funciones del servidor con CORS `*` y sin tope de invitaciones por día. | baja | `invite-manager:3-6`… | CORS al dominio de `SITE_URL`; tope de ~20 invitaciones/día. | ✅ fase 4: tope de 20 invitaciones al día (redesplegar invite-manager) · CORS al dominio: 💡 (rompería las Preview) |
+| A1-13 | El panel no cierra la sesión por inactividad. | baja | `supabase.js:42-48`. | Cierre tras 30 min sin actividad + límite de sesión en Supabase (👤). | ✅ fase 4 |
 
 ### A2 · Navegador, anonimato, cabeceras y secretos
 
@@ -41,18 +41,18 @@ Pruebas que cubren lo arreglado: `npm run db:test` (bloque «Endurecimiento (014
 | A2-1 | **En una denuncia anónima, las fotos del iPhone (HEIC), TIFF, GIF y BMP se enviaban con su GPS y el modelo del móvil**, y una JPEG que el navegador no podía redibujar también salía tal cual. El formulario promete «sin ubicación ni datos del dispositivo». | alta | `cleanImage.js:5-23`; `aud-a2-canal-real.json` (marcas GPS en el cuerpo subido). | Nueva limpieza: se redibuja si se puede; si no, se quitan los bloques de metadatos byte a byte (JPEG, PNG, WebP); HEIC/TIFF/GIF/BMP se convierten a JPG si el navegador sabe leerlas. **Si una foto no se puede limpiar, no se envía nada** y se dice cuál y qué hacer. | ✅ fase 3 |
 | A2-2 | Turnstile se carga en el canal (un tercero que ve la IP dentro de la página de la denuncia) pero su token nunca se comprueba. | media | `Denuncia.jsx:46,108,310`. | Quitar `VITE_TURNSTILE_SITE_KEY` en Vercel hasta que se compruebe en el servidor. | 👤 |
 | A2-3 | En una denuncia anónima, el nombre original del archivo («Maria_Garcia_nomina.jpg») viajaba en la subida aunque la tabla guardara uno neutro. | media | `supabase.js:136-139`. | La subida va con el nombre neutro (`document-1.jpg`). | ✅ fase 3 |
-| A2-4 | El almacén acepta SVG y «octet-stream», y el panel abre los adjuntos en una pestaña en lugar de descargarlos. | media | `010:596-605`; `supabase.js:589`; `Caso.jsx:245`. | Lista cerrada de tipos y descarga forzada (`createSignedUrl(…, { download })`). | ⏳ fase 4 |
-| A2-5 | Si se entra por el acceso y se pasa al canal sin recargar, Sentry (si está configurado) sigue activo en el canal. | media | `main.jsx:18`; `aud-a2-sentry.out`. | `beforeSend` que descarte todo lo de `/canal`. | ⏳ fase 4 |
-| A2-6 | El «no indexar» es solo una etiqueta del HTML; no hay cabecera `X-Robots-Tag` ni `robots.txt`. | media | `vercel.json`; `index.html:9`. | Cabeceras en `vercel.json` (ver «Propuesta de indexación»). Es configuración de Vercel: no se toca sin tu permiso. | 💡 👤 |
+| A2-4 | El almacén acepta SVG y «octet-stream», y el panel abre los adjuntos en una pestaña en lugar de descargarlos. | media | `010:596-605`; `supabase.js:589`; `Caso.jsx:245`. | Lista cerrada de tipos y descarga forzada (`createSignedUrl(…, { download })`). | ✅ fase 4: lista cerrada en la 015 y tipo según la extensión (se siguen abriendo en una pestaña: con la lista, ya no hay SVG) |
+| A2-5 | Si se entra por el acceso y se pasa al canal sin recargar, Sentry (si está configurado) sigue activo en el canal. | media | `main.jsx:18`; `aud-a2-sentry.out`. | `beforeSend` que descarte todo lo de `/canal`. | ✅ fase 4 |
+| A2-6 | El «no indexar» es solo una etiqueta del HTML; no hay cabecera `X-Robots-Tag` ni `robots.txt`. | media | `vercel.json`; `index.html:9`. | Cabeceras en `vercel.json` (ver «Propuesta de indexación»). Es configuración de Vercel: no se toca sin tu permiso. | ✅ fase 4 (aprobado): cabeceras en vercel.json |
 | A2-7 | La dirección `demo` no estaba reservada. | media | `supabase.js:209`; `006:28-45`. | Reservada en la 014 (ver A1-6). Comprobar en Supabase que ninguna empresa la tiene. | ✅ fase 3 · 👤 |
-| A2-8 | Con una sesión ya abierta, una marca en la pestaña permite llegar a «Contraseña nueva» sin la actual. | baja | `supabase.js:35,760`; `aud-a2-contrasena.out`. | Fiarse solo del token del enlace; activar «Secure password change» (👤). | ⏳ fase 4 · 👤 |
-| A2-9 | La política de seguridad del navegador permite conectar con cualquier proyecto de Supabase. | baja | `vercel.json:7`. | Fijar el proyecto propio en `connect-src`. | 💡 👤 |
-| A2-10 | Excel: un texto que empiece por `=` se guarda como texto (no se ejecuta), pero conviene blindarlo. | baja | `exportV2.js:256,265`. | Prefijo `'` en textos que empiecen por `= + - @`. | ⏳ fase 4 |
-| A2-11 | La dirección `/canal/<empresa>/denuncia` queda en el historial del navegador. | baja | `App.jsx:81`. | Rutas neutras con redirección de las antiguas. | 💡 |
-| A2-12 | El justificante PDF lleva la hora exacta con zona horaria y el nombre de la librería. | baja | `receipt.js:72`. | Fecha neutra y sin «Producer». | ⏳ fase 4 |
-| A2-13 | `supabase/.temp/` está en git (identificadores públicos del proyecto, sin secretos). | baja | `git ls-files supabase/.temp`. | `.gitignore` + `git rm --cached`. | ⏳ fase 4 |
-| A2-14 | `npm audit`: 11 avisos, ninguno llega al código publicado; `vite` está en `dependencies`. | baja | `aud-a2-npm-audit-*.txt`. | Pasar `vite` a `devDependencies` (ver F-32). | ⏳ fase 4 |
-| A2-15 | Los correos de confirmación e invitación muestran el nombre que escribe quien se registra (suplantación). | baja | `confirm-signup.html`, `invite.html`. | Quitar esos campos de las plantillas (👤, se pegan en Supabase). | 👤 |
+| A2-8 | Con una sesión ya abierta, una marca en la pestaña permite llegar a «Contraseña nueva» sin la actual. | baja | `supabase.js:35,760`; `aud-a2-contrasena.out`. | Fiarse solo del token del enlace; activar «Secure password change» (👤). | No se cambia: arriesga romper el enlace de recuperación · 👤 «Secure password change» |
+| A2-9 | La política de seguridad del navegador permite conectar con cualquier proyecto de Supabase. | baja | `vercel.json:7`. | Fijar el proyecto propio en `connect-src`. | ✅ fase 4 (aprobado): probado con la prueba `csp`; comprobar que la Preview usa el mismo proyecto 👤 |
+| A2-10 | Excel: un texto que empiece por `=` se guarda como texto (no se ejecuta), pero conviene blindarlo. | baja | `exportV2.js:256,265`. | Prefijo `'` en textos que empiecen por `= + - @`. | No se cambia: Excel ya lo guarda como texto (comprobado) |
+| A2-11 | La dirección `/canal/<empresa>/denuncia` queda en el historial del navegador. | baja | `App.jsx:81`. | Rutas neutras con redirección de las antiguas. | ✅ fase 4 (aprobado): `/canal/<empresa>/formulario`; la dirección antigua redirige |
+| A2-12 | El justificante PDF lleva la hora exacta con zona horaria y el nombre de la librería. | baja | `receipt.js:72`. | Fecha neutra y sin «Producer». | ✅ fase 4: fecha sin hora ni zona (jsPDF no deja quitar «Producer») |
+| A2-13 | `supabase/.temp/` está en git (identificadores públicos del proyecto, sin secretos). | baja | `git ls-files supabase/.temp`. | `.gitignore` + `git rm --cached`. | ✅ fase 4 (aprobado): `.gitignore` + `git rm --cached` (los archivos siguen en el disco) |
+| A2-14 | `npm audit`: 11 avisos, ninguno llega al código publicado; `vite` está en `dependencies`. | baja | `aud-a2-npm-audit-*.txt`. | Pasar `vite` a `devDependencies` (ver F-32). | ✅ fase 4: `vite` a desarrollo (`npm audit fix` no se ha lanzado: ninguno llega a la web) |
+| A2-15 | Los correos de confirmación e invitación muestran el nombre que escribe quien se registra (suplantación). | baja | `confirm-signup.html`, `invite.html`. | Quitar esos campos de las plantillas (👤, se pegan en Supabase). | ✅ fase 4 (aprobado) · 👤 volver a pegar dos plantillas |
 
 ---
 
@@ -74,13 +74,13 @@ Pruebas que cubren lo arreglado: `npm run db:test` (bloque «Endurecimiento (014
 | B-12 | **Un fallo pasajero** (un error 500) en la primera lectura hacía creer al panel que faltaba la migración 012 durante toda la sesión: plazos de reunión mal contados y título oculto. | alta | `supabase.js:269-282,503-511`; R6. | Solo un error de «columna o función que no existe» activa la versión de antes; también en el registro manual y en el «cuándo». | ✅ fase 3 |
 | B-13 | El informe no contaba los **acuses tardíos** como plazo incumplido. | alta | `Informe.jsx:79-102`. | Nueva línea «Acuses fuera de plazo», sumada a «Plazos incumplidos»; en la ficha, el acuse tardío sale en rojo. | ✅ fase 3 |
 | B-14 | **Excel y PDF resumen calculaban sus propios plazos**: un caso ampliado salía vencido y un caso suprimido contaba como abierto. | alta | `exportV2.js:130-149,249-261,663,713,731`. | Las exportaciones usan el mismo cálculo que el panel; un caso suprimido cuenta como cerrado. | ✅ fase 3 |
-| B-15 | Una reunión pedida y vencida no marca el caso como vencido. | media | `kit.jsx:53-58`. | Sumarla a «vencidos» y al informe. | ⏳ fase 4 |
-| B-16 | En el modo real se podía cambiar el estado o escribir en un caso suprimido (la demo lo impide). | media | `012:97-127`; [B4]. | Rechazarlo en la base de datos (migración 015 o ampliar la 014 antes de ejecutarla). | ⏳ fase 4 |
-| B-17 | El formulario no limita la descripción (20.000) ni el teléfono (50): la base de datos lo rechaza con un error genérico. | media | `Denuncia.jsx:197-270`. | `maxLength` y contador; mismos límites en la demo (la 014 ya los comprueba). | ⏳ fase 4 |
-| B-18 | Archivos huérfanos en el almacén si falla su fila; la supresión no los encuentra. | media | `supabase.js:136-151,423-427`; R3. | Si falla la fila, el archivo recién subido se borra (✅ fase 3). Falta que la supresión liste la carpeta del caso. | ✅ en parte · ⏳ fase 4 |
-| B-19 | Un mensaje del equipo con el caso en «Recibida» no cuenta como acuse. | media | `011:135`; `Caso.jsx:401-406`. | Abrir el diálogo del acuse al escribir en un caso «Recibida». | ⏳ fase 4 · ⚖️ |
-| B-20 | «A punto de vencer» no significa lo mismo en el chip (6 días) y en el filtro (2). | baja | `DeadlineChip.jsx:7`; `adminKit.jsx:13`. | Un solo umbral. | ⏳ fase 4 |
-| B-21 | Demo distinta del modo real: retención a 91 días (✅ fase 3, ahora igual que la base de datos) y reunión en casos cerrados. | baja | `demoStore.js:646-655,734-747`. | Falta rechazar la reunión en casos cerrados en la demo. | ✅ en parte · ⏳ fase 4 |
+| B-15 | Una reunión pedida y vencida no marca el caso como vencido. | media | `kit.jsx:53-58`. | Sumarla a «vencidos» y al informe. | ✅ fase 4 |
+| B-16 | En el modo real se podía cambiar el estado o escribir en un caso suprimido (la demo lo impide). | media | `012:97-127`; [B4]. | Rechazarlo en la base de datos (migración 015 o ampliar la 014 antes de ejecutarla). | ✅ fase 4 (migración 015) |
+| B-17 | El formulario no limita la descripción (20.000) ni el teléfono (50): la base de datos lo rechaza con un error genérico. | media | `Denuncia.jsx:197-270`. | `maxLength` y contador; mismos límites en la demo (la 014 ya los comprueba). | ✅ fase 4 |
+| B-18 | Archivos huérfanos en el almacén si falla su fila; la supresión no los encuentra. | media | `supabase.js:136-151,423-427`; R3. | Si falla la fila, el archivo recién subido se borra (✅ fase 3). Falta que la supresión liste la carpeta del caso. | ✅ fase 4 |
+| B-19 | Un mensaje del equipo con el caso en «Recibida» no cuenta como acuse. | media | `011:135`; `Caso.jsx:401-406`. | Abrir el diálogo del acuse al escribir en un caso «Recibida». | ✅ fase 4 (el envío abre el diálogo del acuse) · ⚖️ |
+| B-20 | «A punto de vencer» no significa lo mismo en el chip (6 días) y en el filtro (2). | baja | `DeadlineChip.jsx:7`; `adminKit.jsx:13`. | Un solo umbral. | ✅ fase 4 (un solo umbral: 6 días el acuse, 14 la respuesta) |
+| B-21 | Demo distinta del modo real: retención a 91 días (✅ fase 3, ahora igual que la base de datos) y reunión en casos cerrados. | baja | `demoStore.js:646-655,734-747`. | Falta rechazar la reunión en casos cerrados en la demo. | ✅ fase 4 |
 
 Dudas para el abogado que salen de aquí (en `docs/REVISION_LEGAL.md`): ampliación 6 meses desde la recepción o 3+3; ampliar un plazo vencido; inicio del plazo de 3 meses; zona horaria de referencia; supresión de inadmitidos; reabrir; mensaje como acuse; festivos para la AIPI.
 
@@ -92,19 +92,19 @@ Sin fallos críticos: con lector de pantalla, zoom o teclado se puede denunciar,
 
 | n.º | hallazgo | gravedad | evidencia | propuesta | estado |
 |---|---|---|---|---|---|
-| C-1 | En el panel en el móvil (o al 400 %), la barra fija de abajo tapa el elemento con el foco (2.4.11). | alta | `ds.css:320-324`; `aud-c-T.log`. | `scroll-padding-bottom` en el móvil. | ⏳ fase 4 |
-| C-2 | En «Contraste alto» de Windows, las casillas de permisos sin marcar se ven marcadas. | alta | `panel.css:408-409`; captura `aud-c-forced-perms.png`. | Reglas `forced-colors` para las casillas. | ⏳ fase 4 |
-| C-3 | El sistema visual no tiene reglas para colores forzados: no se ve la opción elegida, la página actual, los pasos ni las barras. | media | `ds.css:288-317`. | Bloque `forced-colors` en `ds.css`. | ⏳ fase 4 |
-| C-4 | La búsqueda del panel no anuncia «ningún caso» ni el número de resultados. | media | `Panel.jsx:255-272`. | Región `role="status"` con el recuento. | ⏳ fase 4 |
-| C-5 | «Ir al contenido» del panel no salta nada; la cabecera queda dentro de `main`. | media | `SplitShell.jsx:17-21`. | `main` en el contenido, cabecera fuera. | ⏳ fase 4 |
-| C-6 | Texto visible distinto del nombre accesible («CA» se llama «Català»…): el control por voz no funciona (2.5.3). | media | axe `label-content-name-mismatch`. | Que el nombre empiece por lo visible. | ⏳ fase 4 |
-| C-7 | Todas las pantallas del canal tienen el mismo título de pestaña. | media | `Entrada.jsx:16`, `Denuncia.jsx:55`… | Títulos neutros pero distintos («Paso 2 de 3 · Canal ético…»). | ⏳ fase 4 |
-| C-8 | El aviso del canal de ejemplo se corta al 200 % de zoom. | media | `ds.css:461`. | Dejar que salte de línea. | ⏳ fase 4 |
-| C-9 | A 320 px se cortan con «…» el nombre de la empresa y el de algunos archivos. | baja | `panel.css:16,167`. | `overflow-wrap` o `title`. | ⏳ fase 4 |
-| C-10 | Al abrir «Buscar», el foco va a «Cerrar» y no al campo. | baja | `Dialog.jsx:31-34`. | Enfocar `[data-autofocus]` tras abrir. | ⏳ fase 4 |
-| C-11 | «Más acciones» anuncia un menú, pero es un grupo de botones (las flechas no hacen nada). | baja | `Menu.jsx:22-24`. | Quitar `aria-haspopup` o hacer el patrón completo. | ⏳ fase 4 |
-| C-12 | «Mover a En curso» en el tablero no mueve: abre la ficha con el acuse preparado. | baja | `Tablero.jsx:101`. | Nombres que digan lo que pasa. | ⏳ fase 4 |
-| C-13 | Las pestañas del tablero en el móvil apuntan a columnas sin `role="tabpanel"`. | baja | `Kanban.jsx:41-50`. | Añadir el rol en el móvil. | ⏳ fase 4 |
+| C-1 | En el panel en el móvil (o al 400 %), la barra fija de abajo tapa el elemento con el foco (2.4.11). | alta | `ds.css:320-324`; `aud-c-T.log`. | `scroll-padding-bottom` en el móvil. | ✅ fase 4 |
+| C-2 | En «Contraste alto» de Windows, las casillas de permisos sin marcar se ven marcadas. | alta | `panel.css:408-409`; captura `aud-c-forced-perms.png`. | Reglas `forced-colors` para las casillas. | ✅ fase 4 |
+| C-3 | El sistema visual no tiene reglas para colores forzados: no se ve la opción elegida, la página actual, los pasos ni las barras. | media | `ds.css:288-317`. | Bloque `forced-colors` en `ds.css`. | ✅ fase 4 |
+| C-4 | La búsqueda del panel no anuncia «ningún caso» ni el número de resultados. | media | `Panel.jsx:255-272`. | Región `role="status"` con el recuento. | ✅ fase 4 |
+| C-5 | «Ir al contenido» del panel no salta nada; la cabecera queda dentro de `main`. | media | `SplitShell.jsx:17-21`. | `main` en el contenido, cabecera fuera. | ✅ fase 4 |
+| C-6 | Texto visible distinto del nombre accesible («CA» se llama «Català»…): el control por voz no funciona (2.5.3). | media | axe `label-content-name-mismatch`. | Que el nombre empiece por lo visible. | ✅ fase 4 |
+| C-7 | Todas las pantallas del canal tienen el mismo título de pestaña. | media | `Entrada.jsx:16`, `Denuncia.jsx:55`… | Títulos neutros pero distintos («Paso 2 de 3 · Canal ético…»). | ✅ fase 4 |
+| C-8 | El aviso del canal de ejemplo se corta al 200 % de zoom. | media | `ds.css:461`. | Dejar que salte de línea. | ✅ fase 4 |
+| C-9 | A 320 px se cortan con «…» el nombre de la empresa y el de algunos archivos. | baja | `panel.css:16,167`. | `overflow-wrap` o `title`. | ✅ fase 4 (nombre completo al pasar el ratón) |
+| C-10 | Al abrir «Buscar», el foco va a «Cerrar» y no al campo. | baja | `Dialog.jsx:31-34`. | Enfocar `[data-autofocus]` tras abrir. | ✅ fase 4 |
+| C-11 | «Más acciones» anuncia un menú, pero es un grupo de botones (las flechas no hacen nada). | baja | `Menu.jsx:22-24`. | Quitar `aria-haspopup` o hacer el patrón completo. | ✅ fase 4 |
+| C-12 | «Mover a En curso» en el tablero no mueve: abre la ficha con el acuse preparado. | baja | `Tablero.jsx:101`. | Nombres que digan lo que pasa. | ✅ fase 4 |
+| C-13 | Las pestañas del tablero en el móvil apuntan a columnas sin `role="tabpanel"`. | baja | `Kanban.jsx:41-50`. | Añadir el rol en el móvil. | ✅ fase 4 |
 | C-14 | Los bloques de la portada que pasan solos no tienen botón de pausa (2.2.2). | baja | `V2Landing.jsx:75-95`. | Botón «Pausar». | ⏳ fase 5 |
 
 ---
@@ -116,19 +116,19 @@ Medidas de partida (Lighthouse, móvil): portada 80 (LCP 4,2 s), canal 84, acces
 | n.º | hallazgo | gravedad | evidencia | propuesta | estado |
 |---|---|---|---|---|---|
 | D-1 | La portada tarda 4,1 s en pintar en el móvil: el 90 % es esperar JavaScript. Igual en el canal (3,5 s) y el acceso (3,3 s). | alta | `lh-portada.json`; ruta crítica igual en todas. | D-2 + D-3 + D-4, y no partir el titular de opacidad 0. | ⏳ fase 4/5 |
-| D-2 | Todos los textos de la aplicación (71 % del archivo principal) se descargan en cualquier página. | alta | mapa de código: 212 de 298 KB. | Partir `translations.js` por zonas (web, canal, panel). | ⏳ fase 4 |
-| D-3 | La portada y `/privacitat` descargan la librería de la base de datos sin usarla. | alta | `App.jsx:3-5`; `Canal.jsx:5`. | Cargar el canal y la web de forma perezosa. | ⏳ fase 4 |
-| D-4 | Un único CSS de 131 KB bloquea el primer pintado; el 75 % no se usa en la portada. | media | Lighthouse. | Sale casi solo con D-3. | ⏳ fase 4 |
+| D-2 | Todos los textos de la aplicación (71 % del archivo principal) se descargan en cualquier página. | alta | mapa de código: 212 de 298 KB. | Partir `translations.js` por zonas (web, canal, panel). | ✅ fase 4: los textos del panel y de las exportaciones (84 KB) van aparte; los de la web, en la fase 5 |
+| D-3 | La portada y `/privacitat` descargan la librería de la base de datos sin usarla. | alta | `App.jsx:3-5`; `Canal.jsx:5`. | Cargar el canal y la web de forma perezosa. | ✅ fase 4 |
+| D-4 | Un único CSS de 131 KB bloquea el primer pintado; el 75 % no se usa en la portada. | media | Lighthouse. | Sale casi solo con D-3. | ✅ en parte (sale con D-3) · `v2.css` en la fase 5 |
 | D-5 | Las capturas de la portada pesan mucho más de lo que se muestran (415 KB en el móvil). | media | `V2Landing.jsx:172,192`. | Dos tamaños con `srcset`. | ⏳ fase 5 |
-| D-6 | Las fotos de la portada se sirven sin caché. | media | `vercel.json:20-23`. | Caché de 7 días para `/landing/*` (configuración de Vercel). | 💡 👤 |
-| D-7 | El tablero en el móvil salta al cargar (CLS 0,14). | media | `Tablero.jsx:144-202`. | Esqueleto con la forma final y hueco reservado para el aviso. | ⏳ fase 4 |
-| D-8 | «Exportar PDF» descarga 1,5 MB, 938 KB de ellos de la librería de Excel. | media | `exportV2.js:14`. | Cargar ExcelJS solo para el Excel. | ⏳ fase 4 |
-| D-9 | Manrope va en hasta 10 archivos y no se precarga. | baja | `rutas.json`. | Versión variable de Manrope (es una dependencia nueva: se pregunta). | 💡 |
-| D-10 | Desde la portada se precarga también el panel. | baja | `App.jsx:61-62`. | Precargar solo el alta y el acceso. | ⏳ fase 4 |
+| D-6 | Las fotos de la portada se sirven sin caché. | media | `vercel.json:20-23`. | Caché de 7 días para `/landing/*` (configuración de Vercel). | ✅ fase 4 (aprobado) |
+| D-7 | El tablero en el móvil salta al cargar (CLS 0,14). | media | `Tablero.jsx:144-202`. | Esqueleto con la forma final y hueco reservado para el aviso. | ✅ fase 4 (se mide en la fase 6) |
+| D-8 | «Exportar PDF» descarga 1,5 MB, 938 KB de ellos de la librería de Excel. | media | `exportV2.js:14`. | Cargar ExcelJS solo para el Excel. | ✅ fase 4 |
+| D-9 | Manrope va en hasta 10 archivos y no se precarga. | baja | `rutas.json`. | Versión variable de Manrope (es una dependencia nueva: se pregunta). | ✅ fase 4 (aprobado): `@fontsource-variable/manrope` |
+| D-10 | Desde la portada se precarga también el panel. | baja | `App.jsx:61-62`. | Precargar solo el alta y el acceso. | ✅ fase 4 |
 | D-11 | `Stable` triplica los textos de la portada (1.290 elementos, 311 copias ocultas). | baja | `V2Landing.jsx:325,414`. | `Stable` solo en títulos y botones. | ⏳ fase 5 |
-| D-12 | El tablero pide 34 archivos JS pequeños (iconos). | baja | `rutas.json`. | Agrupar iconos. | ⏳ fase 4 |
+| D-12 | El tablero pide 34 archivos JS pequeños (iconos). | baja | `rutas.json`. | Agrupar iconos. | ✅ fase 4 (de 87 a 56 archivos JS) |
 | D-13 | La medida de partida del tablero no vaciaba la caché. | baja | `medir.mjs`. | Vaciarla en la medida del «después». | ⏳ fase 6 |
-| D-14 | `@emailjs/browser` no se usa. | baja | grep. | Quitarlo (ver F-32). | ⏳ fase 4 |
+| D-14 | `@emailjs/browser` no se usa. | baja | grep. | Quitarlo (ver F-32). | ✅ fase 4 |
 
 ---
 
@@ -138,36 +138,36 @@ Medidas de partida (Lighthouse, móvil): portada 80 (LCP 4,2 s), canal 84, acces
 |---|---|---|---|---|---|
 | F-1 | Excel y PDF ignoraban la ampliación (= B-14). | alta | `exportV2.js`. | Ver B-14. | ✅ fase 3 |
 | F-2 | **Sin conexión al abrir el canal, a quien va a denunciar le salía «Este canal no existe»**, o se quedaba cargando para siempre. | alta | `Canal.jsx:39-42`. | «No se ha podido abrir el canal» con «Volver a intentarlo». | ✅ fase 3 |
-| F-3 | Si fallan los mensajes, quien informa ve «Todavía no hay mensajes» (y casos parecidos en el panel). | media | `Consulta.jsx:163`, `Panel.jsx:239`… | Mostrar el error y reintentar. | ⏳ fase 4 |
-| E-4 | El mismo tema se llama distinto en el panel y en el Excel/PDF. | media | `exportV2.js:57`. | Que las exportaciones usen los nombres del canal. | ⏳ fase 4 |
-| E-5 | Excel/PDF dicen «Informante / Gestor / Categoría»; el panel, «Quien informa / Tema». | media | `v2export.*`. | Mismas palabras. | ⏳ fase 4 |
-| E-6 | Un mismo rol con dos nombres («Administración» y «Administrador»). | media | `panel.set.roleAdmin`. | Una sola pareja. | ⏳ fase 4 |
-| E-7 | El permiso se llama «Eliminar» y lo que hace es «Suprimir datos». | media | `perm.can_delete`. | «Suprimir». | ⏳ fase 4 |
-| E-8 | «Vosotros» en el canal, que va en «tú». | media | ca T:1590, es T:3365. | «tú». | ⏳ fase 4 |
-| E-9 | Imperativo de «vós» en el panel (ca). | media | T:1319. | «tu». | ⏳ fase 4 |
-| E-10 | «Lo están investigando» (es «la» denuncia). | media | T:3492. | Corregir. | ⏳ fase 4 |
-| E-11 | «Que te lo restablezca» parece referirse al móvil. | media | `panel.noPhoneText`. | Aclarar. | ⏳ fase 4 |
-| E-12 | En inglés, «limit» donde va «deadline». | media | `meetToday`… | Corregir. | ⏳ fase 4 |
-| E-13 | «Email» como vía de entrada. | media | `panel.chan.email`. | «Correo electrónico». | ⏳ fase 4 |
-| E-14 | Unas 300 claves por idioma sin uso (casi todos los «usted» que quedan); el script que las busca da 0 por un criterio demasiado amplio. | media | `ef/dbg.mjs`. | Arreglar `scripts/textos-sin-uso.mjs` y borrarlas. | ⏳ fase 4 |
-| E-15 | Apóstrofo recto en 67 textos. | baja | `lint-apostrofo_recto.txt`. | `’`. | ⏳ fase 4 |
-| E-16 | Géneros mezclados («Suprimidos» entre contadores en femenino). | baja | T:1341, 3116. | Corregir. | ⏳ fase 4 |
-| E-17 | Frases poco naturales en inglés. | baja | T:5156, 4718. | Corregir. | ⏳ fase 4 |
-| E-18 | Leísmo («que le identifiquen»). | baja | T:2890. | Corregir. | ⏳ fase 4 |
-| E-19 | Cuatro maneras de decir «vuelve a probar». | baja | varias. | «Inténtalo de nuevo». | ⏳ fase 4 |
-| E-20 | «3 meses máximo». | baja | T:3358. | «como máximo». | ⏳ fase 4 |
-| E-21 | «Ir a Acceder». | baja | T:359, 2140. | «Entrar al panel». | ⏳ fase 4 |
-| E-22 | «Tu» mezclado con «vuestra web». | baja | `share.*`. | Un criterio. | ⏳ fase 4 |
-| E-23 | Respaldos en castellano en el código que nunca se usan. | baja | `exportV2.js:237-241`. | Quitarlos. | ⏳ fase 4 |
-| F-24 | Los plazos se calculaban en cinco sitios; el formato de fechas y tamaños, repetido. | media | varios. | Plazos unificados en `src/lib/deadlines.js` (✅ fase 3); falta el formato. | ✅ en parte · ⏳ fase 4 |
-| F-25 | `OPEN` significa dos cosas; `relDay` duplicada. | media | `adminKit.jsx`, `kit.jsx`. | Renombrar y borrar. | ⏳ fase 4 |
-| F-26 | Código muerto: `V2Layout` (componente), 94 clases de `v2.css`, 5 funciones de `supabase.js`. | baja | grep. | Borrarlo (con prueba de grep). | ⏳ fase 4/5 |
-| F-27 | `supabase.js` se traga algunos errores; `deleteComplaint` sin uso. | baja | `supabase.js:155,540,573,810`. | Avisar y borrar lo muerto. | ⏳ fase 4 |
+| F-3 | Si fallan los mensajes, quien informa ve «Todavía no hay mensajes» (y casos parecidos en el panel). | media | `Consulta.jsx:163`, `Panel.jsx:239`… | Mostrar el error y reintentar. | ✅ fase 4 («Mi caso» y la búsqueda; el resto de avisos secundarios, sin cambio) |
+| E-4 | El mismo tema se llama distinto en el panel y en el Excel/PDF. | media | `exportV2.js:57`. | Que las exportaciones usen los nombres del canal. | ✅ fase 4 |
+| E-5 | Excel/PDF dicen «Informante / Gestor / Categoría»; el panel, «Quien informa / Tema». | media | `v2export.*`. | Mismas palabras. | ✅ fase 4 |
+| E-6 | Un mismo rol con dos nombres («Administración» y «Administrador»). | media | `panel.set.roleAdmin`. | Una sola pareja. | ✅ fase 4 (Administración / Gestión) |
+| E-7 | El permiso se llama «Eliminar» y lo que hace es «Suprimir datos». | media | `perm.can_delete`. | «Suprimir». | ✅ fase 4 |
+| E-8 | «Vosotros» en el canal, que va en «tú». | media | ca T:1590, es T:3365. | «tú». | ✅ fase 4 |
+| E-9 | Imperativo de «vós» en el panel (ca). | media | T:1319. | «tu». | ✅ fase 4 |
+| E-10 | «Lo están investigando» (es «la» denuncia). | media | T:3492. | Corregir. | ✅ fase 4 |
+| E-11 | «Que te lo restablezca» parece referirse al móvil. | media | `panel.noPhoneText`. | Aclarar. | ✅ fase 4 |
+| E-12 | En inglés, «limit» donde va «deadline». | media | `meetToday`… | Corregir. | ✅ fase 4 |
+| E-13 | «Email» como vía de entrada. | media | `panel.chan.email`. | «Correo electrónico». | ✅ fase 4 |
+| E-14 | Unas 300 claves por idioma sin uso (casi todos los «usted» que quedan); el script que las busca da 0 por un criterio demasiado amplio. | media | `ef/dbg.mjs`. | Arreglar `scripts/textos-sin-uso.mjs` y borrarlas. | ✅ fase 4: script corregido y 58 claves borradas (criterio prudente) |
+| E-15 | Apóstrofo recto en 67 textos. | baja | `lint-apostrofo_recto.txt`. | `’`. | ✅ fase 4 (89 apóstrofos) |
+| E-16 | Géneros mezclados («Suprimidos» entre contadores en femenino). | baja | T:1341, 3116. | Corregir. | ✅ fase 4 |
+| E-17 | Frases poco naturales en inglés. | baja | T:5156, 4718. | Corregir. | ✅ fase 4 |
+| E-18 | Leísmo («que le identifiquen»). | baja | T:2890. | Corregir. | ✅ fase 4 |
+| E-19 | Cuatro maneras de decir «vuelve a probar». | baja | varias. | «Inténtalo de nuevo». | ✅ fase 4 |
+| E-20 | «3 meses máximo». | baja | T:3358. | «como máximo». | ✅ fase 4 |
+| E-21 | «Ir a Acceder». | baja | T:359, 2140. | «Entrar al panel». | ✅ fase 4 |
+| E-22 | «Tu» mezclado con «vuestra web». | baja | `share.*`. | Un criterio. | ✅ fase 4 («la web de tu empresa») |
+| E-23 | Respaldos en castellano en el código que nunca se usan. | baja | `exportV2.js:237-241`. | Quitarlos. | ✅ fase 4 |
+| F-24 | Los plazos se calculaban en cinco sitios; el formato de fechas y tamaños, repetido. | media | varios. | Plazos unificados en `src/lib/deadlines.js` (✅ fase 3); falta el formato. | ✅ fase 4 (`src/lib/deadlines.js` y `src/lib/format.js`) |
+| F-25 | `OPEN` significa dos cosas; `relDay` duplicada. | media | `adminKit.jsx`, `kit.jsx`. | Renombrar y borrar. | ✅ fase 4 |
+| F-26 | Código muerto: `V2Layout` (componente), 94 clases de `v2.css`, 5 funciones de `supabase.js`. | baja | grep. | Borrarlo (con prueba de grep). | ✅ en parte: 5 funciones de `supabase.js` y su demo · `V2Layout` y `v2.css` en la fase 5 |
+| F-27 | `supabase.js` se traga algunos errores; `deleteComplaint` sin uso. | baja | `supabase.js:155,540,573,810`. | Avisar y borrar lo muerto. | ✅ fase 4 |
 | F-28 | Archivos muy grandes (`translations.js` 5.341 líneas…). | baja | `wc -l`. | Partirlos con fachadas. | 💡 |
 | F-29 | Comentarios en catalán y castellano mezclados. | baja | recuento. | Castellano para lo nuevo; apuntarlo en CLAUDE.md. | ⏳ fase 6 |
-| F-30 | Archivos sueltos: `main.jsx` de la raíz (formulario antiguo), `reportia_logo.jpg`, `public/logo.png`, `supabase_schema.sql`; README desfasado. | baja | grep sin resultados. | Borrar con `git rm` tras la prueba de grep; actualizar el README. | ⏳ fase 4 |
-| F-31 | `supabase/.temp/` y `.claude/settings.local.json` en git. | media | `git ls-files`. | `.temp` como A2-13. `.claude` es tu carpeta de herramientas: no se toca sin preguntarte. | ⏳ fase 4 · 👤 |
-| F-32 | `@emailjs/browser` y `jimp` sin uso; `vite` en `dependencies`. | baja | grep. | Quitarlos y mover `vite`. | ⏳ fase 4 |
+| F-30 | Archivos sueltos: `main.jsx` de la raíz (formulario antiguo), `reportia_logo.jpg`, `public/logo.png`, `supabase_schema.sql`; README desfasado. | baja | grep sin resultados. | Borrar con `git rm` tras la prueba de grep; actualizar el README. | ✅ fase 4: `git rm` de `main.jsx`, `reportia_logo.jpg` y `supabase_schema.sql` · `public/logo.png` se queda (puede usarla un correo ya pegado) · README en la fase 6 |
+| F-31 | `supabase/.temp/` y `.claude/settings.local.json` en git. | media | `git ls-files`. | `.temp` como A2-13. `.claude` es tu carpeta de herramientas: no se toca sin preguntarte. | ✅ `.temp` · `.claude` es tu carpeta: no se toca 👤 |
+| F-32 | `@emailjs/browser` y `jimp` sin uso; `vite` en `dependencies`. | baja | grep. | Quitarlos y mover `vite`. | ✅ fase 4 |
 
 ---
 
@@ -186,14 +186,29 @@ Nota: `src/v2/site/plans.js:4` dice «PROPOSTA pendent de validar per direcció�
 
 ---
 
+## Propuestas del «Repaso completo» que quedan pendientes
+
+Del encargo anterior (`PROMPT_repaso_completo.md`) ya estaban hechos el 1.3 (límite de adjuntos desde `VITE_MAX_FILE_MB`), el 1.4 («Referencia» en el PDF y el Excel) y el 1.7 (vista previa con dirección absoluta). El 3.6 (bloque «Seguridad y privacidad» en la portada) se hace en la fase 5. El resto necesita textos legales nuevos o servicios externos, así que queda como propuesta:
+
+| n.º | qué es | por qué no se ha hecho | qué haría falta |
+|---|---|---|---|
+| 3.2 | Aviso legal (LSSI art. 10) en `/avis-legal` | Es un texto legal nuevo | Texto del abogado; la página y el enlace del pie son una hora de trabajo |
+| 3.3 | Dos políticas de privacidad: la de la web de Reportia (responsable: Reportia) y la de los canales (encargada) | Cambia el texto legal de `/privacitat` | Texto del abogado. La región de los datos ya está comprobada: `eu-west-1` (Irlanda) |
+| 3.4 | Condiciones del servicio (`/condicions`) y casilla de aceptación con versión y fecha | Texto legal nuevo y una migración (`terms_version`, `terms_accepted_at`) | Texto del abogado. Comprobado en el código: al acabar la prueba el canal **sigue recibiendo denuncias** (solo se avisa en el panel) |
+| 3.5 | Contrato de encargado del tratamiento (art. 28 RGPD) en `/encarregat` | Texto legal nuevo (ya decidiste dejarlo como está: el panel abre un correo para pedirlo) | Texto del abogado; después, enlaces desde el panel, la portada y las condiciones |
+| 4.2 | Formulario «Pide una demostración» con tabla `leads` | Necesita una migración nueva, textos de consentimiento (LSSI art. 21) revisados por el abogado y decidir quién recibe los avisos | Migración con RLS (solo insertar sin sesión) y tope por correo; formulario en `#contacto`; aviso por `notify` cuando haya Resend |
+| 5 | Indexación en Google (robots, sitemap, canonical, hreflang) | Depende del dominio definitivo (`canal.reportia.es`, fuera de alcance) | Ver «Propuesta de indexación» más abajo. La cabecera `X-Robots-Tag` de `/canal` y `/admin` ya está puesta (A2-6) |
+| 7 | Sacar del índice de git las carpetas de herramientas (`.claude`, `.agents`, `.codex`, `.planning`, `AGENTS.md`, `PLAN.md`, `skills-lock.json`) | Son tus carpetas: no se tocan sin preguntarte | Decirme cuáles; se haría con `git rm --cached` y `.gitignore`, sin borrarlas del disco |
+
 ## Para David en Supabase y Vercel
 
 Nada de esto se hace desde el código. Por orden de importancia:
 
-1. **Ejecutar la migración 014** (`supabase/migrations/014_endurecimiento.sql`) en el editor SQL. Es repetible: si algo falla a medias, se puede volver a ejecutar.
-2. **Redesplegar `invite-manager` y `delete-manager`** (después de la 014). `notify` y `ai-assist` no cambian.
-3. Supabase › SQL: `select id, name from organizations where slug = 'demo';` → tiene que dar 0 filas.
-4. Vercel: **borrar `VITE_TURNSTILE_SITE_KEY`** hasta que el captcha se compruebe en el servidor (A2-2). No activar el captcha de Supabase Auth antes de que el acceso lo envíe: nadie podría entrar.
+0. **Ejecutar la migración 015** (`supabase/migrations/015_producto.sql`), igual que la 014, y **volver a desplegar `invite-manager`** (tope de invitaciones al día).
+1. ~~Ejecutar la migración 014~~ ✅ hecho (9 oct).
+2. ~~Redesplegar `invite-manager` y `delete-manager`~~ ✅ hecho (9 oct).
+3. ~~Comprobar que ninguna empresa tiene la dirección `demo`~~ ✅ hecho (9 oct).
+4. Vercel: ~~borrar `VITE_TURNSTILE_SITE_KEY`~~ ✅ no existía. Y comprobar que `VITE_SUPABASE_URL` de **Production y Preview** es `https://sxasgssisuisdldbcotu.supabase.co`: es el único proyecto que deja conectar la nueva política de seguridad (A2-9) hasta que el captcha se compruebe en el servidor (A2-2). No activar el captcha de Supabase Auth antes de que el acceso lo envíe: nadie podría entrar.
 5. Supabase › Auth › Providers › Email: «Confirm email», «Secure email change» y «Secure password change» activados.
 6. Supabase › Auth › Passwords: mínimo 12 caracteres, letras y números, y «Leaked password protection».
 7. Supabase › Auth › Rate Limits: bajar altas y accesos por IP, correos por hora y verificaciones de código.

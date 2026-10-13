@@ -22,7 +22,7 @@ export default function CaseCard({
   selected = false, done, move, onBg = false, short = false, dragging = false, className, children, ...rest
 }) {
   const t = translations[lang].ds;
-  const moveLabel = move ? fmt(t.moveTo, { col: move.col }) : '';
+  const moveLabel = move ? (move.label || fmt(t.moveTo, { col: move.col })) : '';
   const hasChips = today || deadline || meeting || wrote || priority === 'high' || priority === 'critical' || children;
   return (
     <article className={cx('ds-case', onBg && 'is-bg', overdue && 'is-overdue', selected && 'is-selected', dragging && 'is-dragging', move && 'has-move', className)} {...rest}>

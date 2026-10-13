@@ -40,7 +40,7 @@ ok('canal de ejemplo: «Gestionar» lleva a /crear-compte', manageHref === '/cre
 ok('canal de ejemplo: el botón lo dice', mobile ? await page.getByText('Crea el canal de tu empresa').isVisible() : await page.getByText('Crear mi canal').isVisible());
 ok('canal de ejemplo: ningún enlace al acceso real', await page.locator('a[href*="/admin/login"]').count() === 0);
 await shot('00-entrada-canal-de-ejemplo');
-await page.goto(`${BASE}/canal/demo/denuncia?lang=es`, { waitUntil: 'networkidle' });
+await page.goto(`${BASE}/canal/demo/formulario?lang=es`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.flow');
 if (!mobile) ok('canal de ejemplo: la franja «Gestionar» también lleva a /crear-compte', (await page.locator('.ds-tab.is-manage').getAttribute('href')) === '/crear-compte?lang=es');
 ok('en la denuncia tampoco hay enlace al acceso real', await page.locator('a[href*="/admin/login"]').count() === 0);
@@ -142,8 +142,8 @@ await page.getByRole('button', { name: 'Cambiar los permisos de Daniel Ortega Ru
 await page.waitForSelector('.tm-perms');
 await page.getByRole('checkbox', { name: 'Ver: Datos personales' }).uncheck({ force: true });
 ok('permisos: quitar Ver quita los demás', !(await page.getByRole('checkbox', { name: 'Responder: Datos personales' }).isChecked()));
-await page.getByRole('checkbox', { name: 'Eliminar: Todos los temas' }).check({ force: true });
-ok('permisos: «Todos los temas» marca la columna y activa Ver', await page.getByRole('checkbox', { name: 'Eliminar: Otra cosa o no lo sé' }).isChecked() && await page.getByRole('checkbox', { name: 'Ver: Datos personales' }).isChecked());
+await page.getByRole('checkbox', { name: 'Suprimir: Todos los temas' }).check({ force: true });
+ok('permisos: «Todos los temas» marca la columna y activa Ver', await page.getByRole('checkbox', { name: 'Suprimir: Otra cosa o no lo sé' }).isChecked() && await page.getByRole('checkbox', { name: 'Ver: Datos personales' }).isChecked());
 await page.keyboard.press('Escape');
 await page.getByRole('button', { name: 'Salir sin guardar' }).click();
 ok('permisos: salir sin guardar no cambia nada', (await store()).permissions.filter(x => x.manager_id === 'mgr-daniel' && x.can_delete).length === 1);

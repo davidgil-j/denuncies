@@ -131,7 +131,7 @@ export default function V2SiteLayout() {
   const langGroup = (cls) => (
     <div className={`v2-lang ${cls}`} role="group" aria-label={tv.langGroup}>
       {LANGS.map(l => (
-        <button key={l} type="button" lang={l} aria-pressed={lang === l} aria-label={translations[l].langName} onClick={() => setLang(l)}>
+        <button key={l} type="button" lang={l} aria-pressed={lang === l} aria-label={`${l.toUpperCase()} · ${translations[l].langName}`} onClick={() => setLang(l)}>
           {l.toUpperCase()}
         </button>
       ))}
@@ -153,12 +153,16 @@ export default function V2SiteLayout() {
               <Link className="v2-site-navlink is-section" key={id} to={{ pathname: '/', hash: `#${id}` }} onClick={sectionClick(id)}>{st(key)}</Link>
             ))}
             <NavLink className={navClass} to={`${DEMO_PATH}?lang=${lang}`}>{st('navDemoShort')}</NavLink>
-            <span className="v2-site-sep" aria-hidden="true" />
-            <NavLink className={navClass} to="/admin/login" end>{st('navLogin')}</NavLink>
+            {/* A l'alta, «Accedir» ja és el botó principal */}
+            {pathname !== '/crear-compte' && <><span className="v2-site-sep" aria-hidden="true" />
+            <NavLink className={navClass} to="/admin/login" end>{st('navLogin')}</NavLink></>}
           </nav>
 
           {/* L'acció principal és sempre a la capçalera, també a la portada i en mòbil */}
-          <Link className="v2-btn v2-btn-primary v2-site-cta" to="/crear-compte">{st('navSignup')}</Link>
+          {/* A l'alta, el botó porta a l'accés: «Crear compte» portaria a la mateixa pàgina (G-4) */}
+          {pathname === '/crear-compte'
+            ? <Link className="v2-btn v2-btn-primary v2-site-cta" to="/admin/login">{st('navLogin')}</Link>
+            : <Link className="v2-btn v2-btn-primary v2-site-cta" to="/crear-compte">{st('navSignup')}</Link>}
           {langGroup('v2-site-lang')}
 
           <button

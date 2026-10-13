@@ -214,3 +214,20 @@ fs.writeFileSync(OUT, `// Tipografia dels PDF: Manrope 400, 700 i 800 (la mateix
 ${parts.join('\n')}
 `);
 console.log(`Escrit ${path.relative(ROOT, OUT)} (${Math.round(fs.statSync(OUT).size / 1024)} KB)`);
+
+// ── El justificant de qui denuncia: més lleuger ────────────────────────
+// Només el subconjunt «latin» (català, castellà i anglès hi caben sencers) i dos pesos: 400 i 800.
+// Es descarrega en prémer «Descarregar justificant», al canal, on cada KB compta.
+const OUT_RECEIPT = path.join(ROOT, 'src', 'v2', 'lib', 'receiptFonts.js');
+const none = { cmap: new Map(), glyphs: [], metrics: [] };
+const receipt = Object.entries({ RECEIPT_400: 400, RECEIPT_800: 800 }).map(([name, w]) => {
+  const ttf = merge(readWoff(path.join(FILES, `manrope-latin-${w}-normal.woff`)), none);
+  console.log(`${name}: ${Math.round(ttf.length / 1024)} KB`);
+  return `export const ${name} = '${ttf.toString('base64')}';`;
+});
+fs.writeFileSync(OUT_RECEIPT, `// Tipografia del justificant de qui denuncia: Manrope 400 i 800, només el subconjunt «latin».
+// Copyright 2018 The Manrope Project Authors (https://github.com/sharanda/manrope). SIL Open Font License 1.1.
+// Només el carrega receipt.js amb import() dinàmic. Regenerar: node scripts/pdf-fonts.mjs
+${receipt.join('\n')}
+`);
+console.log(`Escrit ${path.relative(ROOT, OUT_RECEIPT)} (${Math.round(fs.statSync(OUT_RECEIPT).size / 1024)} KB)`);

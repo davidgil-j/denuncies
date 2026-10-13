@@ -7,7 +7,7 @@ const SIZES = [[1470, 800], [1440, 760], [1366, 768], [1280, 720], [1280, 700], 
 const browser = await chromium.launch();
 const SCREENS = [
   ['canal-entrada', '/canal/demo?lang=es', '.ds-hero', { fit: true }],
-  ['canal-paso-1', '/canal/demo/denuncia?lang=es', '.cats', { fit: true }],
+  ['canal-paso-1', '/canal/demo/formulario?lang=es', '.cats', { fit: true }],
   ['canal-paso-2', null, '#dn-description', { fit: true, step: 2 }],
   ['canal-paso-3', null, '.review', { fit: true, step: 3 }],
   ['canal-codigo', '/canal/demo/consulta?lang=es', '.codebox, form', { fit: true }],
@@ -31,7 +31,7 @@ for (const [w, h] of SIZES) {
     if (!o.anon) await page.addInitScript(() => { sessionStorage.setItem('reportia-demo-session', '1'); sessionStorage.setItem('reportia-demo-aal', '2'); });
     await page.addInitScript(() => localStorage.setItem('reportia-panel-lang', 'es'));
     if (o.step) {
-      await page.goto(`${B}/canal/demo/denuncia?lang=es`, { waitUntil: 'networkidle' });
+      await page.goto(`${B}/canal/demo/formulario?lang=es`, { waitUntil: 'networkidle' });
       await page.waitForSelector('.cats');
       await page.getByRole('radio', { name: /Fraude/ }).click();
       await page.getByRole('button', { name: 'Continuar' }).click();

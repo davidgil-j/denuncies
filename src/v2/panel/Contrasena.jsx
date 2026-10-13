@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { KeyRound, MailCheck, Link2Off, Check, Circle, CircleAlert, ArrowLeft } from 'lucide-react';
 import { translations } from '../../translations.js';
+import './texts.js'; // textos del panel (lado Gestionar)
 import { sendPasswordReset, updatePassword, onAuthEvent, getPasswordLinkState } from '../../lib/supabase.js';
 import { fmt } from '../V2Layout.jsx';
 import { EMAIL_RE, authErrorKey } from '../site/fields.jsx';

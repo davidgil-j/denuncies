@@ -4,6 +4,7 @@ import { translations } from '../../translations.js';
 import { fmt } from '../V2Layout.jsx';
 import { Button, IconButton, cx } from '../ui/index.js';
 import { Tc } from './shared.jsx';
+import { formatBytes } from '../../lib/format.js';
 
 export const MAX_FILES = 5;
 // Límite por archivo, en MB. Lo marca el plan de Supabase (50 en el gratuito) y se cambia con VITE_MAX_FILE_MB
@@ -18,11 +19,7 @@ const EXTENSIONS = [
 const ACCEPT = EXTENSIONS.map(e => `.${e}`).join(',');
 const extOf = (name) => (name.includes('.') ? name.split('.').pop().toLowerCase() : '');
 
-export function formatBytes(bytes) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+export { formatBytes };
 
 /** Zona de pruebas: acepta arrastrar archivos, con los mismos límites y avisos de siempre */
 export default function Pruebas({ lang, files, onChange }) {

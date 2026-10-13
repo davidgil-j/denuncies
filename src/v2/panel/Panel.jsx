@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, BarChart3, Share2, SlidersHorizontal, Search, Plus, LogOut, CircleCheck, CircleAlert, UserRoundX } from 'lucide-react';
 import { translations } from '../../translations.js';
+import './texts.js'; // textos del panel (lado Gestionar)
 import {
   getAdminSession, getProfile, getManagerPermissions, getMyOrganization, updateMyOrganization, listAssignees, signOutAdmin, getMfaState, listComplaints, IS_DEMO,
 } from '../../lib/supabase.js';
@@ -10,6 +11,9 @@ import { planInfo } from '../admin/adminKit.jsx';
 import { SplitShell, SideTab, PillNav, Button, IconButton, Chip, Card, OrgMark, Avatar, Skeleton, Segmented, Dialog, Field, Menu, MenuItem, Offline } from '../ui/index.js';
 import { caseTitle } from './kit.jsx';
 import './panel.css';
+
+// Minutos sin actividad hasta que se cierra la sesión
+const IDLE_MS = 30 * 60 * 1000;
 
 const LANG_KEY = 'reportia-panel-lang';
 function initialLang() {
@@ -89,6 +93,29 @@ export default function Panel() {
   }, []);
   useEffect(() => () => clearTimeout(toastTimer.current), []);
 
+  // Sin actividad durante 30 minutos, la sesión se cierra (un ordenador compartido no se queda con el panel abierto)
+  useEffect(() => {
+    if (phase !== 'ready') return undefined;
+    let last = Date.now();
+    let done = false;
+    const touch = () => { last = Date.now(); };
+    const check = () => {
+      if (done || Date.now() - last < IDLE_MS) return;
+      done = true;
+      signOutAdmin().finally(() => navigate('/admin/login?idle=1', { replace: true }));
+    };
+    const events = ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'];
+    events.forEach(e => window.addEventListener(e, touch, { passive: true, capture: true }));
+    const onVisible = () => { if (document.visibilityState === 'visible') check(); };
+    document.addEventListener('visibilitychange', onVisible);
+    const id = setInterval(check, 30000);
+    return () => {
+      events.forEach(e => window.removeEventListener(e, touch, { capture: true }));
+      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(id);
+    };
+  }, [phase, navigate]);
+
   async function logout() {
     setLeaving(true);
     await signOutAdmin();
@@ -162,13 +189,13 @@ export default function Panel() {
   return (
     <>
       <SplitShell
-        className="pn" active="manage" skip={t.skip}
+        className="pn" active="manage" skip={t.skip} mainId="pn-main"
         reportTab={channelPath ? <SideTab side="report" label={p.viewChannel} icon="external" href={channelPath} target="_blank" rel="noopener noreferrer" ariaLabel={p.viewChannelAria} /> : <span />}
         manage={(
           <>
             <header className="pn-head">
               <div className="pn-brand">
-                <Link className="pn-brand-link" to="/admin"><OrgMark name={orgName} /><b>{orgName}</b></Link>
+                <Link className="pn-brand-link" to="/admin"><OrgMark name={orgName} /><b title={orgName}>{orgName}</b></Link>
                 {IS_DEMO && <Chip size="md" className="pn-chip" title={p.demoLong}>{p.demoChip}<span className="ds-vh">: {p.demoLong}</span></Chip>}
                 {planChip && <Link className="pn-chiplink" to="/admin/ajustes"><Chip size="md" tone={planChip.warn ? 'warn' : 'neutral'}>{planChip.text}</Chip></Link>}
               </div>
@@ -186,14 +213,14 @@ export default function Panel() {
                 )}
                 <Menu
                   label={p.account} className="pn-me"
-                  trigger={props => <button type="button" className="pn-avatar" aria-label={`${p.account}: ${name}`} {...props}><Avatar name={name} /></button>}
+                  trigger={props => <button type="button" className="pn-avatar" {...props}><span className="ds-vh">{`${p.account}: ${name}`}</span><span aria-hidden="true" style={{ display: 'contents' }}><Avatar name={name} /></span></button>}
                 >
                   <div className="ds-menu-head"><b>{name}</b><span>{isSuperadmin ? t.roleSuperadmin : t.roleManager}</span></div>
                   <div className="pn-me-lang">
                     <span className="ds-vh" id="pn-lang-l">{p.language}</span>
                     <Segmented
                       tone="bg" label={p.language} value={lang} onChange={setLang}
-                      options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: translations[l].langName, lang: l }))}
+                      options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: `${l.toUpperCase()} · ${translations[l].langName}`, lang: l }))}
                     />
                   </div>
                   <div className="ds-menu-sep" />
@@ -202,9 +229,9 @@ export default function Panel() {
               </div>
             </header>
 
-            <div id="pn-main" className="pn-main" tabIndex={-1}>
+            <main id="pn-main" className="pn-main" tabIndex={-1}>
               <Outlet context={ctx} />
-            </div>
+            </main>
           </>
         )}
       />
@@ -231,12 +258,16 @@ function SearchDialog({ open, onClose, ctx }) {
   const { p, tr, allowedCategories } = ctx;
   const navigate = useNavigate();
   const [rows, setRows] = useState(null);
+  const [loadErr, setLoadErr] = useState(false);
   const [q, setQ] = useState('');
   useEffect(() => {
     if (!open) return undefined;
     let alive = true;
     setQ('');
-    listComplaints({ categories: allowedCategories }).then(({ complaints }) => { if (alive) setRows(complaints ?? []); });
+    setLoadErr(false);
+    listComplaints({ categories: allowedCategories })
+      .then(({ complaints, error }) => { if (!alive) return; setLoadErr(!!error && !complaints?.length); setRows(complaints ?? []); })
+      .catch(() => { if (alive) { setLoadErr(true); setRows([]); } });
     return () => { alive = false; };
   }, [open, allowedCategories]);
 
@@ -254,11 +285,14 @@ function SearchDialog({ open, onClose, ctx }) {
   return (
     <Dialog open={open} onClose={onClose} title={p.searchTitle} closeLabel={p.close} className="pn-search">
       <Field
-        type="search" label={p.searchPh} hideLabel placeholder={p.searchPh} value={q} autoFocus autoComplete="off" spellCheck={false}
+        type="search" label={p.searchPh} hideLabel placeholder={p.searchPh} value={q} autoFocus data-autofocus autoComplete="off" spellCheck={false}
         onChange={e => setQ(e.target.value)} help={needle.length < 2 ? p.searchHint : undefined}
       />
       {rows === null && <Skeleton height={48} />}
-      {needle.length >= 2 && rows !== null && (
+      {loadErr && <p className="ds-field-error" role="alert">{p.searchErr}</p>}
+      {/* Quien usa lector de pantalla oye cuántos casos coinciden */}
+      <p className="ds-vh" role="status">{needle.length >= 2 && rows !== null && !loadErr ? (found.length === 0 ? p.searchNone : found.length === 1 ? p.searchOne : fmt(p.searchMany, { n: found.length })) : ''}</p>
+      {needle.length >= 2 && rows !== null && !loadErr && (
         found.length === 0 ? <p>{p.searchNone}</p> : (
           <ul className="pn-found">
             {found.map(c => (

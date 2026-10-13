@@ -514,5 +514,41 @@ if (upTo >= 14) {
   ok('pasada la hora, vuelve a entrar', !(await anon(`insert into complaints (tracking_hash, organization_id, category, description) values (code_hash('TOPE-9996'), $1, 'fraud', 'Hora')`, [orgT])).error);
 }
 
+// ── Producto (015) ──────────────────────────────────────────────────────
+if (upTo >= 15) {
+  console.log('\nProducto (015)');
+  const MIG15 = path.join(MIG, '015_producto.sql');
+  if (fs.existsSync(MIG15)) { await db.exec(fs.readFileSync(MIG15, 'utf8')); ok('la 015 se puede ejecutar dos veces', true); }
+  else ok('existe la migración 015', false);
+  const err = (r) => String(r.error ?? '');
+
+  // B-16 · Un caso suprimido ya no se toca desde el panel
+  const er = cid();
+  await ins(er, orgA, 'ERAS-0001', 'fraud');
+  await user(adminA, `select anonymize_complaint($1, 'Art. 32: prueba de la 015')`, [er]);
+  ok('en un caso suprimido no se cambia el estado', /complaint-anonymized/.test(err(await user(adminA, `update complaints set status = 'investigating' where id = $1`, [er]))));
+  ok('…ni la prioridad', /complaint-anonymized/.test(err(await user(adminA, `update complaints set priority = 'high' where id = $1`, [er]))));
+  ok('…ni se escriben mensajes', !!(await user(adminA, `insert into messages (complaint_id, sender, content) values ($1, 'manager', 'hola')`, [er])).error);
+  ok('en un caso normal sí', !(await user(adminA, `update complaints set priority = 'high' where id = $1`, [c1])).error);
+
+  // A1-11 · Solo quien puede responder marca como leídos los mensajes de quien informa
+  const [{ id: viewer }] = await svc(`insert into auth.users (email, raw_user_meta_data) values ('mira@a.es', '{"full_name":"Solo Mira"}') returning id`);
+  await svc(`update profiles set organization_id = $1 where id = $2`, [orgA, viewer]);
+  await svc(`insert into manager_permissions (manager_id, organization_id, category, can_view, can_reply, can_edit) values ($1, $2, 'fraud', true, false, false)`, [viewer, orgA]);
+  const rd = cid();
+  await ins(rd, orgA, 'READ-0001', 'fraud');
+  await anon(`select send_reporter_message('READ-0001', 'Tengo algo más que contar')`);
+  ok('quien solo puede ver lee el mensaje…', (await user(viewer, `select id from messages where complaint_id = $1`, [rd])).rows.length === 1);
+  await user(viewer, `update messages set is_read = true where complaint_id = $1`, [rd]);
+  ok('…pero no lo marca como leído', (await svc(`select is_read from messages where complaint_id = $1`, [rd]))[0].is_read === false);
+  await user(adminA, `update messages set is_read = true where complaint_id = $1`, [rd]);
+  ok('quien puede responder sí lo marca', (await svc(`select is_read from messages where complaint_id = $1`, [rd]))[0].is_read === true);
+
+  // A2-4 · Tipos de archivo: lista cerrada
+  const [{ allowed_mime_types: types }] = await svc(`select allowed_mime_types from storage.buckets where id = 'attachments'`);
+  ok('el almacén ya no acepta «cualquier imagen», SVG ni «cualquier arxiu»', !types.some(t => t.endsWith('/*') || t === 'application/octet-stream' || t.includes('svg')), types.join(' '));
+  ok('…y sigue aceptando PDF, fotos, vídeo, audio, Office y correos', ['application/pdf', 'image/jpeg', 'image/heic', 'video/mp4', 'audio/mpeg', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'message/rfc822'].every(t => types.includes(t)));
+}
+
 console.log(`\n${pass} correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

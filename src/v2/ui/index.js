@@ -1,14 +1,6 @@
 // Piezas comunes del diseño «dos mitades». Quien las usa recibe también los estilos y la tipografía.
-import '@fontsource/manrope/latin-400.css';
-import '@fontsource/manrope/latin-ext-400.css';
-import '@fontsource/manrope/latin-500.css';
-import '@fontsource/manrope/latin-ext-500.css';
-import '@fontsource/manrope/latin-600.css';
-import '@fontsource/manrope/latin-ext-600.css';
-import '@fontsource/manrope/latin-700.css';
-import '@fontsource/manrope/latin-ext-700.css';
-import '@fontsource/manrope/latin-800.css';
-import '@fontsource/manrope/latin-ext-800.css';
+// Manrope variable: un solo archivo para todos los grosores (el navegador solo baja el alfabeto que necesita)
+import '@fontsource-variable/manrope';
 import '../ds.css';
 
 export { cx, Txt } from './text.jsx';

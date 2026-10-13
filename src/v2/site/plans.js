@@ -1,3 +1,4 @@
+import { LOCALES } from '../../lib/format.js';
 /**
  * Tarifes i dades comercials de Reportia.
  *
@@ -17,7 +18,7 @@ export const TRIAL_DAYS = 30;
 /** Correu de contacte comercial i de suport. */
 export const CONTACT_EMAIL = 'info@reportia.es';
 
-const LOCALE = { ca: 'ca-ES', es: 'es-ES', en: 'en-GB' };
+const LOCALE = LOCALES;
 
 /** 390 → "390 €" segons l'idioma */
 export function formatPrice(amount, lang) {

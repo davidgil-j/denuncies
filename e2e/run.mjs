@@ -51,6 +51,7 @@ const SUITES = [
   ['red-ia-gestor', 'red-ia', (n) => [out(n), 'gestor', '3114']],
   ['red-contrasena', 'red-contrasena', (n) => [out(n)]],
   ['endurecimiento', 'endurecimiento', (n) => [out(n)]],
+  ['inactividad', 'inactividad', () => []],
   ['ia-demo-1440', 'ia-demo', (n) => [out(n), '1440']],
   ['ia-demo-375', 'ia-demo', (n) => [out(n), '375']],
   ['canal-1440', 'canal', (n) => [out(n), FIX, '1440', 'T8GH-5RWD']],
@@ -68,6 +69,8 @@ const SUITES = [
   ['anchos-e-idiomas', 'anchos-idiomas', () => []],
   ['textos', 'textos', () => []],
   ['pdf', 'pdf', (n) => [out(n)]],
+  // Compila la web como en producción y la sirve con las cabeceras de vercel.json (puerto 4190)
+  ['csp', 'csp', (n) => [out(n)]],
 ];
 
 if (args.includes('--list')) { for (const [n] of SUITES) console.log(n); process.exit(0); }

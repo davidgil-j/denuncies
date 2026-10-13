@@ -1,10 +1,12 @@
 import React, { Suspense, lazy, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
-import Canal from './v2/canal/Canal.jsx';
-import V2SiteLayout from './v2/site/V2SiteLayout.jsx';
-import V2Landing from './v2/site/V2Landing.jsx';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { loadCanal, loadSite, loadLanding } from './entries.js';
 
-// Cada part es descarrega quan cal: qui entra al canal no baixa el panell ni la web comercial
+// Cada part es descarrega quan cal: qui entra al canal no baixa el panell ni la web comercial, i qui entra a
+// la web no baixa el canal ni la llibreria de la base de dades. main.jsx comença a baixar la de la pàgina d'entrada.
+const Canal = lazy(loadCanal);
+const V2SiteLayout = lazy(loadSite);
+const V2Landing = lazy(loadLanding);
 const Denuncia = lazy(() => import('./v2/canal/Denuncia.jsx'));
 const Consulta = lazy(() => import('./v2/canal/Consulta.jsx'));
 const Privacidad = lazy(() => import('./v2/canal/Privacidad.jsx'));
@@ -28,6 +30,12 @@ const Ajustes = lazy(() => import('./v2/panel/Ajustes.jsx'));
 const Seguridad = lazy(() => import('./v2/panel/Seguridad.jsx'));
 // Página de trabajo con las piezas del diseño: solo existe en desarrollo, no entra en el build
 const DevUi = import.meta.env.DEV ? lazy(() => import('./v2/dev/DevUi.jsx')) : null;
+
+/** /canal/:slug/denuncia (la dirección de antes) → /canal/:slug/formulario, con el idioma */
+function ToForm() {
+  const { search } = useLocation();
+  return <Navigate to={`../formulario${search}`} replace />;
+}
 
 // Qualsevol adreça desconeguda dins d'un canal (per llarga que sigui) torna a l'entrada d'aquell canal
 function ToChannel() {
@@ -59,7 +67,8 @@ function prefetchNext() {
     quiet(import('./v2/panel/Caso.jsx')); quiet(import('./v2/panel/Tablero.jsx')); quiet(import('./v2/panel/Informe.jsx'));
     quiet(import('./v2/panel/Compartir.jsx')); quiet(import('./v2/panel/Ajustes.jsx')); quiet(import('./v2/panel/Seguridad.jsx'));
   } else {
-    quiet(import('./v2/site/V2Signup.jsx')); quiet(acceso()); quiet(import('./v2/panel/Panel.jsx'));
+    // Des de la web, l'alta i l'accés (el panell, gairebé ningú hi va des d'aquí)
+    quiet(import('./v2/site/V2Signup.jsx')); quiet(acceso());
   }
 }
 
@@ -75,10 +84,12 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         {/* Canal públic de cada empresa */}
-        <Route path="/canal/:slug" element={<Canal />}>
+        <Route path="/canal/:slug" element={<Suspense fallback={<div className="ds-page" aria-busy="true" />}><Canal /></Suspense>}>
           {/* La entrada (les dues meitats) la pinta Canal; aquí hi van les pantalles del costat Denunciar */}
           <Route index element={null} />
-          <Route path="denuncia" element={canalPage(<Denuncia />)} />
+          {/* Dirección neutra: el historial del navegador no dice «denuncia». La antigua redirige aquí */}
+          <Route path="formulario" element={canalPage(<Denuncia />)} />
+          <Route path="denuncia" element={<ToForm />} />
           <Route path="consulta" element={canalPage(<Consulta />)} />
           <Route path="privacidad" element={canalPage(<Privacidad />)} />
           <Route path="*" element={<ToChannel />} />
@@ -87,8 +98,8 @@ export default function App() {
         {DevUi && <Route path="/dev/ui" element={page(<DevUi />)} />}
 
         {/* Web de Reportia i accés */}
-        <Route element={<V2SiteLayout />}>
-          <Route path="/" element={<V2Landing />} />
+        <Route element={page(<V2SiteLayout />)}>
+          <Route path="/" element={page(<V2Landing />)} />
           <Route path="/crear-compte" element={page(<V2Signup />)} />
           <Route path="/privacitat" element={page(<V2Privacy />)} />
           <Route path="*" element={page(<V2NotFound />)} />

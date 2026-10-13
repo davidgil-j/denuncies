@@ -4,6 +4,8 @@ import { Stable, fmt } from '../V2Layout.jsx';
 import { deadlineInfo, daysBetween, auditText } from '../admin/adminKit.jsx';
 import { madridDay, dayToDate } from '../../lib/deadlines.js';
 import { AI_ENABLED } from '../../lib/supabase.js';
+import { LOCALES } from '../../lib/format.js';
+import './texts.js'; // textos del panel (lado Gestionar)
 
 export const usePanel = () => useOutletContext();
 
@@ -13,10 +15,11 @@ export const Tp = forwardRef(function Tp({ lang, k, vars, pick, ...rest }, ref) 
 });
 
 export const NEW = ['received'];
-export const OPEN = ['reviewing', 'investigating', 'waiting'];
+// Columna «En curso» del tablero (no confundir con OPEN de adminKit, que incluye también las nuevas)
+export const IN_PROGRESS = ['reviewing', 'investigating', 'waiting'];
 export const CLOSED = ['resolved', 'closed', 'archived'];
 // Un caso con los datos suprimidos (art. 32) ya no tiene nada que gestionar: va a «Cerradas» sea cual sea su estado
-export const columnOf = (c) => (c.anonymized_at ? 'closed' : NEW.includes(c.status) ? 'new' : OPEN.includes(c.status) ? 'open' : 'closed');
+export const columnOf = (c) => (c.anonymized_at ? 'closed' : NEW.includes(c.status) ? 'new' : IN_PROGRESS.includes(c.status) ? 'open' : 'closed');
 export const OUTCOMES = ['founded', 'unfounded', 'inadmissible', 'out_of_scope', 'duplicate'];
 export const CHANNELS = ['phone', 'in_person', 'mail', 'email', 'other'];
 const MEETING_DAYS = 7;
@@ -57,7 +60,9 @@ export function caseState(c, now = new Date()) {
   const today = (c.unread ?? 0) > 0 || (!closed && (column === 'new' || !!meeting?.pending || urgent));
   // Un caso reabierto ya tiene su primera respuesta: no vuelve a tener cuenta atrás
   const deadline = closed || next.days === undefined ? null : { kind: next.kind, days: next.days };
-  return { dl, column, meeting, closed, today, deadline, overdue: !closed && next.state === 'overdue', done: c.anonymized_at ? 'erased' : column === 'closed' ? (dl.resp.state === 'late' ? 'late' : 'onTime') : null };
+  // Vencido: el siguiente plazo (acuse o respuesta) o la reunión pedida y no celebrada a tiempo
+  const overdue = !closed && (next.state === 'overdue' || (!!meeting?.pending && meeting.days < 0));
+  return { dl, column, meeting, closed, today, deadline, overdue, done: c.anonymized_at ? 'erased' : column === 'closed' ? (dl.resp.state === 'late' ? 'late' : 'onTime') : null };
 }
 
 export function relDay(iso, p) {
@@ -74,7 +79,7 @@ export function sameAsColumn(title, tr) {
   return [...all, 'Nuevas', 'En curso', 'Cerradas', 'Noves', 'En curs', 'Tancades', 'New', 'In progress', 'Closed'].some(c => norm(c) === t);
 }
 
-const LOCALES = { ca: 'ca-ES', es: 'es-ES', en: 'en-GB' };
+
 /** «1 ene» o «1 ene 2026»: día y mes abreviado, sin «de» ni punto, en el idioma */
 function shortDay(iso, lang, withYear) {
   const d = new Date(`${iso}T12:00:00`);

@@ -19,7 +19,7 @@ export default function Tablero() {
   const [params, setParams] = useSearchParams();
   const [rows, setRows] = useState(null);
   const [failed, setFailed] = useState(false);
-  const [due, setDue] = useState([]);
+  const [due, setDue] = useState(null); // null: aún no se sabe (el tablero espera, para no saltar al llegar el aviso)
   const [filtering, setFiltering] = useState(false);
   const [closedShown, setClosedShown] = useState(CLOSED_SHOWN);
   const [exporting, setExporting] = useState(false);
@@ -41,7 +41,7 @@ export default function Tablero() {
   useEffect(() => {
     if (!isSuperadmin) return undefined;
     let alive = true;
-    getRetentionDue().then(({ items }) => { if (alive) setDue(items ?? []); });
+    getRetentionDue().then(({ items }) => { if (alive) setDue(items ?? []); }).catch(() => { if (alive) setDue([]); });
     return () => { alive = false; };
   }, [isSuperadmin]);
   useEffect(() => { document.title = `${p.nav.board} · ${org?.name ?? ''}`; }, [p, org]);
@@ -89,7 +89,7 @@ export default function Tablero() {
   // Cuántos casos necesitan algo hoy (de todos los que puede ver, no solo de los filtrados)
   const need = all.filter(x => x.s.today).length;
   const from = params.toString() ? `?${params}` : '';
-  const loading = rows === null && !noAccess;
+  const loading = (rows === null || (isSuperadmin && due === null)) && !noAccess;
   const firstName = (profile.full_name || email).trim().split(/[\s@]/)[0];
   // Lo que le queda por hacer a la empresa para tener el canal en regla: solo lo ve quien administra
   const steps = isSuperadmin ? onboardingState(org, members) : null;
@@ -178,7 +178,7 @@ export default function Tablero() {
         </section>
       )}
 
-      {due.length > 0 && (
+      {!!due?.length && (
         <section className="pn-banner" aria-labelledby="pn-ret-t">
           <Eraser size={20} strokeWidth={2} aria-hidden="true" />
           <div>
@@ -192,7 +192,9 @@ export default function Tablero() {
       {failed ? (
         <div className="pn-error" role="alert"><CircleAlert size={20} strokeWidth={2.2} aria-hidden="true" /><span>{p.loadErr}</span><Button variant="white" size="xs" onClick={load}>{p.retry}</Button></div>
       ) : loading ? (
-        <div className="ds-kanban" aria-hidden="true">
+        <div className="ds-kanban is-skel" aria-hidden="true">
+          {/* En el móvil, con la forma final: pestañas y una columna */}
+          <Skeleton className="ds-kanban-tabs" height={44} />
           {[2, 3, 2].map((n, i) => (
             <div className="ds-kcol" key={i}>
               <Skeleton width={90} height={18} />
@@ -212,6 +214,7 @@ export default function Tablero() {
           )}
           <Kanban
             lang={lang} columns={cols} getId={x => x.c.id} onMove={onMove} canMove={canMove}
+            moveLabel={(item, fromCol) => (fromCol === 'new' ? p.n1 : p.n4)}
             renderCard={({ c, s }, { move, dragging }) => (
               <CaseCard
                 lang={lang} title={caseTitle(c, p)} to={`/admin/complaints/${c.id}`} linkState={{ from }}

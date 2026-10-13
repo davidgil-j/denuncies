@@ -6,6 +6,7 @@ import { Swap } from '../V2Layout.jsx';
 import { EMAIL_RE } from '../site/fields.jsx';
 import { Button, Card, Field, Segmented } from '../ui/index.js';
 import { usePanel, Tp, CHANNELS } from './kit.jsx';
+import './texts.js'; // textos del panel (lado Gestionar)
 
 // Fecha y hora locales para <input type="datetime-local">
 function localNow() {

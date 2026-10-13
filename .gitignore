@@ -13,3 +13,7 @@ tools/prospect-finder/node_modules/
 # Maquetas y material de trabajo: se quedan en el disco, fuera del repositorio
 /Claude outputs/
 /CUsersDavidAppData*/
+
+# Archivos locales de herramientas (no van al repositorio)
+supabase/.temp/
+deno.lock

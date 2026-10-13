@@ -46,6 +46,7 @@ o donde diga `E2E_OUT`.
 | `red-ia` | Modo real: IA apagada, encendida, gestor con permisos limitados y sin la migración 013 |
 | `red-contrasena` | «Contraseña nueva» con los formatos de enlace de Supabase (`#access_token`, `?code=`, `?token_hash=`), caducados y sin enlace |
 | `endurecimiento` | Modo real: los arreglos de la auditoría (`docs/AUDITORIA.md`). Canal sin conexión, reintento sin denuncias repetidas, código antes que las pruebas, fotos anónimas limpias y con nombre neutro, tope por hora y freno de intentos, vía de antes sin la migración 014; en el panel, doble clic y acuse a medias, caso reabierto, plazo vencido, mensaje en un caso cerrado y autor del registro |
+| `inactividad` | Sin tocar el panel 30 minutos, la sesión se cierra y el acceso dice por qué; con actividad, no |
 | `ia-demo` | IA apagada y encendida en la demo |
 | `canal`, `panel` | Regresiones del lado Denunciar y del lado Gestionar |
 | `ajustes-compartir-informe` | Equipo y ajustes, Compartir, Informe, primeros pasos y AIPI |
@@ -56,6 +57,7 @@ o donde diga `E2E_OUT`.
 | `propuestas` | Las propuestas aprobadas de `docs/REVISION_UX.md` |
 | `anchos-idiomas` | 9 anchos × 3 idiomas: sin desbordes ni textos cortados |
 | `textos` | 63 pantallas sin «undefined» ni huecos sin rellenar |
-| `pdf` | Los PDF salen con Manrope, también con caracteres del latín extendido |
+| `pdf` | Los PDF (también el justificante de quien denuncia) salen con Manrope, también con caracteres del latín extendido |
+| `csp` | Compila la web como en producción, la sirve con las cabeceras de `vercel.json` y recorre web, canal y panel (envío con foto, justificante, PDF, Excel, QR): la política de seguridad no bloquea nada |
 
 La lógica que no necesita navegador (plazos en seis zonas horarias y limpieza de fotos) se prueba aparte con `npm run test:logic`, y la base de datos con `npm run db:test`.

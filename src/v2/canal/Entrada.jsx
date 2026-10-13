@@ -18,13 +18,13 @@ export function EntryTop({ lang, setLang, org }) {
     <>
       <div className="entry-brand">
         <OrgMark name={org.name} />
-        <b>{org.name}</b>
+        <b title={org.name}>{org.name}</b>
         <Tc lang={lang} k="ethics" className="entry-brand-sub" />
       </div>
       <div className="entry-tools">
         <Segmented
           className="entry-lang" label={t.v2.langGroup} value={lang} onChange={setLang}
-          options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: translations[l].langName, lang: l }))}
+          options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: `${l.toUpperCase()} · ${translations[l].langName}`, lang: l }))}
         />
         <QuickExit lang={lang} />
       </div>
@@ -48,7 +48,7 @@ export function EntryReport({ lang, base }) {
       <div className="entry-foot">
         {/* Botón secundario, oscurecido sobre el azul: quien ya denunció vuelve por aquí con su código */}
         <Button variant="shade" size="xl" className="entry-again" to={`${base}/consulta`} replace icon={<KeyRound size={20} strokeWidth={2.2} aria-hidden="true" />}>{t.already}</Button>
-        <Button variant="white" size="xl" className="entry-go" to={`${base}/denuncia`} replace aria-label={t.startAria} iconEnd={arrow}><Tc lang={lang} k="start" /></Button>
+        <Button variant="white" size="xl" className="entry-go" to={`${base}/formulario`} replace aria-label={t.startAria} iconEnd={arrow}><Tc lang={lang} k="start" /></Button>
       </div>
     </>
   );
@@ -62,8 +62,8 @@ export function EntryManage({ lang, org, to, example }) {
   const t = translations[lang].canal;
   const vars = { org: org.name };
   const k = example
-    ? { note: 'exManageNote', cta: 'exManageCta', aria: t.exManageAria, short: 'exManageShort' }
-    : { note: 'twoStep', cta: 'access', aria: t.accessAria, short: 'manageShort' };
+    ? { note: 'exManageNote', cta: 'exManageCta', short: 'exManageShort' }
+    : { note: 'twoStep', cta: 'access', short: 'manageShort' };
   return (
     <>
       <div className="entry-wide">
@@ -77,10 +77,10 @@ export function EntryManage({ lang, org, to, example }) {
         </div>
         <div className="entry-foot">
           <Tc lang={lang} k={k.note} className="entry-note" />
-          <Button variant="ink" size="xl" to={to} aria-label={k.aria} iconEnd={arrow}><Tc lang={lang} k={k.cta} /></Button>
+          <Button variant="ink" size="xl" to={to} iconEnd={arrow}><Tc lang={lang} k={k.cta} /></Button>
         </div>
       </div>
-      <Link className="entry-compact" to={to} aria-label={k.aria}>
+      <Link className="entry-compact" to={to}>
         <span className="entry-compact-txt">
           <Tc lang={lang} k="manage" className="entry-compact-t" />
           <Tc lang={lang} k={k.short} vars={vars} className="entry-compact-s" />

@@ -15,12 +15,18 @@ export default defineConfig(({ mode }) => ({
     open: true,
   },
   build: {
+    // Nada incrustado en el CSS o el JS como «data:»: la política de seguridad (vercel.json) no deja cargar
+    // tipografías así, y Manrope variable trae trozos de menos de 4 KB
+    assetsInlineLimit: 0,
     rollupOptions: {
       output: {
-        // Excel, PDF i Sentry no es fixen en un fragment: així només es descarreguen quan s'usen
-        manualChunks: {
-          'vendor-react':  ['react', 'react-dom', 'react-router-dom'],
-          'vendor-supabase': ['@supabase/supabase-js'],
+        // Excel, PDF i Sentry no es fixen en un fragment: així només es descarreguen quan s'usen.
+        // Les icones van totes juntes: abans eren desenes d'arxius de menys d'1 KB (una petició per icona)
+        manualChunks(id) {
+          if (/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) return 'vendor-react';
+          if (/node_modules\/@supabase\//.test(id)) return 'vendor-supabase';
+          if (/node_modules\/lucide-react\//.test(id)) return 'icons';
+          return undefined;
         },
       },
     },

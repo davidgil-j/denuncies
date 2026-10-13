@@ -17,12 +17,14 @@ import { isDeepStrictEqual } from 'node:util';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FILE = path.join(ROOT, 'src', 'translations.js');
+// Els textos del panell viuen a part (es descarreguen només en entrar al panell)
+const PANEL_FILE = path.join(ROOT, 'src', 'translations-panel.js');
 const SELF = fileURLToPath(import.meta.url);
 const WRITE = process.argv.includes('--write');
 
 // ── 1. Totes les paraules del codi ─────────────────────────────────────
 const code = [];
-const read = (p) => { if (p !== FILE && p !== SELF) code.push(fs.readFileSync(p, 'utf8')); };
+const read = (p) => { if (p !== FILE && p !== PANEL_FILE && p !== SELF) code.push(fs.readFileSync(p, 'utf8')); };
 (function walk(dir) {
   for (const f of fs.readdirSync(dir)) {
     const p = path.join(dir, f);
@@ -39,7 +41,8 @@ const escape = (x) => x.replace(/[.*+?^()|[\]\\{}$]/g, (m) => `\\${m}`);
 const PLACE = /\$\{[^}]*\}/g;
 const dynamic = [...all.matchAll(/`([^`\n]*)`/g)]
   .map((m) => m[1])
-  .filter((t) => /^[A-Za-z_]*(\$\{[^}]*\}[A-Za-z_]*)+$/.test(t) && t.replace(PLACE, '').length > 0)
+  // Con al menos 3 letras fijas: `a${++n}` (una sola letra) no dice qué clave es y daba por usadas todas las que empiezan por «a»
+  .filter((t) => /^[A-Za-z_]*(\$\{[^}]*\}[A-Za-z_]*)+$/.test(t) && t.replace(PLACE, '').length >= 3)
   .map((t) => new RegExp(`^${t.split(PLACE).map(escape).join('.+')}$`));
 // Claus enganxades només de trossos (`${p}${many}` amb p = 'ack' i many = 'One'): es manté la clau si es pot
 // partir en dos o més trossos que apareixen tots com a cadenes al codi ('ack' + 'One' → «ackOne»)
@@ -55,7 +58,10 @@ function pieces(key) {
 const used = (key) => words.has(key) || dynamic.some((re) => re.test(key)) || pieces(key);
 
 // ── 2. Què es treu ─────────────────────────────────────────────────────
-const { translations } = await import(`${pathToFileURL(FILE).href}?t=${Date.now()}`);
+const { translations: base } = await import(`${pathToFileURL(FILE).href}?t=${Date.now()}`);
+const { panelTexts } = await import(`${pathToFileURL(PANEL_FILE).href}?t=${Date.now()}`);
+// Tots els textos junts, com els veu l'aplicació quan el panell és carregat
+const translations = Object.fromEntries(Object.keys(base).map(l => [l, { ...base[l], ...panelTexts[l] }]));
 const LANGS = Object.keys(translations);
 const dead = new Map(); // apartat → [claus]
 for (const [key, value] of Object.entries(translations.es)) {
@@ -77,13 +83,12 @@ console.log(`\n${total} claves sin uso (en cada uno de los ${LANGS.length} idiom
 if (!WRITE || !total) process.exit(0);
 
 // ── 3. Treure-les del text, respectant cometes, comentaris i claudàtors ──
-const src = fs.readFileSync(FILE, 'utf8');
 /** Rang [inici de la línia, fi de la propietat amb la coma i el salt de línia] de cada propietat, pel seu camí */
-function locate(text) {
+function locate(text, anchor) {
   const spans = new Map();
   const props = []; // propietats obertes: { key, start }
   const stack = []; // '{', '[', '(' o 'v' (dins del valor d'una propietat)
-  let i = text.indexOf('{', text.indexOf('translations')) + 1;
+  let i = text.indexOf('{', text.indexOf(anchor)) + 1;
   stack.push('{');
   const close = (end) => {
     const top = props.pop();
@@ -110,31 +115,40 @@ function locate(text) {
   }
   return spans;
 }
-const spans = locate(src);
-const cuts = [];
-for (const lang of LANGS) for (const p of paths) {
-  const span = spans.get([lang, ...p].join('.'));
-  if (!span) throw new Error(`No trobo ${lang}.${p.join('.')}`);
-  cuts.push(span);
-}
-// S'uneixen els talls seguits; si un grup sencer desapareix, també el comentari que el titulava
-cuts.sort((a, b) => a[0] - b[0]);
-const runs = [];
-for (const c of cuts) { const last = runs[runs.length - 1]; if (last && c[0] <= last[1]) last[1] = Math.max(last[1], c[1]); else runs.push([...c]); }
-for (const r of runs) {
-  const next = src.slice(r[1], src.indexOf('\n', r[1])).trim();
-  if (!(next.startsWith('//') || next.startsWith('}'))) continue;
-  for (;;) { const prev = src.lastIndexOf('\n', r[0] - 2) + 1; if (r[0] > 0 && src.slice(prev, r[0]).trim().startsWith('//')) r[0] = prev; else break; }
-}
-let out = src;
-for (const [a, b] of [...runs].reverse()) out = out.slice(0, a) + out.slice(b);
 
-// ── 4. Comprovar: el resultat ha de ser l'original menys el que s'ha tret ──
-const tmp = path.join(os.tmpdir(), `translations-check-${process.pid}.mjs`);
-fs.writeFileSync(tmp, out);
-const { translations: after } = await import(pathToFileURL(tmp).href);
-const expected = structuredClone(translations);
-for (const lang of LANGS) for (const p of paths) { let o = expected[lang]; for (const k of p.slice(0, -1)) o = o[k]; delete o[p[p.length - 1]]; }
-if (!isDeepStrictEqual(after, expected)) throw new Error('El resultat no coincideix amb l’original menys les claus tretes: no s’ha escrit res');
-fs.writeFileSync(FILE, out);
-console.log(`Escrit ${path.relative(ROOT, FILE)}: ${src.split('\n').length} → ${out.split('\n').length} línies. Comprovat: la resta de textos són idèntics.`);
+/** Treu de file les claus de paths que hi són; comprova que el resultat és l'original menys aquestes claus */
+async function cut(file, anchor, exportName, object) {
+  const src = fs.readFileSync(file, 'utf8');
+  const spans = locate(src, anchor);
+  const mine = paths.filter(p => spans.has([LANGS[0], ...p].join('.')));
+  if (!mine.length) return 0;
+  const cuts = [];
+  for (const lang of LANGS) for (const p of mine) {
+    const span = spans.get([lang, ...p].join('.'));
+    if (!span) throw new Error(`No trobo ${lang}.${p.join('.')} a ${path.basename(file)}`);
+    cuts.push(span);
+  }
+  // S'uneixen els talls seguits; si un grup sencer desapareix, també el comentari que el titulava
+  cuts.sort((a, b) => a[0] - b[0]);
+  const runs = [];
+  for (const c of cuts) { const last = runs[runs.length - 1]; if (last && c[0] <= last[1]) last[1] = Math.max(last[1], c[1]); else runs.push([...c]); }
+  for (const r of runs) {
+    const next = src.slice(r[1], src.indexOf('\n', r[1])).trim();
+    if (!(next.startsWith('//') || next.startsWith('}'))) continue;
+    for (;;) { const prev = src.lastIndexOf('\n', r[0] - 2) + 1; if (r[0] > 0 && src.slice(prev, r[0]).trim().startsWith('//')) r[0] = prev; else break; }
+  }
+  let out = src;
+  for (const [a, b] of [...runs].reverse()) out = out.slice(0, a) + out.slice(b);
+  // ── 4. Comprovar: el resultat ha de ser l'original menys el que s'ha tret ──
+  const tmp = path.join(os.tmpdir(), `textos-check-${process.pid}-${path.basename(file)}.mjs`);
+  fs.writeFileSync(tmp, out);
+  const after = (await import(pathToFileURL(tmp).href))[exportName];
+  const expected = structuredClone(object);
+  for (const lang of LANGS) for (const p of mine) { let o = expected[lang]; for (const k of p.slice(0, -1)) o = o[k]; delete o[p[p.length - 1]]; }
+  if (!isDeepStrictEqual(after, expected)) throw new Error(`${path.basename(file)}: el resultat no coincideix amb l’original menys les claus tretes: no s’ha escrit res`);
+  fs.writeFileSync(file, out);
+  console.log(`Escrit ${path.relative(ROOT, file)}: ${src.split('\n').length} → ${out.split('\n').length} línies. Comprovat: la resta de textos són idèntics.`);
+  return mine.length;
+}
+await cut(FILE, 'translations', 'translations', base);
+await cut(PANEL_FILE, 'panelTexts', 'panelTexts', panelTexts);

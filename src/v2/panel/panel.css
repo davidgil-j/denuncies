@@ -471,3 +471,18 @@ button.sh-step:disabled { cursor: progress; }
   #print-area .code-actions { display: none !important; }
   #print-area .print-only { display: block; font-size: 14px; line-height: 1.5; }
 }
+
+/* C-2 y C-3 · Contraste alto de Windows: una casilla sin marcar no parece marcada, y las barras del informe se ven */
+@media (forced-colors: active) {
+  .tm-tick span svg { visibility: hidden; }
+  .tm-tick input:is(:checked, :indeterminate) + span { forced-color-adjust: none; border-color: Highlight; background: Highlight; color: HighlightText; }
+  .tm-tick input:is(:checked, :indeterminate) + span svg { visibility: visible; }
+  .rp-bar i, .rp-topics i { forced-color-adjust: none; background: GrayText; }
+  .rp-bar.is-max i, .rp-topics i.is-max { background: CanvasText; }
+}
+
+/* Aviso de sesión cerrada por inactividad (A1-13) */
+.ac-idle { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: var(--soft); color: var(--ink); font-size: 14px; font-weight: 700; line-height: 1.45; }
+
+/* D-7 · En el móvil, el titular del tablero reserva dos líneas: «Tablero» mientras carga y «3 casos te necesitan hoy» después */
+@media (max-width: 640px) { .pn-hello .ds-h1 { min-height: 2lh; } }

@@ -141,7 +141,7 @@ const skeleton = (page) => page.evaluate(() => [...document.querySelectorAll('.c
   await p2.getByRole('button', { name: 'Ver mi caso' }).click();
   await p2.waitForSelector('.mc');
   ok('quien denuncia no ve ni el resumen ni el título de la IA', await p2.getByText(/\bIA\b|Comentarios y trato humillante|Resumen/).count() === 0);
-  await p2.goto(`${ON}/canal/demo/denuncia?lang=es`, { waitUntil: 'networkidle' });
+  await p2.goto(`${ON}/canal/demo/formulario?lang=es`, { waitUntil: 'networkidle' });
   await p2.waitForSelector('.flow');
   ok('el formulario de denuncia no tiene nada de IA', await p2.getByText(/\bIA\b/).count() === 0);
   ok('ninguna petición sale del ordenador (la demo no llama a ningún servicio)', on.outside.length === 0, on.outside.slice(0, 2).join(' '));
