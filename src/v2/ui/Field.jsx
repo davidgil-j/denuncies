@@ -4,8 +4,8 @@ import { cx } from './text.jsx';
 
 /**
  * Campo con su etiqueta, su ayuda y su error. as: input | textarea | select (las opciones, como hijos).
- * size: md (54) | sm (44). plain: sin borde, para tarjetas grises. warn: ámbar, con la ayuda como aviso.
- * code: la casilla enorme del código secreto. onReport: el campo va directamente sobre el azul.
+ * size: md (40) | sm (36). plain: para tarjetas grises. warn: ámbar, con la ayuda como aviso.
+ * code: el código de seguimiento, en letra grande y espaciada. onReport: el campo va directamente sobre el color.
  * tag: «opcional», junto a la etiqueta.
  */
 const Field = forwardRef(function Field(

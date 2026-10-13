@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
-import { ArrowRight, Check, KeyRound, Ellipsis, MessageSquareReply, CircleAlert, CircleCheck } from 'lucide-react';
+import { ArrowRight, Check, Ellipsis, MessageSquare, CircleAlert } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { getComplaintByCode, getReporterMessages, sendReporterMessage, requestMeetingByCode } from '../../lib/supabase.js';
 import { fmt } from '../V2Layout.jsx';
 import { Button, IconButton, ChatThread, ChatComposer, Dialog, Field, StepBar, cx } from '../ui/index.js';
-import { CanalHead, Tc, respDue, dayMonth, dayShort } from './shared.jsx';
+import { CanalHead, FlowTop, Tc, ic, respDue, dayMonth, dayShort } from './shared.jsx';
 import { LOCALES } from '../../lib/format.js';
 
 // Formato real del código: 8 caracteres con guion en medio (A3B7-C9X2). Se acepta pegado con o sin
@@ -29,7 +29,7 @@ function progress(c) {
 }
 
 export default function Consulta() {
-  const { lang, org, base } = useOutletContext();
+  const { lang, setLang, org, base } = useOutletContext();
   const location = useLocation();
   const navigate = useNavigate();
   const t = translations[lang].canal;
@@ -39,8 +39,6 @@ export default function Consulta() {
   const [result, setResult] = useState(null);
   useEffect(() => { document.title = `${result ? t.docCase : t.docLookup} · ${t.ethics} · ${org.name}`; }, [t, org, result]);
   const inputRef = useRef(null);
-
-
 
   async function search(e, override) {
     e?.preventDefault();
@@ -70,7 +68,7 @@ export default function Consulta() {
   if (result) {
     return (
       <MiCaso
-        lang={lang} org={org} c={result}
+        lang={lang} setLang={setLang} org={org} c={result}
         onRefresh={async () => { const { complaint } = await getComplaintByCode(result.tracking_code); if (complaint) setResult(complaint); }}
         onLeave={() => { setResult(null); setCode(''); navigate(base, { replace: true }); }}
       />
@@ -79,24 +77,26 @@ export default function Consulta() {
 
   return (
     <form className="flow" onSubmit={search} noValidate>
-      <CanalHead lang={lang} org={org} />
-      <div className="codebox">
-        <span className="codebox-ico" aria-hidden="true"><KeyRound size={34} strokeWidth={1.7} /></span>
-        <Tc as="h1" className="ds-h1" lang={lang} k="caseTitle" />
-        <Tc as="p" className="ds-lead" lang={lang} k="caseLead" />
-        <Field
-          ref={inputRef} code onReport label={<Tc lang={lang} k="code" />} value={code} placeholder="XXXX-XXXX"
-          autoComplete="off" autoCapitalize="characters" autoCorrect="off" spellCheck={false} enterKeyHint="search" inputMode="text"
-          error={error && t[error]}
-          onChange={e => { setCode(formatCode(e.target.value)); setError(null); }}
-        />
-        <Button type="submit" variant="ink" size="lg" full busy={loading} iconEnd={<ArrowRight size={20} strokeWidth={2.2} aria-hidden="true" />}>
-          <Tc lang={lang} k={loading ? 'seeing' : 'seeCase'} />
-        </Button>
-        <p className="notebox"><b>{t.lostB}</b> {t.lostD}</p>
-      </div>
-      <div className="flow-actions">
-        <Button variant="shade" size="lg" to={base} replace><Tc lang={lang} k="back" /></Button>
+      <CanalHead lang={lang} setLang={setLang} org={org} />
+      <div className="flow-body">
+        <FlowTop lang={lang} base={base} />
+        <div className="flow-q">
+          <Tc as="h1" className="ds-h1" lang={lang} k="caseTitle" />
+          <Tc as="p" className="ds-lead" lang={lang} k="caseLead" />
+        </div>
+        {/* El campo y su botón, a la misma altura */}
+        <div className="codebox">
+          <Field
+            ref={inputRef} code label={<Tc lang={lang} k="code" />} value={code} placeholder="XXXX-XXXX"
+            autoComplete="off" autoCapitalize="characters" autoCorrect="off" spellCheck={false} enterKeyHint="search" inputMode="text"
+            error={error && t[error]}
+            onChange={e => { setCode(formatCode(e.target.value)); setError(null); }}
+          />
+          <Button type="submit" variant="report" size="xl" className="codebox-go" busy={loading} iconEnd={ic(ArrowRight, 18)}>
+            <Tc lang={lang} k={loading ? 'seeing' : 'seeCase'} />
+          </Button>
+        </div>
+        <p className="flow-note"><span><b>{t.lostB}</b> {t.lostD}</span></p>
       </div>
     </form>
   );
@@ -123,7 +123,7 @@ function CaseSide({ lang, c, p, onMeeting, meetBusy, meetErr }) {
           const isNow = !s.done && ((i === 1 && !p.received) || (i === 2 && p.investigating));
           return (
             <li key={i} className={cx(s.done && 'is-done', isNow && 'is-now')} aria-current={isNow ? 'step' : undefined}>
-              <span className="tl-dot" aria-hidden="true">{s.done && <Check size={14} strokeWidth={3} />}</span>
+              <span className="tl-dot" aria-hidden="true">{s.done && <Check size={12} strokeWidth={2.4} />}</span>
               <span className="tl-txt">
                 <b>{t.tl[i]}<span className="ds-vh"> · {s.done ? t.tlDone : isNow ? t.tlNow : t.tlNext}</span></b>
                 <small>{s.sub ?? (s.done ? '' : i === 2 && isNow ? t.now : t.pending)}</small>
@@ -135,12 +135,12 @@ function CaseSide({ lang, c, p, onMeeting, meetBusy, meetErr }) {
       {/* Pedir reunión: solo si la base de datos ya lo permite (migración 012). Hasta entonces la consulta
           por código no devuelve «meeting_requested» y el recuadro no se ofrece. */}
       {c.meeting_requested != null && !p.answered && (
-        <div className="notebox">
+        <div className="mc-meet">
           {c.meeting_requested ? t.meetAsked : (
             <>
               {t.meetQ}{' '}
-              <button type="button" className="linkbtn is-on-report" onClick={onMeeting} aria-busy={meetBusy || undefined}>{meetBusy ? t.meetAsking : t.meetAsk}</button>
-              {meetErr && <span className="notebox-err" role="alert"> {t.meetErr}</span>}
+              <button type="button" className="linkbtn" onClick={onMeeting} aria-busy={meetBusy || undefined}>{meetBusy ? t.meetAsking : t.meetAsk}</button>
+              {meetErr && <span className="mc-meet-err" role="alert"> {t.meetErr}</span>}
             </>
           )}
         </div>
@@ -149,7 +149,8 @@ function CaseSide({ lang, c, p, onMeeting, meetBusy, meetErr }) {
   );
 }
 
-function MiCaso({ lang, org, c, onRefresh, onLeave }) {
+/** Mi caso: el estado en una línea con su fecha y la conversación como bloque principal */
+function MiCaso({ lang, setLang, org, c, onRefresh, onLeave }) {
   const t = translations[lang].canal;
   const code = c.tracking_code;
   const p = progress(c);
@@ -203,50 +204,53 @@ function MiCaso({ lang, org, c, onRefresh, onLeave }) {
     id: m.id, mine: m.sender === 'reporter', author: m.sender === 'reporter' ? null : org.name, when: dayShort(m.created_at, lang), text: m.content,
   }));
 
+  const due = fmt(t.byDate, { date: dayMonth(respDue(c.created_at, c.extended_until), lang) });
+
   return (
     <div className="flow mc-page">
-      <CanalHead lang={lang} org={org}>
-        <IconButton variant="shade" className="mc-more" label={t.moreCase} onClick={() => setMenu(true)}><Ellipsis size={20} strokeWidth={2.4} aria-hidden="true" /></IconButton>
-        <Button variant="shade" size="sm" className="mc-leave" onClick={onLeave}><Tc lang={lang} k="leaveCase" /></Button>
+      <CanalHead lang={lang} setLang={setLang} org={org}>
+        <IconButton variant="soft" size="xs" className="mc-more" label={t.moreCase} onClick={() => setMenu(true)}>{ic(Ellipsis, 18)}</IconButton>
+        <Button variant="soft" size="xs" className="mc-leave" onClick={onLeave}><Tc lang={lang} k="leaveCase" /></Button>
       </CanalHead>
-      <div className="mc">
+      <div className="flow-body mc">
         <div className="mc-status">
           <span className="mc-code">{fmt(t.yourCase, { code })}</span>
-          <Tc as="h1" className="ds-h1 is-sm" lang={lang} pick={x => x.st[p.key]} ref={headRef} tabIndex={-1} />
-          <div className="mc-bar">
-            <StepBar lang={lang} total={4} current={p.at} compact />
-            {!p.answered && <span>{fmt(t.byDate, { date: dayMonth(respDue(c.created_at, c.extended_until), lang) })}</span>}
+          <div className="mc-state">
+            <Tc as="h1" className="ds-h1 is-sm" lang={lang} pick={x => x.st[p.key]} ref={headRef} tabIndex={-1} />
+            {!p.answered && <span className="mc-due">{t.tl[3]} · {due}</span>}
           </div>
+          <StepBar lang={lang} total={4} current={p.at} compact className="mc-bar" />
         </div>
-        <div className="mc-side">{side}</div>
+        <div className="mc-cols">
+          <div className="mc-side">{side}</div>
 
-        <section className="mc-chat ds-on-white" aria-labelledby="mc-chat-t">
-          <div className="mc-chat-head"><Tc as="h2" lang={lang} k="msgs" id="mc-chat-t" /><Tc lang={lang} k="msgsNote" /></div>
-          <div className="mc-thread">
-            {messages === null
-              ? <div className="mc-skel" aria-hidden="true"><span className="ds-skel" style={{ width: '60%', height: 52 }} /><span className="ds-skel" style={{ width: '45%', height: 52 }} /></div>
-              : msgErr
-                ? <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={2.2} aria-hidden="true" />{t.msgLoadErr} <Button variant="soft" size="xs" onClick={() => { setMessages(null); setMsgTry(n => n + 1); }}>{t.retry}</Button></p>
-                : <ChatThread lang={lang} messages={thread} empty={t.msgEmpty}><span ref={endRef} /></ChatThread>}
-          </div>
-          <div className="mc-compose">
-            {p.answered && (
-              <p className="okbox" role="note">
-                <CircleCheck size={18} strokeWidth={2.2} aria-hidden="true" />
-                <span><b>{c.answered_at ? fmt(t.closedOn, { date: fLongDay(c.answered_at, lang) }) : t.closedNoDate}</b> {t.closedMore}</span>
-              </p>
-            )}
-            {c.status === 'waiting' && <p className="warnbox" role="note"><MessageSquareReply size={18} strokeWidth={2} aria-hidden="true" />{t.waiting}</p>}
-            {sendErr && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={2.2} aria-hidden="true" />{t.msgErr}</p>}
-            <ChatComposer lang={lang} id="mc-msg" value={draft} onChange={setDraft} onSend={send} busy={sending} />
-            <p className="mc-tip">{t.msgTip} {t.hidden}</p>
-          </div>
-        </section>
+          <section className="mc-chat" aria-labelledby="mc-chat-t">
+            <div className="mc-chat-head">{ic(MessageSquare, 17)}<Tc as="h2" lang={lang} k="msgs" id="mc-chat-t" /><Tc lang={lang} k="msgsNote" className="mc-chat-note" /></div>
+            <div className="mc-thread">
+              {messages === null
+                ? <div className="mc-skel" aria-hidden="true"><span className="ds-skel" style={{ width: '60%', height: 44 }} /><span className="ds-skel" style={{ width: '45%', height: 44 }} /></div>
+                : msgErr
+                  ? <p className="flow-note" role="alert"><span>{t.msgLoadErr} <button type="button" className="linkbtn" onClick={() => { setMessages(null); setMsgTry(n => n + 1); }}>{t.retry}</button></span></p>
+                  : <ChatThread lang={lang} messages={thread} empty={t.msgEmpty}><span ref={endRef} /></ChatThread>}
+            </div>
+            <div className="mc-compose">
+              {p.answered && (
+                <p className="flow-note mc-closed" role="note">
+                  <span><b>{c.answered_at ? fmt(t.closedOn, { date: fLongDay(c.answered_at, lang) }) : t.closedNoDate}</b> {t.closedMore}</span>
+                </p>
+              )}
+              {c.status === 'waiting' && <p className="mc-wait" role="note"><span className="state-dot" aria-hidden="true" />{t.waiting}</p>}
+              {sendErr && <p className="ds-field-error" role="alert">{ic(CircleAlert, 16)}{t.msgErr}</p>}
+              <ChatComposer lang={lang} id="mc-msg" value={draft} onChange={setDraft} onSend={send} busy={sending} />
+              <p className="mc-tip">{t.msgTip} {t.hidden}</p>
+            </div>
+          </section>
+        </div>
       </div>
 
       <Dialog
         open={menu} onClose={() => setMenu(false)} title={t.caseMenu} closeLabel={t.close} className="mc-menu"
-        actions={<Button variant="ink" size="md" full onClick={onLeave}>{t.leaveCase}</Button>}
+        actions={<Button variant="soft" size="md" full onClick={onLeave}>{t.leaveCase}</Button>}
       >
         <div className="mc-menu-side">{side}</div>
       </Dialog>

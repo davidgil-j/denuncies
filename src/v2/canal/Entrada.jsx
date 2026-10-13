@@ -1,101 +1,82 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MessageSquare, LayoutDashboard, EyeOff, Clock, Shield, CalendarDays, FileText, Lock, ArrowRight, ArrowUpRight, MonitorSmartphone, KeyRound } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, MonitorSmartphone } from 'lucide-react';
 import { translations } from '../../translations.js';
-import { LANGS, AIPI_URL, BOE_URL, Stable, fmt } from '../V2Layout.jsx';
+import { AIPI_URL, BOE_URL, fmt } from '../V2Layout.jsx';
 import Ficha from '../Ficha.jsx';
-import { Button, Chip, Chips, Dialog, OrgMark, Segmented } from '../ui/index.js';
-import { QuickExit, Tc } from './shared.jsx';
+import { Button, Dialog } from '../ui/index.js';
+import { LangPick, QuickExit, Tc, ic } from './shared.jsx';
 
-const arrow = <ArrowRight size={22} strokeWidth={2.2} aria-hidden="true" />;
-const ico = (Icon) => <Icon size={16} strokeWidth={2} aria-hidden="true" />;
+const arrow = ic(ArrowRight, 18);
 
-/** Cabecera de la entrada: empresa, idioma en píldora y «Salir rápido» */
+/** Cabecera de la entrada: la empresa sobre el color y, sobre el blanco, el idioma y «Salir rápido» */
 export function EntryTop({ lang, setLang, org }) {
   const t = translations[lang];
   useEffect(() => { document.title = `${t.canal.ethics} · ${org.name}`; }, [t, org]);
   return (
     <>
       <div className="entry-brand">
-        <OrgMark name={org.name} />
         <b title={org.name}>{org.name}</b>
         <Tc lang={lang} k="ethics" className="entry-brand-sub" />
       </div>
       <div className="entry-tools">
-        <Segmented
-          className="entry-lang" label={t.v2.langGroup} value={lang} onChange={setLang}
-          options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: `${l.toUpperCase()} · ${translations[l].langName}`, lang: l }))}
-        />
+        <LangPick lang={lang} setLang={setLang} />
         <QuickExit lang={lang} />
       </div>
     </>
   );
 }
 
-/** Tarjeta azul: Denunciar */
+/** La mitad del color: Denunciar, con sus dos acciones igual de visibles */
 export function EntryReport({ lang, base }) {
   const t = translations[lang].canal;
   return (
     <>
-      <span className="entry-ico" aria-hidden="true"><MessageSquare size={40} strokeWidth={1.6} /></span>
-      <div className="entry-main">
-        <Tc as="h1" className="ds-hero" lang={lang} k="report" />
-        <Tc as="p" className="ds-lead entry-lead" lang={lang} k="reportLead" />
-        <Chips size="lg" className="entry-chips">
-          {[EyeOff, Clock, Shield].map((Icon, i) => <Chip key={i} tone="shade" size="lg" icon={ico(Icon)}>{t.trust[i]}</Chip>)}
-        </Chips>
-      </div>
-      <div className="entry-foot">
-        {/* Botón secundario, oscurecido sobre el azul: quien ya denunció vuelve por aquí con su código */}
-        <Button variant="shade" size="xl" className="entry-again" to={`${base}/consulta`} replace icon={<KeyRound size={20} strokeWidth={2.2} aria-hidden="true" />}>{t.already}</Button>
+      <Tc as="h1" className="ds-hero" lang={lang} k="report" />
+      <Tc as="p" className="entry-lead" lang={lang} k="reportLead" />
+      <div className="entry-acts">
         <Button variant="white" size="xl" className="entry-go" to={`${base}/formulario`} replace aria-label={t.startAria} iconEnd={arrow}><Tc lang={lang} k="start" /></Button>
+        {/* Quien ya denunció vuelve por aquí con su código */}
+        <div className="entry-act">
+          <Button variant="shade" size="xl" className="entry-again" to={`${base}/consulta`} replace aria-label={t.already}><Tc lang={lang} k="already" /></Button>
+          <Tc lang={lang} k="alreadyHelp" className="entry-help" />
+        </div>
       </div>
     </>
   );
 }
 
 /**
- * Tarjeta blanca: Gestionar. En el móvil es una tarjeta baja que entera es el enlace.
- * En el canal de ejemplo no hay panel al que entrar: el botón lleva a crear el canal propio y lo dice.
+ * La mitad blanca: Gestionar. En el canal de ejemplo no hay panel al que entrar: el botón lleva a crear
+ * el canal propio y lo dice.
  */
-export function EntryManage({ lang, org, to, example }) {
-  const t = translations[lang].canal;
-  const vars = { org: org.name };
-  const k = example
-    ? { note: 'exManageNote', cta: 'exManageCta', short: 'exManageShort' }
-    : { note: 'twoStep', cta: 'access', short: 'manageShort' };
+export function EntryManage({ lang, org, to, example, onGo }) {
+  const k = example ? { note: 'exManageNote', cta: 'exManageCta' } : { note: 'twoStep', cta: 'access' };
   return (
     <>
-      <div className="entry-wide">
-        <span className="entry-ico" aria-hidden="true"><LayoutDashboard size={40} strokeWidth={1.6} /></span>
-        <div className="entry-main">
-          <Tc as="h2" className="ds-hero" lang={lang} k="manage" />
-          <Tc as="p" className="ds-lead entry-lead" lang={lang} k="manageLead" vars={vars} />
-          <Chips size="lg" className="entry-chips">
-            {[CalendarDays, FileText, Lock].map((Icon, i) => <Chip key={i} size="lg" icon={ico(Icon)}>{t.manageTrust[i]}</Chip>)}
-          </Chips>
-        </div>
-        <div className="entry-foot">
-          <Tc lang={lang} k={k.note} className="entry-note" />
-          <Button variant="ink" size="xl" to={to} iconEnd={arrow}><Tc lang={lang} k={k.cta} /></Button>
+      <Tc as="h2" className="ds-hero" lang={lang} k="manage" />
+      <Tc as="p" className="entry-lead" lang={lang} k="manageLead" vars={{ org: org.name }} />
+      <div className="entry-acts">
+        <div className="entry-act is-start">
+          <Button variant="line" size="xl" className="entry-go" to={to} onClick={onGo} iconEnd={arrow}><Tc lang={lang} k={k.cta} /></Button>
+          <Tc lang={lang} k={k.note} className="entry-help" />
         </div>
       </div>
-      <Link className="entry-compact" to={to}>
-        <span className="entry-compact-txt">
-          <Tc lang={lang} k="manage" className="entry-compact-t" />
-          <Tc lang={lang} k={k.short} vars={vars} className="entry-compact-s" />
-        </span>
-        <span className="entry-compact-go" aria-hidden="true"><ArrowRight size={20} strokeWidth={2.2} /></span>
-      </Link>
     </>
   );
 }
 
+/** La línea legal del canal */
+export function EntryLegal({ lang, org }) {
+  return <span className="entry-legal">{fmt(translations[lang].canal.footSystem, { org: org.name })}</span>;
+}
+
 /**
- * Pie de la entrada. Los canales externos (art. 7.2) y «qué guardamos y qué no» se abren en un panel:
- * son los mismos textos que tenía la página anterior del canal.
+ * Los enlaces del pie. Los canales externos (art. 7.2) y «qué guardamos y qué no» se abren en un panel:
+ * son los mismos textos que tenía la página anterior del canal. full: en el pie ancho de las pantallas de
+ * Denunciar el enlace nombra las autoridades; en la entrada, donde solo tiene media pantalla, va corto.
  */
-export function EntryBottom({ lang, org, base }) {
+export function EntryLinks({ lang, org, base, full = false }) {
   const [panel, setPanel] = useState(null); // ext | kept
   const T = translations[lang];
   const t = T.canal;
@@ -107,12 +88,10 @@ export function EntryBottom({ lang, org, base }) {
   ];
   return (
     <>
-      <span className="entry-legal">{fmt(t.footSystem, { org: org.name })}</span>
       <span className="entry-links">
         <Link to={`${base}/privacidad`} replace>{t.footPrivacy}</Link>
         <button type="button" className="entry-linkbtn" onClick={() => setPanel('ext')}>
-          <span className="ds-wide">{regional ? fmt(t.footExtWith, { name: regional.name }) : t.footExt}</span>
-          <span className="ds-narrow">{t.footExtShort}</span>
+          {full ? (regional ? fmt(t.footExtWith, { name: regional.name }) : t.footExt) : t.footExtShort}
         </button>
         <button type="button" className="entry-linkbtn" onClick={() => setPanel('kept')}>{t.footKept}</button>
         <a href={BOE_URL} target="_blank" rel="noopener noreferrer" className="ds-narrow">{t.law}</a>
@@ -126,7 +105,7 @@ export function EntryBottom({ lang, org, base }) {
             <li key={e.href}>
               <a href={e.href} target="_blank" rel="noopener noreferrer">
                 <span><b>{e.name}</b><small>{e.note}</small></span>
-                <ArrowUpRight size={18} strokeWidth={2} aria-hidden="true" /><span className="ds-vh"> {v.extOpens}</span>
+                {ic(ArrowUpRight, 18)}<span className="ds-vh"> {v.extOpens}</span>
               </a>
             </li>
           ))}
@@ -141,7 +120,7 @@ export function EntryBottom({ lang, org, base }) {
 
       <Dialog side open={panel === 'kept'} onClose={() => setPanel(null)} title={t.footKept} closeLabel={t.close}>
         <div className="v2 panel-ficha"><Ficha lang={lang} as="div" /></div>
-        <p className="panel-tip"><MonitorSmartphone size={18} strokeWidth={2} aria-hidden="true" /><span><b>{v.tipTitle}</b> {v.tipText}</span></p>
+        <p className="panel-tip">{ic(MonitorSmartphone, 18)}<span><b>{v.tipTitle}</b> {v.tipText}</span></p>
       </Dialog>
     </>
   );

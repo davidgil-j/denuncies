@@ -22,7 +22,9 @@
 .ds .pn-brand-link { color: var(--ink); }
 .pn-chiplink { text-decoration: none; display: inline-flex; }
 .pn-tools { display: flex; align-items: center; gap: 10px; }
-.pn-avatar { padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; display: inline-flex; }
+.pn-avatar { padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+/* En el móvil el avatar es pequeño, pero se toca en un cuadrado de 44 px */
+@media (max-width: 640px) { .pn-avatar { min-width: 44px; min-height: 44px; } }
 .pn-me-lang { padding: 2px 8px 6px; }
 .pn-main { display: flex; flex-direction: column; gap: 24px; min-width: 0; flex: 1; }
 .pn-page { display: flex; flex-direction: column; gap: 24px; min-width: 0; }

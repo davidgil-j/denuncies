@@ -109,10 +109,10 @@ const last = (method, path) => [...log].reverse().find(l => l.method === method 
 
 // El canal de una empresa de verdad: «Gestionar» sigue llevando al acceso
 await page.goto(`${APP}/canal/acme?lang=es`, { waitUntil: 'networkidle' });
-await page.waitForSelector('.entry-main');
-const href = await page.locator('.entry-wide .ds-btn').getAttribute('href');
+await page.waitForSelector('.ds-hero');
+const href = await page.locator('.ds-pane.is-manage .entry-go').getAttribute('href');
 ok('canal real: «Gestionar» lleva al acceso con el nombre de la empresa', href === '/admin/login?from=acme&lang=es', href);
-ok('canal real: el botón dice «Acceder», no «Crear mi canal»', await page.locator('.entry-wide .ds-btn', { hasText: 'Acceder' }).count() === 1 && await page.getByText('Crear mi canal').count() === 0);
+ok('canal real: el botón dice «Acceder», no «Crear mi canal»', await page.getByRole('link', { name: 'Acceder' }).count() === 1 && await page.getByText('Crear mi canal').count() === 0);
 
 await page.goto(`${APP}/admin/login?lang=es`, { waitUntil: 'networkidle' });
 await page.getByLabel('Correo').fill(USER.email);
@@ -226,7 +226,12 @@ if (SCENE === 'nueva') {
   ok('tablero: ya van 3/5', (await page.locator('.pn-ring b').innerText()) === '3/5', await page.locator('.pn-steps-txt').innerText());
   await page.goto(`${APP}/canal/acme?lang=es`, { waitUntil: 'networkidle' });
   await page.waitForSelector('.entry-links');
-  ok('el canal de la empresa enseña la autoridad elegida', (await page.locator('.entry-links').innerText()).includes('Oficina Antifrau de Catalunya'));
+  await page.getByRole('button', { name: 'Canales externos' }).click();
+  ok('el canal de la empresa enseña la autoridad elegida', await page.getByRole('dialog').getByText('Oficina Antifrau de Catalunya').isVisible());
+  await page.keyboard.press('Escape');
+  await page.goto(`${APP}/canal/acme/consulta?lang=es`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('.codebox');
+  ok('y la nombra en el pie de las pantallas de Denunciar', (await page.locator('.ds-split-bottom .entry-links').innerText()).includes('Oficina Antifrau de Catalunya'));
 }
 
 if (SCENE === 'sin012') {

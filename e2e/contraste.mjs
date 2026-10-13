@@ -55,6 +55,8 @@ await page.locator('.entry-linkbtn').nth(1).click(); await page.locator('dialog[
 await go('/canal/demo/formulario?lang=es', '.cats'); await check('canal · paso 1');
 await page.getByRole('radio', { name: /Fraude/ }).click(); await check('canal · paso 1 con tema elegido');
 await page.getByRole('button', { name: 'Continuar' }).click(); await page.waitForSelector('#dn-description');
+await page.locator('input[type=file]').setInputFiles({ name: 'prueba.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') }); await check('canal · paso 2 con un archivo');
+await page.getByRole('button', { name: 'Qué datos se quitan de los archivos' }).click(); await page.locator('dialog[open]').waitFor(); await check('canal · qué datos se quitan'); await page.keyboard.press('Escape');
 await page.getByRole('button', { name: 'Continuar' }).click(); await check('canal · paso 2 con error');
 await page.fill('#dn-description', 'Un proveedor factura cada mes servicios de limpieza que no se prestan en la nave 2 desde marzo.'); await check('canal · paso 2');
 await page.getByRole('button', { name: 'Continuar' }).click(); await page.waitForSelector('.opts');
@@ -67,6 +69,7 @@ await page.waitForSelector('.mc'); await check('canal · mi caso recién enviada
 await go('/canal/demo/consulta?lang=es', 'form'); await check('canal · escribir el código');
 await page.getByLabel('Tu código').fill('ZZZZ9999'); await page.getByRole('button', { name: 'Ver mi caso' }).click(); await page.waitForTimeout(900); await check('canal · código que no existe');
 await page.getByLabel('Tu código').fill('F4QJ7MBN'); await page.getByRole('button', { name: 'Ver mi caso' }).click(); await page.waitForSelector('.mc'); await check('canal · mi caso cerrado');
+await go('/canal/demo/consulta?lang=es', 'form'); await page.getByLabel('Tu código').fill('T8GH5RWD'); await page.getByRole('button', { name: 'Ver mi caso' }).click(); await page.waitForSelector('.mc-wait'); await check('canal · mi caso esperando tu respuesta');
 await go('/canal/demo/privacidad?lang=es', '.priv-sec'); await check('canal · privacidad');
 await go('/canal/no-existe?lang=es', '.canal-lost'); await check('canal · no existe');
 await page.evaluate(() => { sessionStorage.clear(); });

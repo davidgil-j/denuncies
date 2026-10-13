@@ -1,18 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { ArrowRight, Check, TriangleAlert } from 'lucide-react';
+import { ArrowRight, Copy, Download, Printer, ListChecks, TriangleAlert } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { fmt, Swap } from '../V2Layout.jsx';
 import { Button, Dialog } from '../ui/index.js';
 import { uploadAttachments } from '../../lib/supabase.js';
-import { CanalHead, Tc, ackDue, respDue, dayMonth, dateTime } from './shared.jsx';
+import { CanalHead, Tc, ic, ackDue, respDue, dayMonth, dateTime } from './shared.jsx';
 
 // Subidas ya empezadas (una sola vez por envío, aunque la pantalla se vuelva a montar)
 const started = new WeakSet();
 
-/** Enviada: el código secreto, cómo guardarlo y qué pasa ahora, con las fechas reales */
+/** Enviada: el código secreto lo primero, cómo guardarlo y, en tres líneas, qué pasa ahora, con las fechas reales */
 export default function Enviada() {
-  const { lang, org, base, sent, setSent } = useOutletContext();
+  const { lang, setLang, org, base, sent, setSent } = useOutletContext();
   const navigate = useNavigate();
   const t = translations[lang].canal;
   const [copied, setCopied] = useState(false);
@@ -60,7 +60,7 @@ export default function Enviada() {
     }
     setCopied(true);
     secure();
-    setTimeout(() => setCopied(false), 2500);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   const dates = { ack: dayMonth(ackDue(createdAt), lang), resp: dayMonth(respDue(createdAt), lang) };
@@ -100,53 +100,53 @@ export default function Enviada() {
 
   return (
     <div className="flow">
-      <CanalHead lang={lang} org={org} />
-      <div className="sent">
-        <div className="sent-main">
-          <span className="sent-ok" aria-hidden="true"><Check size={30} strokeWidth={2.6} /></span>
+      <CanalHead lang={lang} setLang={setLang} org={org} />
+      <div className="flow-body is-narrow">
+        <div className="flow-q">
           <Tc as="h1" className="ds-h1" lang={lang} k="sentTitle" ref={headRef} tabIndex={-1} />
           <Tc as="p" className="ds-lead" lang={lang} k="sentLead" />
-          <div className="code-card ds-on-white" id="print-area">
-            <Tc lang={lang} k="yourCode" className="code-label" />
-            <span className="code-big" ref={codeRef} aria-hidden="true">{code}</span>
-            <span className="ds-vh">{code.split('').join(' ')}</span>
-            <div className="code-actions">
-              <Button variant="ink" size="md" onClick={copy}><Swap lang={lang} on={copied} pick={T => T.canal.copy} pickOn={T => T.canal.copied} /></Button>
-              <Button variant="soft" size="md" onClick={receipt} busy={busy}><Tc lang={lang} k="receipt" /></Button>
-              <Button variant="soft" size="md" onClick={print}><Tc lang={lang} k="print" /></Button>
-            </div>
-            <p className="print-only">{t.rcKeep} {t.n1}: {fmt(t.byDate, { date: dates.ack })}. {t.n3}: {fmt(t.byDate, { date: dates.resp })}.</p>
-          </div>
-          {uploading && <p className="sent-law" role="status">{fmt(t.filesUploading, { n: uploaded ?? 0, total: uploads.length })}</p>}
-          {failed > 0 && (
-            <p className="flow-error" role="alert"><TriangleAlert size={18} strokeWidth={2.2} aria-hidden="true" />{failed === 1 ? t.filesFailed1 : fmt(t.filesFailedN, { n: failed })}</p>
-          )}
         </div>
+        <div className="code-card" id="print-area">
+          <Tc lang={lang} k="yourCode" className="code-label" />
+          <span className="code-big" ref={codeRef} aria-hidden="true">{code}</span>
+          <span className="ds-vh">{code.split('').join(' ')}</span>
+          <div className="code-actions">
+            {/* «Copiar» es el único botón principal de la pantalla */}
+            <Button variant="report" size="md" onClick={copy} icon={ic(Copy, 16)}><Swap lang={lang} on={copied} pick={T => T.canal.copy} pickOn={T => T.canal.copied} /></Button>
+            <Button variant="soft" size="md" onClick={receipt} busy={busy} icon={ic(Download, 16)}><Tc lang={lang} k="receipt" /></Button>
+            <Button variant="soft" size="md" onClick={print} icon={ic(Printer, 16)}><Tc lang={lang} k="print" /></Button>
+          </div>
+          <p className="print-only">{t.rcKeep} {t.n1}: {fmt(t.byDate, { date: dates.ack })}. {t.n3}: {fmt(t.byDate, { date: dates.resp })}.</p>
+        </div>
+        {uploading && <p className="flow-status" role="status">{fmt(t.filesUploading, { n: uploaded ?? 0, total: uploads.length })}</p>}
+        {failed > 0 && (
+          <p className="flow-error" role="alert">{ic(TriangleAlert, 18)}{failed === 1 ? t.filesFailed1 : fmt(t.filesFailedN, { n: failed })}</p>
+        )}
 
-        <div className="sent-next">
-          <Tc as="h2" lang={lang} k="nextT" className="sent-next-t" />
+        <section className="sent-next" aria-labelledby="sent-next-t">
+          <div className="flow-sec-head">{ic(ListChecks, 17)}<Tc as="h2" lang={lang} k="nextT" id="sent-next-t" /></div>
           <ol>
             {[['n1', c => fmt(c.byDate, { date: dates.ack })], ['n2', c => c.n2d], ['n3', c => fmt(c.byDate, { date: dates.resp })]].map(([k, detail], i) => (
-              <li key={k} className={i === 0 ? 'is-first' : undefined}>
-                <span className="sent-n" aria-hidden="true">{i + 1}</span>
+              <li key={k}>
+                <span className="sent-n" aria-hidden="true">{i + 1}.</span>
                 <Tc lang={lang} inner="sent-next-v" pick={c => <><span className="sent-next-b">{c[k]}</span><span className="sent-next-d">{detail(c)}</span></>} />
               </li>
             ))}
           </ol>
           <Tc as="p" lang={lang} k="noRetaliation" className="sent-law" />
-        </div>
-      </div>
+        </section>
 
-      <div className="flow-actions sent-actions">
-        <Button variant="shade" size="lg" onClick={() => go('home')}><Tc lang={lang} k="finish" /></Button>
-        <Button variant="white" size="lg" className="flow-next" onClick={() => go('case')} iconEnd={<ArrowRight size={20} strokeWidth={2.2} aria-hidden="true" />}><Tc lang={lang} k="seeCase" /></Button>
+        <div className="flow-actions sent-actions">
+          <Button variant="soft" size="lg" onClick={() => go('home')}><Tc lang={lang} k="finish" /></Button>
+          <Button variant="soft" size="lg" className="flow-next" onClick={() => go('case')} iconEnd={ic(ArrowRight, 18)}><Tc lang={lang} k="seeCase" /></Button>
+        </div>
       </div>
 
       <Dialog
         open={!!ask} onClose={() => setAsk(null)} title={t.savedQ}
         actions={<>
           <Button variant="soft" size="md" onClick={() => setAsk(null)}>{t.savedBack}</Button>
-          <Button variant="ink" size="md" onClick={() => leave(ask)}>{t.savedGo}</Button>
+          <Button variant="report" size="md" onClick={() => leave(ask)}>{t.savedGo}</Button>
         </>}
       >
         <p>{t.savedText}</p>

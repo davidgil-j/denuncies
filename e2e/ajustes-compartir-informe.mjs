@@ -34,15 +34,15 @@ const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0
 
 // 1 · Canal de ejemplo: «Gestionar» lleva a crear cuenta, no al acceso
 await page.goto(`${BASE}/canal/demo?lang=es`, { waitUntil: 'networkidle' });
-await page.waitForSelector('.entry-main');
-const manageHref = await page.locator(mobile ? '.entry-compact' : '.entry-wide .ds-btn').getAttribute('href');
+await page.waitForSelector('.ds-hero');
+const manageHref = await page.locator('.ds-pane.is-manage .entry-go').getAttribute('href');
 ok('canal de ejemplo: «Gestionar» lleva a /crear-compte', manageHref === '/crear-compte?lang=es', manageHref);
-ok('canal de ejemplo: el botón lo dice', mobile ? await page.getByText('Crea el canal de tu empresa').isVisible() : await page.getByText('Crear mi canal').isVisible());
+ok('canal de ejemplo: el botón lo dice', await page.getByRole('link', { name: 'Crear mi canal' }).isVisible());
 ok('canal de ejemplo: ningún enlace al acceso real', await page.locator('a[href*="/admin/login"]').count() === 0);
 await shot('00-entrada-canal-de-ejemplo');
 await page.goto(`${BASE}/canal/demo/formulario?lang=es`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.flow');
-if (!mobile) ok('canal de ejemplo: la franja «Gestionar» también lleva a /crear-compte', (await page.locator('.ds-tab.is-manage').getAttribute('href')) === '/crear-compte?lang=es');
+ok('en la denuncia el lado «Gestionar» ya no está: ni mitad ni franja', await page.locator('.ds-pane.is-manage, .ds-tab').count() === 0);
 ok('en la denuncia tampoco hay enlace al acceso real', await page.locator('a[href*="/admin/login"]').count() === 0);
 await page.goto(`${BASE}${manageHref}`, { waitUntil: 'networkidle' });
 ok('la página de crear cuenta abre en castellano', await page.evaluate(() => document.documentElement.lang) === 'es');
@@ -252,7 +252,10 @@ await resp.getByRole('button', { name: 'Guardar' }).click();
 await toast('Guardado.');
 await page.goto(`${BASE}/canal/demo?lang=es`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.entry-links');
-ok('el canal enseña el nombre nuevo y la autoridad elegida', (await page.locator('.entry-brand b').innerText()) === 'Empresa Demo Logística' && (mobile || (await page.locator('.entry-links').innerText()).includes('Agencia Valenciana Antifraude')));
+const brandNew = (await page.locator('.entry-brand b').innerText()) === 'Empresa Demo Logística';
+await page.getByRole('button', { name: 'Canales externos' }).click();
+ok('el canal enseña el nombre nuevo y la autoridad elegida', brandNew && await page.getByRole('dialog').getByText('Agencia Valenciana Antifraude').isVisible());
+await page.keyboard.press('Escape');
 await page.goto(`${BASE}/admin/ajustes`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.tm-list li');
 ok('autoridad: al volver sigue «Otra…» con sus datos', (await resp.locator('#st-auth-name').inputValue()) === 'Agencia Valenciana Antifraude');

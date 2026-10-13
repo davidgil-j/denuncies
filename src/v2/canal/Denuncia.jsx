@@ -1,48 +1,32 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { Turnstile } from '@marsidev/react-turnstile';
-import { ArrowRight, ArrowLeft, Check, Plus, Send, Shield, CircleAlert, Pencil } from 'lucide-react';
+import { ArrowRight, ArrowLeft, CalendarDays, Paperclip, Plus, Minus, Send, Shield, CircleAlert, Pencil } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { saveComplaint, IS_DEMO } from '../../lib/supabase.js';
 import { cleanForAnonymous } from '../../lib/cleanImage.js';
 import { fmt } from '../V2Layout.jsx';
 import { EMAIL_RE } from '../site/fields.jsx';
-import { Button, Card, Chip, Field, StepBar, cx } from '../ui/index.js';
-import Pruebas from './Pruebas.jsx';
+import { Button, Card, Field, cx } from '../ui/index.js';
+import Pruebas, { MAX_FILES, MAX_FILE_MB } from './Pruebas.jsx';
 import Enviada from './Enviada.jsx';
-import { CATEGORIES, CAT_ICON, EMPTY_DRAFT, CanalHead, Tc } from './shared.jsx';
+import { CATEGORIES, EMPTY_DRAFT, CanalHead, FlowTop, Tc, ic } from './shared.jsx';
 
 const MIN_DESC = 20;
 // Verificación contra robots: solo con clave configurada y fuera de la demo
 const HAS_CAPTCHA = !IS_DEMO && !!import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
-// «Ayuda»: qué cubre ya lo escrito. Es una pista con palabras clave en los tres idiomas; nunca bloquea.
-const HINTS = {
-  where: /\b(almac[eé]n|oficina|planta|departamento|turno|sede|f[aá]brica|taller|tienda|obra|pasillo|despacho|magatzem|departament|torn|seu|botiga|passad[ií]s|office|warehouse|department|floor|site|plant|shift|store|shop)\w*/i,
-  when: /\b(ayer|hoy|anoche|semanas?|mes(es)?|años?|desde|hace|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|ahir|avui|setman\w+|any|anys|des de|fa \d+|dilluns|dimarts|dimecres|dijous|divendres|dissabte|diumenge|gener|febrer|març|maig|juny|juliol|agost|setembre|novembre|desembre|yesterday|today|last night|weeks?|months?|years?|since|ago|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december|\d{1,2}[/.-]\d{1,2}|20\d\d)\b/i,
-  who: /\b(jef[ea]s?|responsables?|director\w*|gerentes?|compañer\w+|supervisor\w*|encargad\w+|coordinador\w*|cap de|company\w*|encarregad\w+|manager|boss|supervisor|director|colleagues?|coworkers?|head of)\b/i,
-};
-function covered(d) {
-  const text = d.description;
-  return [
-    text.trim().length >= MIN_DESC,
-    !!d.department.trim() || HINTS.where.test(text),
-    !!d.when.trim() || HINTS.when.test(text),
-    !!d.involvedPeople.trim() || HINTS.who.test(text),
-  ];
-}
-
-const cut = (text, n = 110) => (text.length > n ? `${text.slice(0, n).replace(/\s+\S*$/, '')}…` : text);
+const cut = (text, n = 90) => (text.length > n ? `${text.slice(0, n).replace(/\s+\S*$/, '')}…` : text);
 
 export default function Denuncia() {
-  const { lang, org, base, draft, setDraft, sent, setSent } = useOutletContext();
+  const { lang, setLang, org, base, draft, setDraft, sent, setSent } = useOutletContext();
   const navigate = useNavigate();
   const T = translations[lang];
   const t = T.canal;
   // El canal de ejemplo no envía nada a ningún servidor: no hace falta la comprobación contra robots
   const needsCaptcha = HAS_CAPTCHA && !org.is_example;
   const [errors, setErrors] = useState({});
-  const [more, setMore] = useState(false);
+  const [open, setOpen] = useState({ known: false, proof: false }); // en el móvil, los apartados opcionales se abren con su fila
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null); // sendErr | sendLimit | { clean: nombre del archivo }
   // Código e id del primer intento de envío: si la red falla después de guardar, el reintento usa los
@@ -167,15 +151,17 @@ export default function Denuncia() {
     groupRef.current?.querySelectorAll('[role="radio"]')[to]?.focus();
   }
 
-  const done = covered(draft);
-  const hasExtras = !!(draft.when || draft.department || draft.involvedPeople || draft.files.length);
   const nFiles = draft.files.length;
+  // Un apartado opcional con algo dentro no se puede plegar: lo escrito nunca queda escondido
+  const knownOpen = open.known || !!(draft.when || draft.department || draft.involvedPeople);
+  const proofOpen = open.proof || nFiles > 0;
+  const toggle = (k) => setOpen(o => ({ ...o, [k]: !o[k] }));
 
   return (
     <form className="flow" onSubmit={next} noValidate>
-      <CanalHead lang={lang} org={org} anon={draft.isAnonymous} />
+      <CanalHead lang={lang} setLang={setLang} org={org} />
       <div className="flow-body">
-        <StepBar lang={lang} total={3} current={step} />
+        <FlowTop lang={lang} base={base} step={step} anon={draft.isAnonymous} topic={step > 1 ? (c => c.cats[draft.category][0]) : null} />
 
         {/* ── Paso 1 · ¿Qué ha pasado? ─────────────────────────────── */}
         {step === 1 && (
@@ -185,75 +171,68 @@ export default function Denuncia() {
               <Tc as="p" className="ds-lead" lang={lang} k="q1Lead" />
             </div>
             <div className="cats" role="radiogroup" aria-label={t.q1Group} ref={groupRef} onKeyDown={onCatKey}>
-              {CATEGORIES.map((value) => {
-                const Icon = CAT_ICON[value];
-                const on = draft.category === value;
-                return (
-                  <button
-                    key={value} type="button" role="radio" aria-checked={on} className={cx('cat', value === 'other' && 'is-other')}
-                    onClick={() => set({ category: value })}
-                  >
-                    <span className="cat-ico" aria-hidden="true"><Icon size={24} strokeWidth={1.8} /></span>
-                    <Tc
-                      lang={lang} className="cat-txt" inner="cat-txt-v"
-                      pick={c => <><span className="cat-name">{c.cats[value][0]}</span><span className="cat-ex">{c.cats[value][1]}</span></>}
-                    />
-                    {on && <span className="cat-badge" aria-hidden="true"><Check size={14} strokeWidth={3} /></span>}
-                  </button>
-                );
-              })}
+              {CATEGORIES.map((value) => (
+                <button key={value} type="button" role="radio" aria-checked={draft.category === value} className="cat" onClick={() => set({ category: value })}>
+                  <span className="pick-dot" aria-hidden="true" />
+                  <Tc
+                    lang={lang} className="cat-txt" inner="cat-txt-v"
+                    pick={c => <><span className="cat-name">{c.cats[value][0]}</span><span className="cat-ex">{c.cats[value][1]}</span></>}
+                  />
+                </button>
+              ))}
             </div>
           </>
         )}
 
-        {/* ── Paso 2 · Cuéntalo ────────────────────────────────────── */}
+        {/* ── Paso 2 · Describe lo ocurrido ────────────────────────── */}
         {step === 2 && (
           <>
-            <div className="flow-q is-tight">
-              <Chip tone="shade" size="md">{t.cats[draft.category][0]}</Chip>
-              <Tc as="h1" className="ds-h1" lang={lang} k="q2" ref={headRef} tabIndex={-1} />
-            </div>
-            <div className="tell">
-              <Card className="tell-main">
-                <Field
-                  as="textarea" id="dn-description" rows={9} maxLength={20000} label={<Tc lang={lang} k="what" />} value={draft.description}
-                  error={errors.description && t[errors.description]}
-                  onChange={e => { set({ description: e.target.value }); if (e.target.value.trim().length >= MIN_DESC) clear('description'); }}
-                />
-                <p className="helps">
-                  <Tc lang={lang} k="help" />
-                  {done.map((ok, i) => (
-                    <Chip key={i} size="md" tone={ok ? 'ok' : 'neutral'} icon={ok ? <Check size={13} strokeWidth={3} aria-hidden="true" /> : null}>
-                      {t.helps[i]}<span className="ds-vh">: {ok ? t.helpDone : t.helpTodo}</span>
-                    </Chip>
-                  ))}
+            <Tc as="h1" className="ds-h1" lang={lang} k="q2" ref={headRef} tabIndex={-1} />
+            <div className="tell-main">
+              <Field
+                as="textarea" id="dn-description" rows={7} maxLength={20000} label={<Tc lang={lang} k="what" />} value={draft.description}
+                help={<Tc lang={lang} k="help" />} error={errors.description && t[errors.description]}
+                onChange={e => { set({ description: e.target.value }); if (e.target.value.trim().length >= MIN_DESC) clear('description'); }}
+              />
+              {draft.isAnonymous && (
+                <p className="flow-note" role="note">
+                  {ic(Shield, 16)}
+                  <Tc lang={lang} k="anonWarn" className="ds-wide" /><Tc lang={lang} k="anonWarnShort" className="ds-narrow" />
                 </p>
-                {draft.isAnonymous && (
-                  <p className="warnbox" role="note">
-                    <Shield size={18} strokeWidth={2} aria-hidden="true" />
-                    <Tc lang={lang} k="anonWarn" className="ds-wide" /><Tc lang={lang} k="anonWarnShort" className="ds-narrow" />
-                  </p>
-                )}
-              </Card>
+              )}
+            </div>
 
-              {/* En el móvil, los detalles opcionales y las pruebas se abren con un botón */}
-              <button type="button" className="tell-more" aria-expanded={more || hasExtras} aria-controls="dn-extras" onClick={() => setMore(m => !m)} hidden={hasExtras}>
-                <Plus size={18} strokeWidth={2.4} aria-hidden="true" /><Tc lang={lang} k="more" />
+            {/* Los dos apartados opcionales. En el móvil cada uno se abre con su fila */}
+            <section className={cx('tell-sec', !knownOpen && 'is-closed')}>
+              <div className="tell-sec-head">
+                {ic(CalendarDays, 17)}<Tc as="h2" lang={lang} k="ifKnown" /><Tc lang={lang} k="optionalT" className="tell-sec-note" />
+              </div>
+              <button type="button" className="tell-sec-toggle" aria-expanded={knownOpen} aria-controls="dn-known" onClick={() => toggle('known')}>
+                <span className="tell-sec-toggle-txt"><Tc lang={lang} k="moreKnown" className="tell-sec-toggle-t" /><Tc lang={lang} k="optionalT" className="tell-sec-toggle-s" /></span>
+                {ic(knownOpen ? Minus : Plus, 18)}
               </button>
-              <div className={cx('tell-side', !(more || hasExtras) && 'is-closed')} id="dn-extras">
-                <Card>
-                  <span className="ds-card-title is-sm"><Tc lang={lang} k="ifKnown" /> <span className="tell-opt">· <Tc lang={lang} k="optional" /></span></span>
-                  <Field size="sm" label={<Tc lang={lang} k="when" />} placeholder={t.whenPh} value={draft.when} maxLength={120} onChange={e => set({ when: e.target.value })} />
-                  <Field size="sm" label={<Tc lang={lang} k="where" />} value={draft.department} maxLength={160} onChange={e => set({ department: e.target.value })} />
-                  <Field size="sm" label={<Tc lang={lang} k="who" />} placeholder={t.whoPh} value={draft.involvedPeople} maxLength={300} onChange={e => set({ involvedPeople: e.target.value })} />
-                </Card>
+              <div className="tell-sec-body tell-known" id="dn-known">
+                <Field label={<Tc lang={lang} k="when" />} placeholder={t.whenPh} value={draft.when} maxLength={120} onChange={e => set({ when: e.target.value })} />
+                <Field label={<Tc lang={lang} k="where" />} value={draft.department} maxLength={160} onChange={e => set({ department: e.target.value })} />
+                <Field label={<Tc lang={lang} k="who" />} placeholder={t.whoPh} value={draft.involvedPeople} maxLength={300} onChange={e => set({ involvedPeople: e.target.value })} />
+              </div>
+            </section>
+            <section className={cx('tell-sec', !proofOpen && 'is-closed')}>
+              <div className="tell-sec-head">
+                {ic(Paperclip, 17)}<Tc as="h2" lang={lang} k="proofT" /><Tc lang={lang} k="proofNote" vars={{ n: MAX_FILES, mb: MAX_FILE_MB }} className="tell-sec-note" />
+              </div>
+              <button type="button" className="tell-sec-toggle" aria-expanded={proofOpen} aria-controls="dn-proof" onClick={() => toggle('proof')}>
+                <span className="tell-sec-toggle-txt"><Tc lang={lang} k="proof" className="tell-sec-toggle-t" /><Tc lang={lang} k="proofNote" vars={{ n: MAX_FILES, mb: MAX_FILE_MB }} className="tell-sec-toggle-s" /></span>
+                {ic(proofOpen ? Minus : Plus, 18)}
+              </button>
+              <div className="tell-sec-body" id="dn-proof">
                 <Pruebas lang={lang} files={draft.files} onChange={files => set({ files })} />
               </div>
-            </div>
+            </section>
           </>
         )}
 
-        {/* ── Paso 3 · ¿Quieres dar tu nombre? ─────────────────────── */}
+        {/* ── Paso 3 · ¿Quieres identificarte? ─────────────────────── */}
         {step === 3 && (
           <>
             <Tc as="h1" className="ds-h1" lang={lang} k="q3" ref={headRef} tabIndex={-1} />
@@ -263,15 +242,15 @@ export default function Denuncia() {
                   <legend className="ds-vh">{t.q3}</legend>
                   <label className="opt">
                     <input type="radio" name="dn-mode" className="ds-vh" checked={draft.isAnonymous} onChange={() => { set({ isAnonymous: true }); clear('email'); }} />
-                    <span className="opt-dot" aria-hidden="true" />
+                    <span className="pick-dot" aria-hidden="true" />
                     <Tc
                       lang={lang} className="opt-txt" inner="opt-txt-v"
-                      pick={c => <><span className="opt-t">{c.anonT}<Chip tone="report" className="opt-chip">{c.recommended}</Chip></span><span className="opt-d">{c.anonD}</span></>}
+                      pick={c => <><span className="opt-t">{c.anonT}</span><span className="opt-d">{c.anonD}</span></>}
                     />
                   </label>
                   <label className="opt">
                     <input type="radio" name="dn-mode" className="ds-vh" checked={!draft.isAnonymous} onChange={() => set({ isAnonymous: false })} />
-                    <span className="opt-dot" aria-hidden="true" />
+                    <span className="pick-dot" aria-hidden="true" />
                     <Tc
                       lang={lang} className="opt-txt" inner="opt-txt-v"
                       pick={c => <><span className="opt-t">{c.identT}</span><span className="opt-d">{c.identD}</span></>}
@@ -280,17 +259,15 @@ export default function Denuncia() {
                 </fieldset>
 
                 {!draft.isAnonymous && (
-                  <Card as="fieldset" className="ident-data">
+                  <fieldset className="ident-data">
                     <legend className="ds-vh">{t.yourData}</legend>
                     <Field
                       id="dn-email" type="email" inputMode="email" autoComplete="email" maxLength={200} label={<Tc lang={lang} k="email" />} tag={t.required}
                       value={draft.email} error={errors.email && t[errors.email]} onChange={e => { set({ email: e.target.value }); clear('email'); }}
                     />
-                    <div className="ident-two">
-                      <Field autoComplete="name" maxLength={200} label={<Tc lang={lang} k="name" />} tag={t.optional} value={draft.name} onChange={e => set({ name: e.target.value })} />
-                      <Field type="tel" inputMode="tel" autoComplete="tel" maxLength={50} label={<Tc lang={lang} k="phone" />} tag={t.optional} value={draft.phone} onChange={e => set({ phone: e.target.value })} />
-                    </div>
-                  </Card>
+                    <Field autoComplete="name" maxLength={200} label={<Tc lang={lang} k="name" />} tag={t.optional} value={draft.name} onChange={e => set({ name: e.target.value })} />
+                    <Field type="tel" inputMode="tel" autoComplete="tel" maxLength={50} label={<Tc lang={lang} k="phone" />} tag={t.optional} value={draft.phone} onChange={e => set({ phone: e.target.value })} />
+                  </fieldset>
                 )}
 
                 <label className="meet">
@@ -300,7 +277,7 @@ export default function Denuncia() {
               </div>
 
               <Card className="ident-side">
-                <Tc lang={lang} k="review" className="ds-card-title is-sm" />
+                <Tc as="h2" lang={lang} k="review" className="ds-card-title" />
                 <dl className="review">
                   <div><dt>{t.rTopic}</dt><dd>{t.cats[draft.category][0]}</dd></div>
                   <div className="is-block"><dt>{t.rTold}</dt><dd>{cut(draft.description.trim())}</dd></div>
@@ -311,17 +288,21 @@ export default function Denuncia() {
                   <div><dt>{t.rIdentity}</dt><dd>{draft.isAnonymous ? t.rAnon : t.rIdent}</dd></div>
                   {draft.meeting && <div><dt>{t.rMeeting}</dt><dd>{t.rMeetingYes}</dd></div>}
                 </dl>
-                <Button variant="soft" size="xs" className="review-change" onClick={() => { setErrors({}); set({ step: 2 }); }} icon={<Pencil size={14} strokeWidth={2.4} aria-hidden="true" />}>{t.change}</Button>
-                <label className={cx('consent', errors.privacy && 'is-invalid')}>
-                  <input
-                    id="dn-privacy" type="checkbox" checked={draft.privacy} aria-invalid={errors.privacy ? true : undefined}
-                    aria-describedby={errors.privacy ? 'dn-privacy-e' : undefined}
-                    onChange={e => { set({ privacy: e.target.checked }); clear('privacy'); }}
-                  />
-                  <span>{t.consentA}<a href={`${base}/privacidad?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t.consentLink}</a>{t.consentZ}</span>
-                </label>
-                {errors.privacy && <p className="ds-field-error" id="dn-privacy-e" role="alert"><CircleAlert size={16} strokeWidth={2.2} aria-hidden="true" />{t[errors.privacy]}</p>}
+                <Button variant="soft" size="xs" className="review-change" onClick={() => { setErrors({}); set({ step: 2 }); }} icon={ic(Pencil, 16)}>{t.change}</Button>
               </Card>
+            </div>
+
+            {/* Lo último antes de enviar, pegado al botón */}
+            <div className="consent-box">
+              <label className={cx('consent', errors.privacy && 'is-invalid')}>
+                <input
+                  id="dn-privacy" type="checkbox" checked={draft.privacy} aria-invalid={errors.privacy ? true : undefined}
+                  aria-describedby={errors.privacy ? 'dn-privacy-e' : undefined}
+                  onChange={e => { set({ privacy: e.target.checked }); clear('privacy'); }}
+                />
+                <span>{t.consentA}<a href={`${base}/privacidad?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t.consentLink}</a>{t.consentZ}</span>
+              </label>
+              {errors.privacy && <p className="ds-field-error" id="dn-privacy-e" role="alert">{ic(CircleAlert, 16)}{t[errors.privacy]}</p>}
             </div>
 
             {needsCaptcha && (
@@ -332,20 +313,21 @@ export default function Denuncia() {
                 />
               </div>
             )}
-            {submitError && <p className="flow-error" role="alert"><CircleAlert size={18} strokeWidth={2.2} aria-hidden="true" />{submitError.clean ? fmt(t.cleanErr, { name: submitError.clean }) : t[submitError]}</p>}
+            {submitError && <p className="flow-error" role="alert">{ic(CircleAlert, 18)}{submitError.clean ? fmt(t.cleanErr, { name: submitError.clean }) : t[submitError]}</p>}
           </>
         )}
 
+        {/* Los dos botones se quedan a la vista aunque la pantalla sea baja */}
         <div className="flow-actions">
-          <Button variant="shade" size="lg" className="flow-back" onClick={back} aria-label={t.back}>
-            <ArrowLeft size={20} strokeWidth={2.2} aria-hidden="true" className="ds-narrow" /><Tc lang={lang} k="back" className="ds-wide" />
+          <Button variant="soft" size="lg" className="flow-back" onClick={back} aria-label={t.back}>
+            <ArrowLeft size={18} strokeWidth={1.8} aria-hidden="true" className="ds-narrow" /><Tc lang={lang} k="back" className="ds-wide" />
           </Button>
           {step < 3 ? (
-            <Button type="submit" variant="white" size="lg" className="flow-next" disabled={step === 1 && !draft.category} iconEnd={<ArrowRight size={20} strokeWidth={2.2} aria-hidden="true" />}>
+            <Button type="submit" variant="report" size="lg" className="flow-next" disabled={step === 1 && !draft.category} iconEnd={ic(ArrowRight, 18)}>
               <Tc lang={lang} k="next" />
             </Button>
           ) : (
-            <Button type="submit" variant="white" size="lg" className="flow-next" disabled={needsCaptcha && !token} busy={submitting} iconEnd={<Send size={20} strokeWidth={2.2} aria-hidden="true" />}>
+            <Button type="submit" variant="report" size="lg" className="flow-next" disabled={needsCaptcha && !token} busy={submitting} iconEnd={ic(Send, 18)}>
               <Tc lang={lang} k={submitting ? 'sending' : 'send'} />
             </Button>
           )}

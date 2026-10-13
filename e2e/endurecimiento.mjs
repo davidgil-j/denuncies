@@ -150,7 +150,7 @@ fs.mkdirSync(FIX, { recursive: true });
 const fix = (n) => path.join(FIX, n);
 
 async function fillReport(page, files) {
-  await page.getByRole('link', { name: 'Empezar a denunciar' }).click();
+  await page.getByRole('link', { name: 'Presentar una denuncia' }).click();
   await page.waitForSelector('.cats');
   await page.getByRole('radio', { name: /Fraude o corrupción/ }).click();
   await page.getByRole('button', { name: 'Continuar' }).click();
@@ -175,7 +175,7 @@ const sendBtn = (page) => page.getByRole('button', { name: /Enviar denuncia/ });
   await page.screenshot({ path: `${OUT}/canal-sin-conexion.png` });
   S.offline = false;
   await page.getByRole('button', { name: 'Volver a intentarlo' }).click();
-  await page.waitForSelector('.entry-main', { timeout: 10000 });
+  await page.waitForSelector('.ds-hero', { timeout: 10000 });
   ok('F-2 · «Volver a intentarlo» abre el canal', true);
   await page.close();
 }

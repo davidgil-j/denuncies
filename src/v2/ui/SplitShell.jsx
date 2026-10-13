@@ -2,15 +2,16 @@ import React, { useEffect, useRef } from 'react';
 import { cx } from './text.jsx';
 
 /**
- * Las dos mitades. active: null (la entrada, las dos tarjetas iguales) | 'report' | 'manage'.
- * El lado elegido ocupa la pantalla y el otro se pliega en su franja (reportTab o manageTab, un <SideTab>).
- * Los dos lados son siempre los mismos elementos: así la anchura se anima al pasar de la entrada a un lado.
- * top y bottom: cabecera y pie de la entrada, fuera de las tarjetas. banner: aviso a todo el ancho, encima
- * de todo. skip: texto del enlace «Ir al contenido» para quien navega con el teclado.
+ * Las dos mitades. active: null (la entrada, dos mitades iguales de borde a borde) | 'report' | 'manage'.
+ * Al elegir un lado, el otro desaparece y el elegido cubre la página. Solo se queda plegado en una franja
+ * si se le pasa una (reportTab o manageTab, un <SideTab>): hoy, el panel con «Ver el canal».
+ * top y bottom: cabecera y pie, fuera de las mitades. reportFoot y manageFoot: la última línea de cada mitad
+ * en la entrada. banner: aviso a todo el ancho, encima de todo. skip: texto del enlace «Ir al contenido»
+ * para quien navega con el teclado.
  * mainId: el lado elegido pone él mismo su <main> con ese id (el panel: la cabecera y el menú quedan fuera,
  * y «Ir al contenido» se los salta).
  */
-export default function SplitShell({ active = null, report, manage, reportTab, manageTab, reportLabel, manageLabel, top, bottom, banner, skip, mainId, className }) {
+export default function SplitShell({ active = null, report, manage, reportTab, manageTab, reportLabel, manageLabel, reportFoot, manageFoot, top, bottom, banner, skip, mainId, className }) {
   const entry = !active;
   // El aviso de arriba puede ocupar más de una línea (zoom, textos largos): su alto real se guarda en
   // --banner-h para que las franjas fijas empiecen justo debajo
@@ -25,28 +26,38 @@ export default function SplitShell({ active = null, report, manage, reportTab, m
     set();
     return () => ro.disconnect();
   }, [!!banner]);
-  const pane = (side, content, tab, label) => {
+  const pane = (side, content, tab, label, foot) => {
     const folded = !entry && active !== side;
+    if (folded && !tab) return null;
+    // Denunciar solo va sobre el color en la entrada (y en su franja): al elegirlo, el formulario va sobre blanco
+    const onColor = side === 'report' && (entry || folded);
+    if (entry) {
+      return (
+        <div className={cx('ds-pane', `is-${side}`, onColor ? 'ds-on-report' : 'ds-on-white')}>
+          <div className="ds-pane-body" role="region" aria-label={label}>{content}</div>
+          {foot && <div className="ds-pane-foot">{foot}</div>}
+        </div>
+      );
+    }
     return (
       <div
-        className={cx('ds-pane', `is-${side}`, side === 'report' ? 'ds-on-report' : 'ds-on-white', folded && 'is-tab')}
-        role={folded || mainId ? undefined : entry ? 'region' : 'main'}
-        aria-label={entry ? label : undefined}
-        id={!entry && !folded && !mainId ? 'ds-main' : undefined}
-        tabIndex={!entry && !folded && !mainId ? -1 : undefined}
+        className={cx('ds-pane', `is-${side}`, onColor ? 'ds-on-report' : 'ds-on-white', folded && 'is-tab')}
+        role={folded || mainId ? undefined : 'main'}
+        id={!folded && !mainId ? 'ds-main' : undefined}
+        tabIndex={!folded && !mainId ? -1 : undefined}
       >
         {folded ? tab : <div className="ds-pane-body">{content}</div>}
       </div>
     );
   };
   return (
-    <div ref={rootRef} className={cx('ds ds-split', entry && 'is-entry', top && 'has-top', banner && 'has-banner', className)}>
+    <div ref={rootRef} className={cx('ds ds-split', entry ? 'is-entry' : `is-${active}`, top && 'has-top', banner && 'has-banner', className)}>
       {skip && <a className="ds-skip" href={`#${mainId ?? 'ds-main'}`}>{skip}</a>}
       {banner && <div ref={bannerRef} className="ds-split-banner">{banner}</div>}
       {top && <header className="ds-split-top">{top}</header>}
       <div className="ds-split-panes" role={entry ? 'main' : undefined} id={entry ? 'ds-main' : undefined} tabIndex={entry ? -1 : undefined}>
-        {pane('report', report, reportTab, reportLabel)}
-        {pane('manage', manage, manageTab, manageLabel)}
+        {pane('report', report, reportTab, reportLabel, reportFoot)}
+        {pane('manage', manage, manageTab, manageLabel, manageFoot)}
       </div>
       {bottom && <footer className="ds-split-bottom">{bottom}</footer>}
     </div>

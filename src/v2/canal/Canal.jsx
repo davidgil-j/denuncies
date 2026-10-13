@@ -4,14 +4,15 @@ import { ArrowLeft } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { getOrganizationBySlug } from '../../lib/supabase.js';
 import { detectLang, savedLang, LANGS, Stable } from '../V2Layout.jsx';
-import { SplitShell, SideTab, Button, Card, Dialog, Skeleton, Offline } from '../ui/index.js';
-import { EntryTop, EntryReport, EntryManage, EntryBottom } from './Entrada.jsx';
+import { SplitShell, Button, Card, Dialog, Skeleton, Offline } from '../ui/index.js';
+import { EntryTop, EntryReport, EntryManage, EntryLegal, EntryLinks } from './Entrada.jsx';
 import { EMPTY_DRAFT, isDirty, Tc } from './shared.jsx';
 import './canal.css';
 
 /**
- * El canal de una empresa (/canal/:slug): las dos mitades. Carga la organización una sola vez y guarda
- * aquí el idioma y el borrador de la denuncia. El borrador vive SOLO en memoria: no se escribe nada en
+ * El canal de una empresa (/canal/:slug): la entrada en dos mitades iguales y, al elegir Denunciar, sus
+ * pantallas a página completa. Carga la organización una sola vez y guarda aquí el idioma y el borrador
+ * de la denuncia. El borrador vive SOLO en memoria: no se escribe nada en
  * el navegador (en un ordenador de la empresa sería un riesgo para el anonimato) y se pierde al recargar.
  */
 export default function Canal() {
@@ -28,7 +29,7 @@ export default function Canal() {
   const [tries, setTries] = useState(0);
   const [draft, setDraft] = useState(EMPTY_DRAFT);
   const [sent, setSent] = useState(null); // { code, failed, createdAt, secured, asked }
-  const [leaving, setLeaving] = useState(null); // 'draft' | 'code': se ha pulsado «Gestionar» con algo a medias
+  const [leaving, setLeaving] = useState(false); // se ha pulsado «Acceder» con una denuncia a medias
   const t = translations[lang].canal;
   const base = `/canal/${slug}`;
   const sub = pathname.slice(base.length).replace(/^\/+|\/+$/g, '');
@@ -72,30 +73,33 @@ export default function Canal() {
   );
 
   if (status !== 'ready') {
+    // Cargando: la forma de lo que va a salir (las dos mitades en la entrada; la página blanca en el resto)
+    if (status === 'loading') {
+      return (
+        <div className={`ds ds-split canal-loading ${sub === '' ? 'is-entry' : 'is-report'}`} role="status" aria-live="polite">
+          <span className="ds-vh">{translations[lang].v2.loading}</span>
+          <div className="ds-split-panes" aria-hidden="true">
+            <div className="ds-pane is-report"><div className="ds-pane-body"><Skeleton width="50%" height={44} /><Skeleton width="80%" /><Skeleton width="60%" /></div></div>
+            {sub === '' && <div className="ds-pane is-manage"><div className="ds-pane-body"><Skeleton width="50%" height={44} /><Skeleton width="80%" /><Skeleton width="60%" /></div></div>}
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="ds ds-page canal-plain">
-        {status === 'loading' ? (
-          <div className="canal-loading" role="status" aria-live="polite">
-            <span className="ds-vh">{translations[lang].v2.loading}</span>
-            <Card radius="xl" tone="report" aria-hidden="true"><Skeleton width="55%" height={56} /><Skeleton width="80%" /></Card>
-            <Card radius="xl" aria-hidden="true"><Skeleton width="55%" height={56} /><Skeleton width="80%" /></Card>
-          </div>
-        ) : status === 'error' ? (
-          <Card as="main" radius="xl" className="canal-lost">
+        {status === 'error' ? (
+          <Card as="main" className="canal-lost">
             <Tc as="h1" className="ds-h1 is-sm" lang={lang} k="loadErrT" />
             <Tc as="p" className="ds-lead" lang={lang} k="loadErrD" />
             <div className="canal-lost-go">
-              <Button variant="ink" size="md" onClick={() => setTries(n => n + 1)}><Tc lang={lang} k="retry" /></Button>
+              <Button variant="report" size="md" onClick={() => setTries(n => n + 1)}><Tc lang={lang} k="retry" /></Button>
             </div>
           </Card>
         ) : (
-          <Card as="main" radius="xl" className="canal-lost">
+          // Un canal que no existe no enseña nada más: ni la marca de Reportia ni una invitación a contratar
+          <Card as="main" className="canal-lost">
             <Tc as="h1" className="ds-h1 is-sm" lang={lang} k="nfTitle" />
             <Tc as="p" className="ds-lead" lang={lang} k="nfText" />
-            <div className="canal-lost-go">
-              <Button variant="ink" size="md" to={`/?lang=${lang}`}><Tc lang={lang} k="nfHome" /></Button>
-              <Tc as="p" lang={lang} pick={c => <>{c.nfCompany} <Link to={`/crear-compte?lang=${lang}`}>{c.nfCreate}</Link></>} />
-            </div>
           </Card>
         )}
       </div>
@@ -108,12 +112,10 @@ export default function Canal() {
   if (sub === 'privacidad') return <Outlet context={ctx} />;
 
   const isEntry = sub === '';
-  // «Gestionar» desde la denuncia: si hay algo escrito o un código sin guardar, se pregunta antes
+  // «Acceder» con una denuncia a medias: salir del canal la borra de la memoria, así que se pregunta antes
   function onManage(e) {
-    if (!sent && isDirty(draft)) { e.preventDefault(); setLeaving('draft'); }
-    else if (sent && !sent.secured && !sent.asked) { e.preventDefault(); setSent(s => ({ ...s, asked: true })); setLeaving('code'); }
+    if (!sent && isDirty(draft)) { e.preventDefault(); setLeaving(true); }
   }
-  const leaveText = leaving === 'code' ? ['savedQ', 'savedText', 'savedBack', 'savedGo'] : ['leaveQ', 'leaveText', 'leaveStay', 'leaveGo'];
 
   return (
     <>
@@ -123,20 +125,22 @@ export default function Canal() {
         banner={banner}
         reportLabel={t.report} manageLabel={t.manage}
         top={isEntry && <EntryTop lang={lang} setLang={setLang} org={org} />}
-        bottom={isEntry && <EntryBottom lang={lang} org={org} base={base} />}
         report={isEntry ? <EntryReport lang={lang} base={base} /> : <Outlet context={ctx} />}
-        manage={isEntry ? <EntryManage lang={lang} org={org} to={loginTo} example={!!org.is_example} /> : null}
-        manageTab={<SideTab side="manage" label={<Tc lang={lang} k="manage" />} icon="forward" to={loginTo} onClick={onManage} />}
+        manage={isEntry ? <EntryManage lang={lang} org={org} to={loginTo} example={!!org.is_example} onGo={onManage} /> : null}
+        reportFoot={<EntryLegal lang={lang} org={org} />}
+        manageFoot={<EntryLinks lang={lang} org={org} base={base} />}
+        bottom={!isEntry && <><EntryLegal lang={lang} org={org} /><EntryLinks lang={lang} org={org} base={base} full /></>}
+        className={isEntry ? undefined : 'canal-flow'}
       />
       <Offline lang={lang} />
       <Dialog
-        open={!!leaving} onClose={() => setLeaving(null)} title={t[leaveText[0]]}
+        open={leaving} onClose={() => setLeaving(false)} title={t.leaveQ}
         actions={<>
-          <Button variant="soft" size="md" onClick={() => setLeaving(null)}>{t[leaveText[2]]}</Button>
-          <Button variant="ink" size="md" onClick={() => { setLeaving(null); navigate(loginTo); }}>{t[leaveText[3]]}</Button>
+          <Button variant="soft" size="md" onClick={() => setLeaving(false)}>{t.leaveStay}</Button>
+          <Button variant="report" size="md" onClick={() => { setLeaving(false); navigate(loginTo); }}>{t.leaveGo}</Button>
         </>}
       >
-        <p>{t[leaveText[1]]}</p>
+        <p>{t.leaveText}</p>
       </Dialog>
     </>
   );

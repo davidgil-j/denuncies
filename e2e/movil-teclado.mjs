@@ -38,12 +38,12 @@ for (const [w, h] of [[360, 640], [390, 844]]) {
   await page.goto(`${B}/canal/demo?lang=es`, { waitUntil: 'networkidle' });
   await page.waitForSelector('.ds-hero');
   await over('entrada');
-  await reachable(page.getByRole('link', { name: 'Empezar a denunciar' }), 'entrada · Empezar');
+  await reachable(page.getByRole('link', { name: 'Presentar una denuncia' }), 'entrada · Empezar');
   await page.screenshot({ path: `${OUT}/movil-${w}x${h}-entrada.png` });
   await page.locator('.entry-linkbtn').first().click();
   await dialogFits('canales externos');
   await page.keyboard.press('Escape');
-  await page.getByRole('link', { name: 'Empezar a denunciar' }).click();
+  await page.getByRole('link', { name: 'Presentar una denuncia' }).click();
   await page.waitForSelector('.cats');
   await over('paso 1');
   await page.getByRole('radio', { name: /Fraude/ }).click();

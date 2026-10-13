@@ -1,5 +1,5 @@
 // Mide cada pantalla en tamaños de portátil al 100 %: si cabe sin scroll, botones partidos en dos líneas,
-// textos cortados y si la franja lateral se queda fija. Guarda una captura de lo que se ve al entrar.
+// textos cortados y, en el panel, si la franja lateral se queda fija (el canal ya no la tiene). Guarda una captura de lo que se ve al entrar.
 import { chromium } from './lib/playwright.mjs';
 const [OUT, ONLY] = [process.argv[2], process.argv[3]];
 const B = 'http://localhost:3111';
@@ -38,6 +38,9 @@ for (const [w, h] of SIZES) {
       await page.waitForSelector('#dn-description');
       if (o.step === 3) {
         await page.fill('#dn-description', 'Un proveedor factura cada mes servicios de limpieza que no se prestan en la nave 2 desde marzo.');
+        // En una ventana muy baja los apartados opcionales van plegados en filas, como en el móvil
+        const known = page.getByRole('button', { name: /Añadir cuándo, dónde y quién/ });
+        if (await known.isVisible()) await known.click();
         await page.getByLabel('Dónde o en qué área').fill('Nave 2, compras');
         await page.getByRole('button', { name: 'Continuar' }).click();
       }

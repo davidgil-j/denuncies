@@ -67,7 +67,8 @@ ok('tres columnas con casos', await page.locator('.ds-kcol').count() === 3);
 ok('chip de plazo lejano con «para responder»', mobile || await page.locator('.ds-chip', { hasText: /\d+ días para responder/ }).count() > 0);
 ok('aviso de casos que deben suprimirse', await page.locator('.pn-banner').count() >= 0);
 if (!mobile) {
-  const rows = async () => page.evaluate(() => { const h = document.querySelector('.pn-head'); const tops = new Set([...h.children].map(c => Math.round(c.getBoundingClientRect().top / 30))); return tops.size; });
+  // Se cuenta por el centro de cada pieza: con alturas distintas (botón de 36, menú de 44) los bordes de arriba no coinciden
+  const rows = async () => page.evaluate(() => { const mids = [...document.querySelector('.pn-head').children].map(c => { const b = c.getBoundingClientRect(); return b.top + b.height / 2; }); return Math.max(...mids) - Math.min(...mids) < 20 ? 1 : 2; });
   ok('cabecera del panel en una sola línea a 1440 px', await rows() === 1, `alto ${await page.locator('.pn-head').evaluate(el => Math.round(el.getBoundingClientRect().height))}px`);
 }
 await shot(mobile ? 'M4-tablero' : 'G2-tablero');

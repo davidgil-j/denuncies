@@ -2,11 +2,12 @@ import React from 'react';
 import { initials } from '../V2Layout.jsx';
 import { cx } from './text.jsx';
 
-const CONTEXT = { ink: 'ds-on-ink', report: 'ds-on-report', shade: 'ds-on-report', dashed: 'ds-on-report' };
+const CONTEXT = { ink: 'ds-on-ink', report: 'ds-on-report' };
 
 /**
- * Tarjeta. tone: white | bg | ink | report | outline | shade y dashed (las dos, sobre el azul).
- * radius: xl (32) | lg (24) | md (20). picked: la única sombra permitida, la de la tarjeta elegida.
+ * Tarjeta: blanca, con línea de 1 px y sin sombra. tone: white | bg y shade (gris, sin línea) | ink | report |
+ * outline | dashed (línea discontinua, para soltar archivos). radius: xl y lg (14) | md (12, más compacta).
+ * picked: la elegida, con el borde del acento.
  */
 export function Card({ as: Tag = 'div', tone = 'white', radius = 'lg', picked = false, className, children, ...rest }) {
   return (

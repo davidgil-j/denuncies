@@ -1,9 +1,9 @@
 import React, { useRef, useState } from 'react';
-import { Paperclip, X, CircleAlert } from 'lucide-react';
+import { Upload, X, CircleAlert } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { fmt } from '../V2Layout.jsx';
-import { Button, IconButton, cx } from '../ui/index.js';
-import { Tc } from './shared.jsx';
+import { Button, IconButton, Dialog, cx } from '../ui/index.js';
+import { Tc, ic } from './shared.jsx';
 import { formatBytes } from '../../lib/format.js';
 
 export const MAX_FILES = 5;
@@ -21,12 +21,16 @@ const extOf = (name) => (name.includes('.') ? name.split('.').pop().toLowerCase(
 
 export { formatBytes };
 
-/** Zona de pruebas: acepta arrastrar archivos, con los mismos límites y avisos de siempre */
+/**
+ * Zona de pruebas: acepta arrastrar archivos, con los mismos límites y avisos de siempre. Lo que pasa con los
+ * datos ocultos de los archivos se explica en un panel («Qué datos se quitan…») y, con algo ya adjunto, en una frase.
+ */
 export default function Pruebas({ lang, files, onChange }) {
   const t = translations[lang].canal;
   const v = translations[lang].v2;
   const [over, setOver] = useState(false);
   const [skipped, setSkipped] = useState([]); // [{ name, reason }]
+  const [info, setInfo] = useState(false);
   const inputRef = useRef(null);
   const pickRef = useRef(null);
   const listRef = useRef(null);
@@ -59,21 +63,22 @@ export default function Pruebas({ lang, files, onChange }) {
   }
 
   return (
-    <div
-      className={cx('proof ds-card is-dashed ds-on-report', over && 'is-over')}
-      onDragOver={e => { e.preventDefault(); setOver(true); }}
-      onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setOver(false); }}
-      onDrop={e => { e.preventDefault(); setOver(false); add(Array.from(e.dataTransfer.files)); }}
-    >
-      <span className="proof-title"><Paperclip size={20} strokeWidth={2} aria-hidden="true" /><Tc lang={lang} k="proof" /></span>
-      <Tc as="p" className="proof-lead" lang={lang} k="proofLead" vars={{ mb: MAX_FILE_MB }} />
-      <input
-        ref={inputRef} type="file" multiple accept={ACCEPT} className="ds-vh" tabIndex={-1} aria-hidden="true"
-        onChange={e => { add(Array.from(e.target.files)); e.target.value = ''; }}
-      />
-      <div className="proof-pick">
-        <Button ref={pickRef} variant="white" size="sm" disabled={files.length >= MAX_FILES} onClick={() => inputRef.current?.click()}><Tc lang={lang} k="proofPick" /></Button>
-        <Tc lang={lang} k="proofDrop" className="proof-drop" />
+    <div className="proof">
+      <div
+        className={cx('proof-box', over && 'is-over')}
+        onDragOver={e => { e.preventDefault(); setOver(true); }}
+        onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setOver(false); }}
+        onDrop={e => { e.preventDefault(); setOver(false); add(Array.from(e.dataTransfer.files)); }}
+      >
+        <input
+          ref={inputRef} type="file" multiple accept={ACCEPT} className="ds-vh" tabIndex={-1} aria-hidden="true"
+          onChange={e => { add(Array.from(e.target.files)); e.target.value = ''; }}
+        />
+        <div className="proof-pick">
+          <Button ref={pickRef} variant="soft" size="md" disabled={files.length >= MAX_FILES} onClick={() => inputRef.current?.click()} icon={ic(Upload, 16)}><Tc lang={lang} k="proofPick" /></Button>
+          <Tc lang={lang} k="proofDrop" className="proof-drop" />
+        </div>
+        <button type="button" className="linkbtn" onClick={() => setInfo(true)}>{t.proofMetaLink}</button>
       </div>
 
       {files.length > 0 && (
@@ -82,7 +87,7 @@ export default function Pruebas({ lang, files, onChange }) {
             <li key={`${f.name}-${f.size}-${f.lastModified}`} className="proof-file">
               <span className="proof-name" title={f.name}>{f.name}</span>
               <span className="proof-size">{formatBytes(f.size)}</span>
-              <IconButton variant="soft" size="xs" label={fmt(v.remove, { name: f.name })} onClick={() => remove(i)}><X size={16} strokeWidth={2.4} aria-hidden="true" /></IconButton>
+              <IconButton variant="bg" size="xs" label={fmt(v.remove, { name: f.name })} onClick={() => remove(i)}>{ic(X, 16)}</IconButton>
             </li>
           ))}
         </ul>
@@ -90,14 +95,18 @@ export default function Pruebas({ lang, files, onChange }) {
 
       {skipped.length > 0 && (
         <div className="proof-rejected" role="alert">
-          <CircleAlert size={18} strokeWidth={2.2} aria-hidden="true" />
+          {ic(CircleAlert, 18)}
           <div>
             <p>{v.skipped}</p>
             <ul>{skipped.map((r, i) => <li key={`${r.name}-${i}`}><b>{r.name}</b>: {fmt(v[r.reason], { mb: MAX_FILE_MB })}</li>)}</ul>
           </div>
         </div>
       )}
-      <p className="proof-meta">{t.proofMeta}</p>
+      {files.length > 0 && <p className="proof-meta">{t.proofMeta}</p>}
+
+      <Dialog open={info} onClose={() => setInfo(false)} title={t.proofMetaLink} closeLabel={t.close}>
+        <p>{t.proofMetaFull}</p>
+      </Dialog>
     </div>
   );
 }

@@ -70,11 +70,11 @@ async function dialogCheck(name, openerText) {
 
 // ══ LADO DENUNCIAR ══
 await page.goto(`${B}/canal/demo?lang=es`, { waitUntil: 'networkidle' });
-await page.waitForSelector('.entry-main');
+await page.waitForSelector('.ds-hero');
 await page.keyboard.press('Tab');
 ok('entrada: lo primero es «Ir al contenido»', ((await focused())?.name ?? '').includes('Ir al contenido'), (await focused())?.name);
 await page.goto(`${B}/canal/demo?lang=es`, { waitUntil: 'networkidle' });
-await page.waitForSelector('.entry-main');
+await page.waitForSelector('.ds-hero');
 await tour('entrada del canal');
 await tabTo('Canales externos');
 await page.keyboard.press('Enter');
@@ -84,8 +84,8 @@ await page.keyboard.press('Space');
 await dialogCheck('qué guardamos y qué no', 'Qué guardamos');
 // Denuncia entera sin ratón
 await page.goto(`${B}/canal/demo?lang=es`, { waitUntil: 'networkidle' });
-await page.waitForSelector('.entry-main');
-await tabTo('Empezar');
+await page.waitForSelector('.ds-hero');
+await tabTo('Presentar una denuncia');
 await page.keyboard.press('Enter');
 await page.waitForURL(/formulario/);
 await page.waitForSelector('.cats');
@@ -95,10 +95,10 @@ await page.waitForSelector('.cats');
 await tabTo('Fraude');
 await page.keyboard.press('Space');
 await page.waitForTimeout(500);
-if (!/Cuéntalo|cuéntalo/.test(await page.locator('h1').first().innerText())) { await tabTo('Continuar'); await page.keyboard.press('Enter'); }
+if (!/Describe lo ocurrido/.test(await page.locator('h1').first().innerText())) { await tabTo('Continuar'); await page.keyboard.press('Enter'); }
 await page.locator('textarea').first().waitFor();
 ok('paso 2: se llega eligiendo el tema con el teclado', true);
-await tour('paso 2: cuéntalo');
+await tour('paso 2: describe lo ocurrido');
 await page.locator('textarea').first().focus();
 await page.keyboard.type('Prueba hecha solo con el teclado: un proveedor factura servicios que no se han prestado.');
 await tabTo('Continuar');

@@ -33,14 +33,14 @@ const TEXT = 'Desde hace semanas, uno de los responsables del turno de noche hac
 await page.goto(`${B}/canal/demo?lang=es`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.ds-hero');
 await shot('1a-entrada-del-canal');
-await page.getByRole('link', { name: 'Empezar a denunciar' }).click();
+await page.getByRole('link', { name: 'Presentar una denuncia' }).click();
 await page.waitForSelector('.cats');
 await page.getByRole('radio', { name: /Acoso/ }).click();
 await shot('1b-que-ha-pasado');
 await page.getByRole('button', { name: 'Continuar' }).click();
 await page.waitForSelector('#dn-description');
 await page.fill('#dn-description', TEXT);
-if (mobile) await page.getByRole('button', { name: 'Añadir pruebas o detalles' }).click();
+{ const known = page.getByRole('button', { name: /Añadir cuándo, dónde y quién/ }); if (await known.isVisible()) await known.click(); }
 await page.getByLabel('Dónde o en qué área').fill('Almacén central, turno de noche');
 await page.getByPlaceholder('Por ejemplo, desde septiembre').fill('Desde septiembre');
 await shot('1c-cuentalo');

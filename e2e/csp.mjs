@@ -100,7 +100,7 @@ for (const [route, sel] of [['/', 'h1'], ['/crear-compte', 'form'], ['/privacita
 
 // Canal: enviar con una foto (se limpia en un lienzo) y descargar el justificante
 await page.goto(`${APP}/canal/acme?lang=es`, { waitUntil: 'networkidle' });
-await page.getByRole('link', { name: 'Empezar a denunciar' }).click();
+await page.getByRole('link', { name: 'Presentar una denuncia' }).click();
 await page.getByRole('radio', { name: /Fraude o corrupción/ }).click();
 await page.getByRole('button', { name: 'Continuar' }).click();
 await page.fill('#dn-description', 'Un responsable adjudica los contratos de transporte siempre a la empresa de su cuñado.');

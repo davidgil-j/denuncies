@@ -31,6 +31,15 @@ ok('el idioma queda en la dirección (?lang=)', /[?&]lang=(ca|es|en)/.test(page.
 await page.getByRole('button', { name: 'Español' }).click();
 await page.waitForURL(/lang=es/);
 ok('banda del canal de ejemplo', await page.getByText('Canal de ejemplo.').isVisible());
+// Dos mitades iguales (de lado a lado en el ordenador; una encima de otra en el móvil), sin etiquetas ni iconos de adorno
+const halves = await page.evaluate(() => [...document.querySelectorAll('.ds-pane')].map(p => { const b = p.getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height)]; }));
+ok('entrada: dos mitades iguales', halves.length === 2 && (W > 640 ? halves[0][0] === halves[1][0] : Math.abs(halves[0][1] - halves[1][1]) <= 1), JSON.stringify(halves));
+ok('entrada: sin etiquetas ni iconos de adorno', await page.locator('.ds-split-panes .ds-chip, .ds-split-panes .entry-ico').count() === 0);
+ok('entrada: «Consultar mi caso» es un botón, con su línea de ayuda', await page.getByRole('link', { name: 'Consultar mi caso' }).isVisible() && await page.getByText('Con el código que recibiste al enviarla').isVisible());
+if (W > 640) {
+  const tops = await page.evaluate(() => [...document.querySelectorAll('.entry-go')].map(b => Math.round(b.getBoundingClientRect().top)));
+  ok('entrada: los botones de los dos lados, en la misma línea', tops.length === 2 && tops[0] === tops[1], JSON.stringify(tops));
+}
 await shot('00-entrada');
 // Paneles del pie
 await page.getByRole('button', { name: /Canales externos/ }).click();
@@ -43,8 +52,9 @@ await shot('00-entrada-que-guardamos', { full: false });
 await page.keyboard.press('Escape');
 
 // 2 · Paso 1
-await (W > 640 ? page.getByRole('link', { name: 'Empezar a denunciar' }) : page.getByRole('link', { name: 'Empezar a denunciar' })).click();
+await page.getByRole('link', { name: 'Presentar una denuncia' }).click();
 await page.waitForSelector('.cats');
+ok('elegido Denunciar, el otro lado desaparece (sin franja)', await page.locator('.ds-pane').count() === 1 && await page.locator('.ds-tab').count() === 0);
 ok('«Continuar» desactivado hasta elegir tema', await page.getByRole('button', { name: 'Continuar' }).isDisabled());
 ok('9 temas, radios de verdad', await page.getByRole('radio').count() === 9);
 await page.getByRole('radio', { name: /Fraude o corrupción/ }).click();
@@ -58,13 +68,21 @@ await page.waitForSelector('#dn-description');
 await page.getByRole('button', { name: 'Continuar' }).click();
 ok('aviso si la descripción es corta', await page.getByText('Escribe al menos 20 caracteres').isVisible());
 await page.fill('#dn-description', 'Desde hace semanas, uno de los responsables del turno de noche hace comentarios sexuales a varias compañeras y se les acerca cuando están solas en los pasillos.');
-if (W <= 640) { await shot('M2-cuentalo'); await page.getByRole('button', { name: 'Añadir pruebas o detalles' }).click(); }
+ok('la ayuda es una frase, sin etiquetas', await page.getByText('Conviene indicar qué ocurrió, dónde, cuándo y quién estaba presente.').isVisible() && await page.locator('.helps, .tell-main .ds-chip').count() === 0);
+if (W <= 640) {
+  await shot('M2-cuentalo');
+  await page.getByRole('button', { name: /Añadir cuándo, dónde y quién/ }).click();
+  await page.getByRole('button', { name: /Añadir pruebas/ }).click();
+}
 await page.getByLabel('Dónde o en qué área').fill('Almacén central, turno de noche');
 await page.getByPlaceholder('Por ejemplo, desde septiembre').fill('Desde septiembre');
 await page.locator('input[type=file]').setInputFiles([`${TMP}/capturas-grupo.pdf`, `${TMP}/virus.exe`]);
 ok('archivo admitido en la lista', await page.locator('.proof-file').count() === 1);
 ok('archivo no admitido: aviso con el motivo', await page.getByText('tipo no admitido').isVisible());
-ok('ayuda: los 4 chips cubiertos', await page.locator('.helps .ds-chip.is-ok').count() === 4);
+ok('con un archivo adjunto, la frase sobre sus datos ocultos', await page.getByText('De las fotos se quitan la ubicación y los datos del dispositivo.').isVisible());
+await page.getByRole('button', { name: 'Qué datos se quitan de los archivos' }).click();
+ok('el detalle de los archivos se abre en un panel', await page.getByRole('dialog').getByText('no guardamos el nombre del archivo').isVisible());
+await page.keyboard.press('Escape');
 await shot(W <= 640 ? 'M2-cuentalo-con-detalles' : 'D2-cuentalo');
 await page.getByRole('button', { name: 'Continuar' }).click();
 
@@ -87,12 +105,17 @@ await shot('D3-identidad-falta-privacidad');
 await page.locator('#dn-privacy').check();
 await shot('D3-identidad');
 
-// «Gestionar» con el borrador escrito: pregunta antes de salir
+// «Volver al inicio del canal» con el borrador escrito: no se pierde, y «Gestionar» pregunta antes de salir del canal
 if (W > 640) {
-  await page.locator('.ds-tab.is-manage').click();
+  await page.getByRole('link', { name: 'Volver al inicio del canal' }).click();
+  await page.waitForSelector('.ds-split.is-entry .ds-hero');
+  await page.getByRole('link', { name: 'Crear mi canal' }).click();
   ok('salir con el borrador pide confirmación', await page.getByRole('dialog').getByText('¿Salir de la denuncia?').isVisible());
   await shot('D3-confirmar-salida', { full: false });
   await page.getByRole('button', { name: 'Seguir aquí' }).click();
+  await page.getByRole('link', { name: 'Presentar una denuncia' }).click();
+  await page.waitForSelector('.opts');
+  ok('al volver, el borrador sigue donde estaba', await page.locator('#dn-privacy').isChecked() && await page.getByLabel(/También quiero explicarlo en persona/).isChecked());
 }
 await page.getByRole('button', { name: 'Enviar denuncia' }).click();
 
@@ -138,7 +161,7 @@ if (W <= 640) {
 await page.waitForSelector('.ds-hero');
 
 // 7 · Escribir el código (un caso de la demo en investigación)
-await page.getByRole('link', { name: /Mira tu caso/ }).click();
+await page.getByRole('link', { name: 'Consultar mi caso' }).click();
 await page.waitForSelector('.codebox');
 await shot('D0-codigo');
 await page.getByLabel('Tu código').fill('zzzz9999');
@@ -169,7 +192,7 @@ await shot('privacidad');
 await page.goto(`${BASE}/canal/demo?lang=ca`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.ds-hero');
 await shot('00-entrada-catalan');
-await page.getByRole('link', { name: 'Començar a denunciar' }).click();
+await page.getByRole('link', { name: 'Presentar una denúncia' }).click();
 await page.waitForSelector('.cats');
 await page.goto(`${BASE}/canal/demo/formulario?lang=en`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.cats');
@@ -177,6 +200,7 @@ await shot('D1-ingles');
 await page.goto(`${BASE}/canal/no-existe?lang=es`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.canal-lost');
 ok('canal que no existe: tarjeta en el mismo idioma', await page.getByText('Este canal no existe').isVisible());
+ok('canal que no existe: sin enlaces a Reportia ni invitación a crear un canal', await page.locator('.canal-plain a, .canal-plain button').count() === 0);
 await shot('canal-no-existe', { full: false });
 
 ok('ninguna petición sale del ordenador', outside.length === 0, outside.slice(0, 3).join(' '));

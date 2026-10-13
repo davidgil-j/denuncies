@@ -29,11 +29,11 @@ const col = async (name) => { if (mobile) await page.getByRole('tab', { name: ne
 // ── A3 · «Revisa antes de enviar» con Dónde y Personas implicadas · B7 «Cambiar algo» ──
 await page.goto(`${B}/canal/demo?lang=es`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.ds-hero');
-// B7 · el botón «¿Ya lo contaste?»
+// B7 · «Consultar mi caso»: el segundo botón de Denunciar, del mismo alto que el principal, en contorno sobre el color
 const again = page.locator('.entry-again');
-const bg = await again.evaluate(el => { const c = getComputedStyle(el); return { bg: c.backgroundColor, color: c.color, h: el.getBoundingClientRect().height, tag: el.tagName }; });
-ok('B7 · «¿Ya lo contaste? Mira tu caso» es un botón en píldora con icono', bg.tag === 'A' && bg.h >= 44 && await again.locator('svg').count() === 1 && /rgba?\(13, 21, 48/.test(bg.bg), JSON.stringify(bg));
-await shot('B7-entrada-boton-mira-tu-caso');
+const bg = await again.evaluate(el => { const c = getComputedStyle(el); const go = el.closest('.entry-acts').querySelector('.entry-go').getBoundingClientRect(); return { bg: c.backgroundColor, border: c.borderTopColor, h: el.getBoundingClientRect().height, goH: go.height, tag: el.tagName, radius: c.borderTopLeftRadius }; });
+ok('B7 · «Consultar mi caso» es un botón igual de visible que el principal', bg.tag === 'A' && bg.h >= 44 && bg.h === bg.goH && bg.radius === '10px' && /rgba\(0, 0, 0, 0\)/.test(bg.bg) && await again.locator('svg').count() === 0, JSON.stringify(bg));
+await shot('B7-entrada-boton-consultar-mi-caso');
 await again.click();
 await page.waitForURL(/consulta/);
 ok('B7 · lleva a escribir el código', await page.getByLabel('Tu código').waitFor({ timeout: 8000 }).then(() => true, () => false));
@@ -42,7 +42,7 @@ await page.waitForSelector('.cats');
 await page.getByRole('radio', { name: /Fraude/ }).click();
 await page.getByRole('button', { name: 'Continuar' }).click();
 await page.fill('#dn-description', 'Un proveedor factura cada mes servicios de limpieza que no se prestan en la nave 2.');
-if (mobile) await page.getByRole('button', { name: 'Añadir pruebas o detalles' }).click();
+{ const known = page.getByRole('button', { name: /Añadir cuándo, dónde y quién/ }); if (await known.isVisible()) await known.click(); }
 await page.getByLabel('Dónde o en qué área').fill('Nave 2, compras');
 await page.getByPlaceholder('Por ejemplo, desde septiembre').fill('Desde marzo');
 await page.getByLabel('Personas implicadas').fill('El responsable de compras');
@@ -148,12 +148,12 @@ ok('B7 · «Remitir al Ministerio Fiscal» es un botón', await page.locator('.c
 await page.goto(`${B}/canal/demo/consulta?lang=es`, { waitUntil: 'networkidle' });
 await page.getByLabel('Tu código').fill('VK7P2MQA');
 await page.getByRole('button', { name: 'Ver mi caso' }).click();
-await page.waitForSelector('.okbox');
-const note = await page.locator('.okbox').innerText();
+await page.waitForSelector('.mc-closed');
+const note = await page.locator('.mc-closed').innerText();
 ok('B8 · «Mi caso» cerrado: aviso con la fecha y qué hacer', /Caso cerrado el \d+ de \w+ de \d{4}\./.test(note) && note.includes('puedes escribir aquí o enviar una nueva denuncia'), note);
 ok('B8 · se puede seguir escribiendo', await page.locator('#mc-msg').count() === 1);
 ok('B8 · no se enseña el resultado interno', !(await page.locator('.mc').innerText()).includes('Fundada'));
-await page.locator('.okbox').scrollIntoViewIfNeeded();
+await page.locator('.mc-closed').scrollIntoViewIfNeeded();
 await shot('B8-mi-caso-cerrado', { view: !mobile ? true : false });
 
 // ── A2 · caso suprimido ──

@@ -2,9 +2,9 @@ import React, { useEffect } from 'react';
 import { useLocation, useOutletContext } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { translations } from '../../translations.js';
-import { LANGS, Stable } from '../V2Layout.jsx';
-import { Button, Card, OrgMark, Segmented } from '../ui/index.js';
-import { QuickExit, Tc } from './shared.jsx';
+import { Stable } from '../V2Layout.jsx';
+import { Button, Card } from '../ui/index.js';
+import { CanalHead, Tc, ic } from './shared.jsx';
 
 // Convierte en enlace el correo de contacto y la dirección de la AEPD que aparecen en el texto legal
 const LINKS = { 'info@reportia.es': 'mailto:info@reportia.es', 'aepd.es': 'https://www.aepd.es' };
@@ -35,22 +35,14 @@ export default function Privacidad() {
     if (hash) document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView();
   }, [hash, lang]);
 
+  const back = ic(ArrowLeft, 16);
   return (
     <div className="ds ds-page priv-page">
       {banner && <div className="ds-split-banner">{banner}</div>}
-      <header className="ds-split-top">
-        <div className="entry-brand"><OrgMark name={org.name} /><b>{org.name}</b><Tc lang={lang} k="ethics" className="entry-brand-sub" /></div>
-        <div className="entry-tools">
-          <Segmented
-            className="entry-lang" label={T.v2.langGroup} value={lang} onChange={setLang}
-            options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: translations[l].langName, lang: l }))}
-          />
-          <QuickExit lang={lang} />
-        </div>
-      </header>
-      <Card as="main" radius="xl" className="priv" id="ds-main" tabIndex={-1}>
-        <Button variant="soft" size="sm" to={base} replace className="priv-back" icon={<ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" />}><Tc lang={lang} k="backToChannel" /></Button>
-        {st(P => P.title, { as: 'h1', className: 'ds-h1 is-sm' })}
+      <header><CanalHead lang={lang} setLang={setLang} org={org} langOnPhone /></header>
+      <Card as="main" className="priv" id="ds-main" tabIndex={-1}>
+        <Button variant="soft" size="sm" to={base} replace className="priv-back" icon={back}><Tc lang={lang} k="backToChannel" /></Button>
+        {st(P => P.title, { as: 'h1', className: 'ds-h1' })}
         {st(P => P.updated, { as: 'p', className: 'priv-meta' })}
         {t.sections.map((s, i) => (
           <section className="priv-sec" id={s.id} key={s.id} aria-labelledby={`${s.id}-t`}>
@@ -67,7 +59,7 @@ export default function Privacidad() {
             }, { as: 'div' })}
           </section>
         ))}
-        <Button variant="ink" size="md" to={base} replace className="priv-back" icon={<ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" />}><Tc lang={lang} k="backToChannel" /></Button>
+        <Button variant="soft" size="md" to={base} replace className="priv-back" icon={back}><Tc lang={lang} k="backToChannel" /></Button>
       </Card>
     </div>
   );
