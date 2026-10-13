@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { Turnstile } from '@marsidev/react-turnstile';
-import { LayoutDashboard, Smartphone, ArrowRight, CircleAlert, Clock } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CircleAlert } from 'lucide-react';
 import { translations } from '../../translations.js';
 import './texts.js'; // textos del panel (lado Gestionar)
 import { signInAdmin, getAdminSession, getMfaState, verifyLoginCode, signOutAdmin, getOrganizationBySlug, IS_DEMO } from '../../lib/supabase.js';
 import { LANGS, detectLang, fmt } from '../V2Layout.jsx';
 import { EMAIL_RE, authErrorKey } from '../site/fields.jsx';
-import { SplitShell, SideTab, Button, Field, OrgMark, OtpInput, Segmented } from '../ui/index.js';
+import { SplitShell, Button, Card, Field, OrgMark, OtpInput, Segmented } from '../ui/index.js';
 import PasswordField from './PasswordField.jsx';
 import { Tp } from './kit.jsx';
 import './panel.css';
@@ -19,9 +19,10 @@ const TURNSTILE_TIMEOUT = 12000;
 const AUTH_ERR = { errCredentials: 'errLogin', errUnconfirmed: 'errConfirm', errRate: 'errRate' };
 
 /**
- * Marco de «Gestionar · Acceso»: la franja azul «Denunciar» y la tarjeta blanca. Lo usan el acceso,
- * la verificación y las pantallas de recuperar y cambiar la contraseña (Contrasena.jsx). Si se llega desde un canal
- * (?from=slug) se ve el nombre de esa empresa y la franja lleva a su paso 1; si no, a la portada.
+ * Marco del acceso al panel: una barra con la empresa y el idioma, y una tarjeta de 400 px en el centro. Lo usan
+ * el acceso, la verificación y las pantallas de recuperar y cambiar la contraseña (Contrasena.jsx). Si se llega
+ * desde un canal (?from=slug) se ve el nombre de esa empresa y, debajo, «Volver al inicio del canal»; si no, se
+ * vuelve a la portada. Aquí no se vende nada: es la puerta del equipo de un cliente.
  */
 export function AccessLayout() {
   const [params] = useSearchParams();
@@ -48,27 +49,26 @@ export function AccessLayout() {
     return () => { alive = false; };
   }, [from]);
 
-  const tab = org
-    ? <SideTab side="report" label={p.report} icon="back" to={`/canal/${org.slug}/formulario?lang=${lang}`} ariaLabel={p.reportAria} />
-    : <SideTab side="report" label={p.home} icon="back" to={`/?lang=${lang}`} ariaLabel={p.homeAria} />;
-
+  const T = translations[lang];
   return (
     <SplitShell
-      className="ac" active="manage" skip={translations[lang].v2.skip} reportTab={tab}
+      className="ac" active="manage" skip={T.v2.skip}
       manage={(
         <>
-          <div className="ac-head">
-            <div className="pn-brand">{org ? <><OrgMark name={org.name} /><b>{org.name}</b></> : <><OrgMark name="Reportia" /><b>Reportia</b></>}</div>
+          <header className="ac-head">
+            <div className="pn-brand">{org ? <b title={org.name}>{org.name}</b> : <><OrgMark name="Reportia" /><b>Reportia</b></>}</div>
             <Segmented
-              tone="bg" label={p.language} value={lang} onChange={setLang}
+              tone="plain" label={p.language} value={lang} onChange={setLang}
               options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: `${l.toUpperCase()} · ${translations[l].langName}`, lang: l }))}
             />
+          </header>
+          <div className="ac-body">
+            <Card className="ac-card"><Outlet context={{ lang, org, from }} /></Card>
+            {org
+              ? <Link className="ac-back" to={`/canal/${org.slug}?lang=${lang}`}><ArrowLeft size={14} strokeWidth={1.8} aria-hidden="true" />{T.canal.backHome}</Link>
+              : <Link className="ac-back" to={`/?lang=${lang}`}><ArrowLeft size={14} strokeWidth={1.8} aria-hidden="true" />{p.homeAria}</Link>}
           </div>
-          <div className="ac-body"><Outlet context={{ lang, org, from }} /></div>
-          <div className="ac-foot">
-            <span>{p.noChannel} <Link to={`/crear-compte?lang=${lang}`}>{p.createFree}</Link></span>
-            <Link className="ac-by" to={`/?lang=${lang}`}>{p.byReportia}</Link>
-          </div>
+          <div className="ac-foot"><Link className="ac-by" to={`/?lang=${lang}`}>{p.byReportia}</Link></div>
         </>
       )}
     />
@@ -100,7 +100,7 @@ export default function Acceso() {
   const turnstileRef = useRef(null);
   const [narrow] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 420px)').matches);
 
-  useEffect(() => { document.title = `${step === 'code' ? `${p.codeTitle} · ` : ''}${p.manage} · ${org?.name ?? 'Reportia'}`; }, [p, org, step]);
+  useEffect(() => { document.title = `${step === 'code' ? p.codeTitle : p.accessTitle} · ${org?.name ?? 'Reportia'}`; }, [p, org, step]);
 
   // Con la sesión abierta: si falta el código de los dos pasos, se pide; si no, al panel
   useEffect(() => {
@@ -166,15 +166,14 @@ export default function Acceso() {
   if (step === 'code') {
     return (
       <form className="ac-form" onSubmit={e => { e.preventDefault(); verify(); }} noValidate>
-        <span className="ac-ico" aria-hidden="true"><Smartphone size={34} strokeWidth={1.6} /></span>
         <div className="ac-title">
           <Tp as="h1" className="ds-h1 is-sm" lang={lang} k="codeTitle" />
           <Tp as="p" className="ac-lead" lang={lang} k="codeLead" />
         </div>
         {IS_DEMO && <p className="ac-note">{p.codeDemo}</p>}
         <OtpInput value={code} onChange={v => { setCode(v); setCodeErr(''); }} onComplete={verify} label={p.codeGroup} digitLabel={p.digit} invalid={!!codeErr} describedBy={codeErr ? 'ac-code-e' : undefined} autoFocus />
-        {codeErr && <p className="ds-field-error" id="ac-code-e" role="alert"><CircleAlert size={16} strokeWidth={2.2} aria-hidden="true" />{codeErr}</p>}
-        <Button type="submit" variant="ink" size="lg" full busy={loading} disabled={code.length !== 6}><Tp lang={lang} k={loading ? 'entering' : 'enter'} /></Button>
+        {codeErr && <p className="ds-field-error" id="ac-code-e" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />{codeErr}</p>}
+        <Button type="submit" variant="report" size="lg" full busy={loading} disabled={code.length !== 6}><Tp lang={lang} k={loading ? 'entering' : 'enter'} /></Button>
         <div className="ac-row">
           <button type="button" className="ac-link" onClick={backToPassword}>{p.codeBack}</button>
           <button type="button" className="ac-link" aria-expanded={help} aria-controls="ac-help" onClick={() => setHelp(h => !h)}>{p.noPhone}</button>
@@ -186,12 +185,11 @@ export default function Acceso() {
 
   return (
     <form className="ac-form" onSubmit={submit} noValidate>
-      <span className="ac-ico" aria-hidden="true"><LayoutDashboard size={34} strokeWidth={1.6} /></span>
       <div className="ac-title">
-        <Tp as="h1" className="ds-h1" lang={lang} k="manage" />
+        <Tp as="h1" className="ds-h1 is-sm" lang={lang} k="accessTitle" />
         <Tp as="p" className="ac-lead" lang={lang} pick={x => (org ? fmt(x.accessLead, { org: org.name }) : x.accessLeadNoOrg)} />
       </div>
-      {idle && <p className="ac-idle" role="status"><Clock size={18} strokeWidth={2.2} aria-hidden="true" />{p.idleOut}</p>}
+      {idle && <p className="ac-idle" role="status">{p.idleOut}</p>}
       <div className="ac-fields">
         <Field
           id="ac-email" type="email" inputMode="email" label={p.email} value={email} error={errors.email}
@@ -213,16 +211,15 @@ export default function Acceso() {
             />
           </div>
         )}
-        {submitError && <p className="ac-error" role="alert"><CircleAlert size={18} strokeWidth={2.2} aria-hidden="true" />{submitError}</p>}
-        <Button type="submit" variant="ink" size="lg" full busy={loading} disabled={!token && !captchaOff && !loading} iconEnd={<ArrowRight size={20} strokeWidth={2.2} aria-hidden="true" />}>
+        {submitError && <p className="ac-error" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />{submitError}</p>}
+        <Button type="submit" variant="report" size="lg" full busy={loading} disabled={!token && !captchaOff && !loading} iconEnd={<ArrowRight size={16} strokeWidth={1.8} aria-hidden="true" />}>
           <Tp lang={lang} k={loading ? 'entering' : 'enter'} />
         </Button>
         <div className="ac-row">
           <Link className="ac-link" to={`/admin/forgot-password${from ? `?from=${from}` : ''}`}>{p.forgot}</Link>
-          <span className="ac-hint">{p.thenCode}</span>
         </div>
+        <p className="ac-hint">{p.thenCode}</p>
       </div>
-      <p className="ac-note">{p.wrongA}<b>{p.wrongB}</b>{p.wrongC}</p>
     </form>
   );
 }

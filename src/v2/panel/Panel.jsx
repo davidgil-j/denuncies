@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BarChart3, Share2, SlidersHorizontal, Search, Plus, LogOut, CircleCheck, CircleAlert, UserRoundX } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Share2, SlidersHorizontal, Search, Plus, LogOut, CircleCheck, CircleAlert, ArrowUpRight } from 'lucide-react';
 import { translations } from '../../translations.js';
 import './texts.js'; // textos del panel (lado Gestionar)
 import {
@@ -8,7 +8,7 @@ import {
 } from '../../lib/supabase.js';
 import { LANGS, detectLang, fmt } from '../V2Layout.jsx';
 import { planInfo } from '../admin/adminKit.jsx';
-import { SplitShell, SideTab, PillNav, Button, IconButton, Chip, Card, OrgMark, Avatar, Skeleton, Segmented, Dialog, Field, Menu, MenuItem, Offline } from '../ui/index.js';
+import { SplitShell, PillNav, Button, IconButton, Chip, Card, Avatar, Skeleton, Segmented, Dialog, Field, Menu, MenuItem, Offline, cx } from '../ui/index.js';
 import { caseTitle } from './kit.jsx';
 import './panel.css';
 
@@ -23,9 +23,9 @@ function initialLang() {
 const SETTINGS = ['/admin/ajustes', '/admin/mfa'];
 
 /**
- * El lado «Gestionar» ya dentro: guarda de sesión, perfil y permisos, y el marco de las dos mitades
- * (la franja azul «Ver el canal» y la tarjeta blanca con el menú). Las pantallas reciben idioma,
- * perfil y permisos por <Outlet context>, igual que antes.
+ * El lado «Gestionar» ya dentro: guarda de sesión, perfil y permisos, y el marco del panel: una sola
+ * cabecera (empresa, menú en texto, el plan en pequeño, «Ver el canal», buscar, «Registrar caso» y la
+ * cuenta) y la pantalla debajo. Las pantallas reciben idioma, perfil y permisos por <Outlet context>.
  */
 export default function Panel() {
   const location = useLocation();
@@ -146,17 +146,20 @@ export default function Panel() {
     return (
       <div className="ds ds-page pn-plain">
         {phase === 'loading' ? (
-          <Card radius="xl" className="pn-loading" role="status" aria-live="polite">
+          // El esqueleto tiene la forma del panel: la cabecera, el título y las tres columnas
+          <div className="pn-loading" role="status" aria-live="polite">
             <span className="ds-vh">{p.loading}</span>
-            <Skeleton width={220} height={40} /><Skeleton width="60%" height={48} />
-            <div className="pn-loading-cols" aria-hidden="true">{[0, 1, 2].map(i => <Skeleton key={i} height={260} />)}</div>
-          </Card>
+            <div className="pn-loading-head" aria-hidden="true"><Skeleton width={140} height={18} /><Skeleton width={320} height={18} /></div>
+            <div className="pn-loading-body" aria-hidden="true">
+              <Skeleton width={180} height={30} />
+              <div className="pn-loading-cols">{[0, 1, 2].map(i => <Skeleton key={i} height={220} />)}</div>
+            </div>
+          </div>
         ) : (
-          <Card as="main" radius="xl" className="pn-lost">
-            <UserRoundX size={32} strokeWidth={1.7} aria-hidden="true" />
+          <Card as="main" className="pn-lost">
             <h1 className="ds-h1 is-sm">{t.noProfileTitle}</h1>
             <p className="ds-lead">{t.noProfileText}</p>
-            <Button variant="ink" size="md" onClick={logout} busy={leaving} icon={<LogOut size={16} aria-hidden="true" />}>{p.logout}</Button>
+            <Button variant="soft" size="md" onClick={logout} busy={leaving} icon={<LogOut size={16} strokeWidth={1.8} aria-hidden="true" />}>{p.logout}</Button>
           </Card>
         )}
       </div>
@@ -190,42 +193,51 @@ export default function Panel() {
     <>
       <SplitShell
         className="pn" active="manage" skip={t.skip} mainId="pn-main"
-        reportTab={channelPath ? <SideTab side="report" label={p.viewChannel} icon="external" href={channelPath} target="_blank" rel="noopener noreferrer" ariaLabel={p.viewChannelAria} /> : <span />}
         manage={(
           <>
             <header className="pn-head">
-              <div className="pn-brand">
-                <Link className="pn-brand-link" to="/admin"><OrgMark name={orgName} /><b title={orgName}>{orgName}</b></Link>
-                {IS_DEMO && <Chip size="md" className="pn-chip" title={p.demoLong}>{p.demoChip}<span className="ds-vh">: {p.demoLong}</span></Chip>}
-                {planChip && <Link className="pn-chiplink" to="/admin/ajustes"><Chip size="md" tone={planChip.warn ? 'warn' : 'neutral'}>{planChip.text}</Chip></Link>}
-              </div>
-              <PillNav items={nav} label={p.navLabel} />
-              <div className="pn-tools">
-                {!mfaSetup && (
-                  <>
-                    <IconButton variant="bg" label={p.search} onClick={() => setSearching(true)}><Search size={18} strokeWidth={2} aria-hidden="true" /></IconButton>
-                    {canRegister && (
-                      <Button variant={path === '/admin' ? 'report' : 'bg'} size="sm" className="pn-register" to="/admin/nueva" aria-label={p.register} icon={<Plus size={18} strokeWidth={2.6} aria-hidden="true" />}>
-                        <span className="pn-register-t">{p.register}</span>
-                      </Button>
-                    )}
-                  </>
-                )}
-                <Menu
-                  label={p.account} className="pn-me"
-                  trigger={props => <button type="button" className="pn-avatar" {...props}><span className="ds-vh">{`${p.account}: ${name}`}</span><span aria-hidden="true" style={{ display: 'contents' }}><Avatar name={name} /></span></button>}
-                >
-                  <div className="ds-menu-head"><b>{name}</b><span>{isSuperadmin ? t.roleSuperadmin : t.roleManager}</span></div>
-                  <div className="pn-me-lang">
-                    <span className="ds-vh" id="pn-lang-l">{p.language}</span>
-                    <Segmented
-                      tone="bg" label={p.language} value={lang} onChange={setLang}
-                      options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: `${l.toUpperCase()} · ${translations[l].langName}`, lang: l }))}
-                    />
-                  </div>
-                  <div className="ds-menu-sep" />
-                  <MenuItem icon={<LogOut size={16} strokeWidth={2} aria-hidden="true" />} onClick={logout} disabled={leaving}>{leaving ? t.loggingOut : p.logout}</MenuItem>
-                </Menu>
+              <div className="pn-head-in">
+                <div className="pn-brand">
+                  <Link className="pn-brand-link" to="/admin"><b title={orgName}>{orgName}</b></Link>
+                  {IS_DEMO && <Chip className="pn-chip" title={p.demoLong}>{p.demoChip}<span className="ds-vh">: {p.demoLong}</span></Chip>}
+                </div>
+                <PillNav items={nav} label={p.navLabel} />
+                <div className="pn-tools">
+                  {/* El plan, en texto pequeño: solo cuando hay algo que hacer */}
+                  {planChip && <Link className={cx('pn-plan', planChip.warn && 'is-warn')} to="/admin/ajustes">{planChip.text}</Link>}
+                  {channelPath && (
+                    <a className="pn-view" href={channelPath} target="_blank" rel="noopener noreferrer" aria-label={p.viewChannelAria}>
+                      <span>{p.viewChannel}</span><ArrowUpRight size={14} strokeWidth={1.8} aria-hidden="true" />
+                    </a>
+                  )}
+                  {!mfaSetup && (
+                    <>
+                      <IconButton variant="ghost" size="md" label={p.search} onClick={() => setSearching(true)}><Search size={18} strokeWidth={1.8} aria-hidden="true" /></IconButton>
+                      {canRegister && (
+                        <Button variant={path === '/admin' ? 'report' : 'soft'} size="md" className="pn-register" to="/admin/nueva" aria-label={p.register} icon={<Plus size={16} strokeWidth={1.8} aria-hidden="true" />}>
+                          <span className="pn-register-t">{p.register}</span>
+                        </Button>
+                      )}
+                    </>
+                  )}
+                  <Menu
+                    label={p.account} className="pn-me"
+                    trigger={props => <button type="button" className="pn-avatar" {...props}><span className="ds-vh">{`${p.account}: ${name}`}</span><span aria-hidden="true" style={{ display: 'contents' }}><Avatar name={name} /></span></button>}
+                  >
+                    <div className="ds-menu-head"><b>{name}</b><span>{isSuperadmin ? t.roleSuperadmin : t.roleManager}</span></div>
+                    <div className="pn-me-lang">
+                      <span className="ds-vh" id="pn-lang-l">{p.language}</span>
+                      <Segmented
+                        tone="plain" label={p.language} value={lang} onChange={setLang}
+                        options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: `${l.toUpperCase()} · ${translations[l].langName}`, lang: l }))}
+                      />
+                    </div>
+                    <div className="ds-menu-sep" />
+                    {/* Donde la cabecera no tiene sitio para «Ver el canal» (pantallas estrechas), está aquí */}
+                    {channelPath && <MenuItem className="pn-view-item" href={channelPath} target="_blank" rel="noopener noreferrer" icon={<ArrowUpRight size={16} strokeWidth={1.8} aria-hidden="true" />}>{p.viewChannel}</MenuItem>}
+                    <MenuItem icon={<LogOut size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={logout} disabled={leaving}>{leaving ? t.loggingOut : p.logout}</MenuItem>
+                  </Menu>
+                </div>
               </div>
             </header>
 
@@ -239,7 +251,7 @@ export default function Panel() {
       <div className="ds pn-toast-zone" role="status" aria-live="polite">
         {toast && (
           <div key={toast.id} className={`pn-toast is-${toast.tone}`}>
-            {toast.tone === 'ok' ? <CircleCheck size={18} strokeWidth={2.2} aria-hidden="true" /> : <CircleAlert size={18} strokeWidth={2.2} aria-hidden="true" />}
+            {toast.tone === 'ok' ? <CircleCheck size={18} strokeWidth={1.8} aria-hidden="true" /> : <CircleAlert size={18} strokeWidth={1.8} aria-hidden="true" />}
             <span>{toast.text}</span>
           </div>
         )}
@@ -298,8 +310,9 @@ function SearchDialog({ open, onClose, ctx }) {
             {found.map(c => (
               <li key={c.id}>
                 <button type="button" onClick={() => { onClose(); navigate(`/admin/complaints/${c.id}`); }}>
-                  <b>{caseTitle(c, p)}</b>
-                  <span>{c.reference} · {tr.canal.cats[c.category]?.[0] ?? c.category}</span>
+                  <b>{caseTitle(c, tr)}</b>
+                  {/* Con título propio, debajo van la referencia y el tema; sin él, ya son el título */}
+                  {c.title && !c.anonymized_at && <span>{c.reference} · {tr.canal.cats[c.category]?.[0] ?? c.category}</span>}
                 </button>
               </li>
             ))}

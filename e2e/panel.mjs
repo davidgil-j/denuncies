@@ -35,11 +35,13 @@ await page.addInitScript(() => { try { localStorage.setItem('reportia-panel-lang
 await page.goto(`${BASE}/admin/login`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.ac-form');
 ok('acceso sin empresa: «Gestionar» sin nombre', await page.getByText('Entra con tu correo de trabajo.').isVisible());
-if (!mobile) ok('sin empresa, la franja lleva a la portada', (await page.locator('.ds-tab').getAttribute('href')).startsWith('/?'));
+ok('acceso: sin franja lateral; debajo de la tarjeta se vuelve a la portada', await page.locator('.ds-tab, .ds-pane.is-tab').count() === 0 && (await page.locator('.ac-back').getAttribute('href')).startsWith('/?'));
+ok('acceso: tarjeta de 400 px con el título «Acceso al panel»', (await page.locator('h1').first().innerText()).trim() === 'Acceso al panel' && await page.locator('.ac-card').evaluate(el => el.getBoundingClientRect().width <= 400));
+ok('acceso: sin venta de Reportia', await page.getByText(/aún no tiene canal|Créalo gratis/).count() === 0);
 await shot('G1-acceso-sin-empresa');
 await page.goto(`${BASE}/admin/login?from=demo`, { waitUntil: 'networkidle' });
 await page.getByText('Entra con tu correo de Empresa Demo.').waitFor();
-if (!mobile) ok('con empresa, la franja lleva al paso 1', (await page.locator('.ds-tab').getAttribute('href')).startsWith('/canal/demo/formulario'));
+ok('con empresa, «Volver al inicio del canal» lleva a su canal', (await page.getByRole('link', { name: 'Volver al inicio del canal' }).getAttribute('href')).startsWith('/canal/demo'));
 await page.getByRole('button', { name: 'Entrar' }).click();
 ok('acceso: avisa si falta el correo', await page.getByText('Escribe un correo válido.').isVisible());
 await page.getByLabel('Correo').fill('laura.puig@empresa-demo.es');
@@ -62,14 +64,35 @@ ok('pegar el código rellena las 6 casillas y entra solo', true);
 // 3 · Tablero
 await page.waitForSelector('.ds-case');
 const h1 = (await page.locator('h1').first().innerText()).trim();
-ok('tablero: titular con los casos que necesitan algo hoy', /casos? te necesitan? hoy|Todo al día/.test(h1), h1);
+const sub = (await page.locator('.pn-lead').innerText()).trim();
+ok('tablero: se titula «Tablero» y debajo dice cuántos casos requieren una acción hoy', h1 === 'Tablero' && /casos? requieren? una acción hoy|Ningún caso requiere/.test(sub), `${h1} · ${sub}`);
+ok('tablero: sin saludo', await page.getByText(/Hola, /).count() === 0);
 ok('tres columnas con casos', await page.locator('.ds-kcol').count() === 3);
-ok('chip de plazo lejano con «para responder»', mobile || await page.locator('.ds-chip', { hasText: /\d+ días para responder/ }).count() > 0);
-ok('aviso de casos que deben suprimirse', await page.locator('.pn-banner').count() >= 0);
+ok('plazo lejano en texto gris, sin etiqueta de color', mobile || await page.locator('.ds-case-plain', { hasText: /\d+ días para responder/ }).count() > 0);
+// Título neutro: la referencia y el tema, nunca el principio de lo que contó
+const titles = await page.locator('.ds-case-title').allInnerTexts();
+ok('tarjetas con título neutro (referencia · tema)', titles.length > 0 && titles.every(t => /^REF-[A-Z0-9]+ · /.test(t.trim())), titles.slice(0, 3).join(' | '));
+// La urgencia, sin leer: barra roja en lo vencido y ámbar en lo que vence pronto; «Hoy» ya no sale
+ok('barra de urgencia a la izquierda y sin etiqueta «Hoy»', await page.locator('.ds-case.is-overdue').count() > 0 && await page.locator('.ds-case.is-soon').count() > 0 && await page.locator('.ds-case .ds-chip.is-ink').count() === 0);
+// «Prioridad alta» en gris con su icono; solo la crítica en rojo
+if (mobile) await page.getByRole('tab', { name: /En curso/ }).click();
+ok('prioridad alta en gris y crítica en rojo', await page.locator('.ds-case-plain', { hasText: 'Prioridad alta' }).first().locator('svg').count() === 1 && await page.locator('.ds-chip.is-warn', { hasText: /Prioridad/ }).count() === 0 && await page.locator('.ds-chip.is-danger', { hasText: 'Prioridad crítica' }).count() >= 1);
+if (mobile) await page.getByRole('tab', { name: /Nuevas/ }).click();
+// Avisos en una línea que se despliegan
+const ret = page.locator('.pn-notice.is-warn');
+ok('aviso de casos que deben suprimirse: una línea plegada', await ret.count() === 1 && await ret.locator('.pn-notice-body').count() === 0);
+await ret.getByRole('button').click();
+ok('al pulsar «Ver» se despliega con el texto de la ley y los casos', await ret.getByText(/arts\. 32\.4 y 26\.2/).isVisible() && await ret.locator('.pn-notice-refs a').count() >= 1);
+await ret.getByRole('button').first().click();
 if (!mobile) {
   // Se cuenta por el centro de cada pieza: con alturas distintas (botón de 36, menú de 44) los bordes de arriba no coinciden
-  const rows = async () => page.evaluate(() => { const mids = [...document.querySelector('.pn-head').children].map(c => { const b = c.getBoundingClientRect(); return b.top + b.height / 2; }); return Math.max(...mids) - Math.min(...mids) < 20 ? 1 : 2; });
+  const rows = async () => page.evaluate(() => { const mids = [...document.querySelector('.pn-head-in').children].map(c => { const b = c.getBoundingClientRect(); return b.top + b.height / 2; }); return Math.max(...mids) - Math.min(...mids) < 20 ? 1 : 2; });
   ok('cabecera del panel en una sola línea a 1440 px', await rows() === 1, `alto ${await page.locator('.pn-head').evaluate(el => Math.round(el.getBoundingClientRect().height))}px`);
+  // Una sola cabecera: menú en texto (el activo, subrayado con el acento), «Ver el canal» como enlace y avatar gris. Sin franja lateral
+  ok('panel sin franja lateral; «Ver el canal» es un enlace de la cabecera que abre el canal en otra pestaña', await page.locator('.ds-tab, .ds-pane.is-tab').count() === 0 && (await page.locator('.pn-head .pn-view').getAttribute('href')) === '/canal/demo' && (await page.locator('.pn-head .pn-view').getAttribute('target')) === '_blank');
+  const navLook = await page.locator('.ds-nav-item[aria-current="page"]').evaluate(el => { const c = getComputedStyle(el); return { bg: c.backgroundColor, line: c.borderBottomColor, w: c.fontWeight }; });
+  ok('menú en texto: el activo, en negrita y subrayado con el acento (sin píldora)', navLook.bg === 'rgba(0, 0, 0, 0)' && navLook.line === 'rgb(47, 84, 235)' && Number(navLook.w) >= 700, JSON.stringify(navLook));
+  ok('avatar gris neutro', await page.locator('.pn-avatar .ds-avatar').evaluate(el => getComputedStyle(el).backgroundColor) === 'rgb(241, 243, 247)');
 }
 await shot(mobile ? 'M4-tablero' : 'G2-tablero');
 if (mobile) {
@@ -93,8 +116,8 @@ await page.getByRole('button', { name: 'Listo' }).click();
 ok('el filtro queda en la dirección', /pr=high/.test(page.url()));
 await shot('G2-tablero-filtrado');
 await page.getByRole('button', { name: 'Quitar filtros' }).click();
-// Menú «···» y exportaciones
-await page.getByRole('button', { name: 'Más acciones' }).click();
+// «Exportar» y sus dos documentos
+await page.getByRole('button', { name: 'Exportar', exact: true }).click();
 await shot('G2-menu-exportar', { full: false });
 const [xls] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.getByRole('button', { name: 'Libro-registro (Excel)' }).click()]);
 await xls.saveAs(`${TMP}/libro-${W}.xlsx`);
@@ -103,14 +126,14 @@ ok('libro-registro en Excel', readFileSync(`${TMP}/libro-${W}.xlsx`).length > 50
 await page.getByRole('button', { name: 'Buscar' }).click();
 await page.getByPlaceholder('Referencia o texto').fill('carretilla');
 await page.locator('.pn-found button').first().waitFor();
-ok('buscar por texto encuentra el caso', await page.locator('.pn-found').getByText(/Carretilla/).isVisible());
+ok('buscar por texto encuentra el caso y lo enseña con su título neutro', await page.locator('.pn-found').getByText(/REF-TN4VKA · Seguridad en el trabajo/).isVisible() && await page.locator('.pn-found').getByText(/carretilla/i).count() === 0);
 await shot('G2-buscar', { full: false });
 await page.getByRole('dialog').getByRole('button', { name: 'Cerrar' }).click();
 
 // 4 · Mover con el teclado abre la ficha con el acuse preparado
 if (!mobile) {
-  const move = page.locator('.ds-kcol').first().locator('.ds-case', { hasText: 'Comentarios sexuales' }).getByRole('button', { name: /Enviar el acuse de recibo/ });
-  await page.locator('.ds-kcol').first().locator('.ds-case', { hasText: 'Comentarios sexuales' }).getByRole('link').focus();
+  const move = page.locator('.ds-kcol').first().locator('.ds-case', { hasText: 'REF-7P2MQA' }).getByRole('button', { name: /Enviar el acuse de recibo/ });
+  await page.locator('.ds-kcol').first().locator('.ds-case', { hasText: 'REF-7P2MQA' }).getByRole('link').focus();
   await page.keyboard.press('Tab');
   await page.waitForTimeout(300);
   ok('con Tab, el foco llega a la flecha de la tarjeta', await move.evaluate(el => document.activeElement === el));
@@ -118,7 +141,7 @@ if (!mobile) {
   await shot('G2-tablero-mover-con-teclado', { full: false });
   await page.keyboard.press('Enter');
 } else {
-  await page.locator('.ds-case', { hasText: 'Comentarios sexuales' }).getByRole('link').click();
+  await page.locator('.ds-case', { hasText: 'REF-7P2MQA' }).getByRole('link').click();
 }
 await page.waitForSelector('.cs');
 if (!mobile) {
@@ -161,20 +184,25 @@ await page.getByRole('dialog').getByRole('button').last().click();
 await page.locator('.ds-chip', { hasText: 'Plazo ampliado' }).waitFor();
 ok('«···»: ampliar el plazo con motivo', true);
 // Título, asignación, prioridad y nota
-if (await page.getByRole('button', { name: 'Cambiar el título' }).count()) {
-  await page.getByRole('button', { name: 'Cambiar el título' }).click();
+ok('ficha: título neutro por defecto (referencia · tema)', (await page.locator('.cs-title h1').innerText()).trim() === 'REF-7P2MQA · Acoso laboral o sexual');
+if (await page.getByRole('button', { name: 'Añadir un título' }).count()) {
+  await page.getByRole('button', { name: 'Añadir un título' }).click();
   await page.getByLabel('Título del caso').fill('Comentarios sexuales del responsable del turno de noche');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   await page.getByRole('heading', { level: 1, name: 'Comentarios sexuales del responsable del turno de noche' }).waitFor();
-  ok('título editable con el lápiz', true);
+  ok('se puede añadir un título propio; después se cambia con el lápiz', await page.getByRole('button', { name: 'Cambiar el título' }).count() === 1 && /REF-7P2MQA · Acoso laboral o sexual/.test(await page.locator('.cs-meta').innerText()));
 }
 await page.getByLabel('Quién lo lleva').selectOption({ label: 'Núria Soler Vidal' });
 await page.locator('.cs-hist').getByText(/asignado a Núria Soler Vidal/).waitFor();
 ok('quién lo lleva: se guarda y queda en el historial', true);
-await page.getByRole('button', { name: 'Añadir nota interna' }).click();
-await page.getByRole('dialog').locator('textarea').fill('Hablar con RR. HH. antes del jueves.');
-await page.getByRole('dialog').getByRole('button', { name: 'Guardar nota', exact: true }).click();
+// Notas internas: en su bloque ámbar, con su rótulo, aparte de la conversación
+await page.getByPlaceholder('Añadir una nota para el equipo').fill('Hablar con RR. HH. antes del jueves.');
+await page.locator('.cs-notes').getByRole('button', { name: 'Guardar nota', exact: true }).click();
 await toast('Nota guardada');
+await page.locator('.cs-notes').getByText('Hablar con RR. HH. antes del jueves.').waitFor({ timeout: 6000 });
+ok('la nota queda en «Notas internas», con su rótulo, y no en la conversación', await page.locator('.cs-notes').getByText('Hablar con RR. HH. antes del jueves.').isVisible() && await page.locator('.cs-notes').getByText('Nota interna · no la ve quien informa').isVisible() && await page.locator('.cs-conv').getByText('Hablar con RR. HH.').count() === 0);
+ok('conversación en su bloque, con la cabecera tintada', await page.locator('.cs-conv .pn-block-head').evaluate(el => getComputedStyle(el).backgroundColor) === 'rgb(232, 237, 255)');
+ok('una sola columna de gestión', await page.locator('.cs-side').count() === 1 && await page.locator('.cs-side .ds-card').count() === 0 && await page.locator('.cs-side .cs-sec').count() >= 4);
 // Responder y cerrar
 await page.locator('.cs-next').getByRole('button', { name: 'Responder y cerrar' }).click();
 await page.getByRole('dialog').getByRole('button', { name: 'Enviar y cerrar', exact: true }).click();
@@ -262,7 +290,7 @@ await page.locator('.pn-avatar').click();
 await shot('G2-menu-cuenta', { full: false });
 await page.getByRole('button', { name: 'English' }).click();
 await page.keyboard.press('Escape');
-await page.getByText(/need you today|All up to date/).waitFor();
+await page.getByText(/need action today/).waitFor();
 await shot('G2-tablero-ingles');
 await page.locator('.pn-avatar').click();
 await page.getByRole('button', { name: 'Sign out' }).click();

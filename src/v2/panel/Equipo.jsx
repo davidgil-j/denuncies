@@ -207,23 +207,23 @@ export default function Equipo() {
     : fmt(s.permsT, { name: who });
   const back = () => { setError(''); setView('perms'); };
   const actions = !target ? null
-    : view === 'perms' ? <Button variant="ink" size="md" onClick={savePerms} busy={busy} disabled={!dirty || loadingPerms}>{busy ? p.saving : s.savePerms}</Button>
-    : view === 'discard' ? <><Button variant="soft" size="md" onClick={close}>{s.discard}</Button><Button variant="ink" size="md" onClick={back}>{s.keepEditing}</Button></>
-    : view === 'promote' ? <><Button variant="soft" size="md" onClick={back} disabled={busy}>{p.cancel}</Button><Button variant="ink" size="md" onClick={() => doRole('superadmin')} busy={busy}>{s.promote}</Button></>
+    : view === 'perms' ? <Button variant="report" size="md" onClick={savePerms} busy={busy} disabled={!dirty || loadingPerms}>{busy ? p.saving : s.savePerms}</Button>
+    : view === 'discard' ? <><Button variant="soft" size="md" onClick={close}>{s.discard}</Button><Button variant="report" size="md" onClick={back}>{s.keepEditing}</Button></>
+    : view === 'promote' ? <><Button variant="soft" size="md" onClick={back} disabled={busy}>{p.cancel}</Button><Button variant="report" size="md" onClick={() => doRole('superadmin')} busy={busy}>{s.promote}</Button></>
     : view === 'demote' ? <><Button variant="soft" size="md" onClick={close} disabled={busy}>{p.cancel}</Button><Button variant="danger" size="md" onClick={() => doRole('manager')} busy={busy}>{s.demote}</Button></>
     : <><Button variant="soft" size="md" onClick={back} disabled={busy}>{p.cancel}</Button><Button variant="danger" size="md" onClick={doRemove} busy={busy}>{busy ? s.removing : s.remove}</Button></>;
 
   return (
-    <Card as="section" tone="bg" className="st-card" aria-labelledby="tm-t">
+    <Card as="section" className="st-card" aria-labelledby="tm-t">
       <div className="st-head">
         <h2 className="st-h" id="tm-t">{s.teamT}</h2>
-        <Button variant="report" size="xs" onClick={() => { setInvErr({}); setInviting(true); }} icon={<Plus size={16} strokeWidth={2.8} aria-hidden="true" />}>{s.invite}</Button>
+        <Button variant="soft" size="xs" onClick={() => { setInvErr({}); setInviting(true); }} icon={<Plus size={16} strokeWidth={1.8} aria-hidden="true" />}>{s.invite}</Button>
       </div>
 
       {people === null ? (
         <div role="status" aria-live="polite" className="tm-list"><span className="ds-vh">{p.loading}</span>{[0, 1, 2].map(i => <Skeleton key={i} height={62} className="tm-skel" />)}</div>
       ) : failed ? (
-        <div className="pn-error" role="alert"><CircleAlert size={20} strokeWidth={2.2} aria-hidden="true" /><span>{s.teamErr}</span><Button variant="white" size="xs" onClick={() => { setPeople(null); load(); }}>{p.retry}</Button></div>
+        <div className="pn-error" role="alert"><CircleAlert size={20} strokeWidth={1.8} aria-hidden="true" /><span>{s.teamErr}</span><Button variant="soft" size="xs" onClick={() => { setPeople(null); load(); }}>{p.retry}</Button></div>
       ) : (
         <ul className="tm-list">
           {people.map((person, i) => {
@@ -267,10 +267,10 @@ export default function Equipo() {
               </table>
             )}
             <p className="tm-hint">{s.permHint}</p>
-            {error && <p className="ac-error" role="alert"><CircleAlert size={18} strokeWidth={2.2} aria-hidden="true" />{error}</p>}
+            {error && <p className="ac-error" role="alert"><CircleAlert size={18} strokeWidth={1.8} aria-hidden="true" />{error}</p>}
             <div className="tm-more">
-              <Button variant="bg" size="sm" onClick={() => { setError(''); setView('promote'); }} icon={<ShieldPlus size={16} strokeWidth={2.2} aria-hidden="true" />}>{s.promote}</Button>
-              <Button variant="bg" size="sm" className="tm-remove" onClick={() => { setError(''); setView('remove'); }} icon={<UserRoundX size={16} strokeWidth={2.2} aria-hidden="true" />}>{s.remove}</Button>
+              <Button variant="soft" size="sm" onClick={() => { setError(''); setView('promote'); }} icon={<ShieldPlus size={16} strokeWidth={1.8} aria-hidden="true" />}>{s.promote}</Button>
+              <Button variant="soft" size="sm" className="tm-remove" onClick={() => { setError(''); setView('remove'); }} icon={<UserRoundX size={16} strokeWidth={1.8} aria-hidden="true" />}>{s.remove}</Button>
             </div>
           </>
         )}
@@ -284,7 +284,7 @@ export default function Equipo() {
           </>
         )}
         {target && view === 'remove' && <p>{s.removeText}</p>}
-        {target && view !== 'perms' && error && <p className="ac-error" role="alert"><CircleAlert size={18} strokeWidth={2.2} aria-hidden="true" />{error}</p>}
+        {target && view !== 'perms' && error && <p className="ac-error" role="alert"><CircleAlert size={18} strokeWidth={1.8} aria-hidden="true" />{error}</p>}
       </Dialog>
 
       <Dialog open={inviting} onClose={closeInvite} title={s.inviteT}>
@@ -298,10 +298,10 @@ export default function Equipo() {
             id="tm-inv-email" size="sm" type="email" inputMode="email" label={p.email} value={inv.email} error={invErr.email} autoComplete="off" spellCheck={false} maxLength={160}
             onChange={e => { setInv(v => ({ ...v, email: e.target.value })); if (invErr.email) setInvErr(er => ({ ...er, email: undefined })); }}
           />
-          {invErr.form && <p className="ac-error" role="alert"><CircleAlert size={18} strokeWidth={2.2} aria-hidden="true" />{invErr.form}</p>}
+          {invErr.form && <p className="ac-error" role="alert"><CircleAlert size={18} strokeWidth={1.8} aria-hidden="true" />{invErr.form}</p>}
           <div className="ds-dialog-actions">
             <Button variant="soft" size="md" onClick={closeInvite} disabled={sending}>{p.cancel}</Button>
-            <Button type="submit" variant="ink" size="md" busy={sending}>{sending ? s.sending : s.sendInvite}</Button>
+            <Button type="submit" variant="report" size="md" busy={sending}>{sending ? s.sending : s.sendInvite}</Button>
           </div>
         </form>
       </Dialog>

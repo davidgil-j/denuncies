@@ -1,20 +1,40 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { SlidersHorizontal, Ellipsis, FileSpreadsheet, FileText, Eraser, CircleAlert, Inbox, LockKeyhole } from 'lucide-react';
+import { SlidersHorizontal, ChevronDown, FileSpreadsheet, FileText, CircleAlert, MessageSquare, Clock, CircleCheck } from 'lucide-react';
 import { listComplaints, getRetentionDue, hasRedesign } from '../../lib/supabase.js';
 import { fmt } from '../V2Layout.jsx';
-import { STATUS_ORDER, PRIORITIES, fLong } from '../admin/adminKit.jsx';
-import { Button, IconButton, Card, Chip, CaseCard, Kanban, Dialog, Field, Menu, MenuItem, Skeleton } from '../ui/index.js';
+import { STATUS_ORDER, PRIORITIES, fLong, fShort } from '../admin/adminKit.jsx';
+import { Button, Card, Chip, CaseCard, Kanban, Dialog, Field, Menu, MenuItem, Skeleton, cx } from '../ui/index.js';
 import { usePanel, Tp, caseState, caseTitle, relDay, rangeLabel } from './kit.jsx';
-import { STEPS, StepsRing, onboardingState, aipiInfo } from './primeros.jsx';
+import { STEPS, onboardingState, aipiInfo, joinList } from './primeros.jsx';
 
 const FILTERS = ['cat', 'pr', 'st', 'dl', 'mine', 'from', 'to'];
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const CLOSED_SHOWN = 2;
 const CLOSED_STEP = 10;
+const COL_ICON = { new: MessageSquare, open: Clock, closed: CircleCheck };
+const lower = (text) => text.charAt(0).toLowerCase() + text.slice(1);
+
+/**
+ * Un aviso en una línea: un punto de color, la frase y «Ver», que despliega el detalle. tone: warn (ámbar: hay
+ * algo con plazo) | danger (rojo: un plazo vencido) | accent (informativo).
+ */
+function Notice({ id, tone = 'accent', text, see, hide, className, children }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className={cx('pn-notice', `is-${tone}`, className)} aria-label={text}>
+      <button type="button" className="pn-notice-line" aria-expanded={open} aria-controls={`${id}-b`} onClick={() => setOpen(o => !o)}>
+        <span className="pn-notice-dot" aria-hidden="true" />
+        <span className="pn-notice-txt">{text}</span>
+        <span className="pn-notice-see">{open ? hide : see}<ChevronDown size={16} strokeWidth={1.8} aria-hidden="true" /></span>
+      </button>
+      {open && <div className="pn-notice-body" id={`${id}-b`}>{children}</div>}
+    </section>
+  );
+}
 
 export default function Tablero() {
-  const { lang, t, tr, p, org, members, profile, email, isSuperadmin, allowedCategories, can, notify } = usePanel();
+  const { lang, t, tr, p, org, members, profile, isSuperadmin, allowedCategories, can, notify } = usePanel();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [rows, setRows] = useState(null);
@@ -90,7 +110,6 @@ export default function Tablero() {
   const need = all.filter(x => x.s.today).length;
   const from = params.toString() ? `?${params}` : '';
   const loading = (rows === null || (isSuperadmin && due === null)) && !noAccess;
-  const firstName = (profile.full_name || email).trim().split(/[\s@]/)[0];
   // Lo que le queda por hacer a la empresa para tener el canal en regla: solo lo ve quien administra
   const steps = isSuperadmin ? onboardingState(org, members) : null;
   const aipi = isSuperadmin ? aipiInfo(org) : null;
@@ -116,18 +135,19 @@ export default function Tablero() {
   if (noAccess) {
     return (
       <div className="pn-page">
-        <Card tone="bg" className="pn-empty"><LockKeyhole size={28} strokeWidth={1.7} aria-hidden="true" /><h1 className="pn-empty-t">{t.noAccessTitle}</h1><p>{t.noAccessText}</p></Card>
+        <Card className="pn-empty"><h1 className="pn-empty-t">{t.noAccessTitle}</h1><p>{t.noAccessText}</p></Card>
       </div>
     );
   }
 
   const cols = ['new', 'open', 'closed'].map(id => {
     const items = columns[id];
+    const Icon = COL_ICON[id];
     // Las cerradas: las 2 últimas y, a partir de ahí, de 10 en 10
     const cut = id === 'closed' ? items.slice(0, closedShown) : items;
     const left = items.length - cut.length;
     return {
-      id, name: p.cols[id], items: cut, total: items.length, empty: active ? p.emptyFiltered : p.colEmpty[id],
+      id, name: p.cols[id], icon: <Icon size={16} strokeWidth={2} aria-hidden="true" />, items: cut, total: items.length, empty: active ? p.emptyFiltered : p.colEmpty[id],
       footer: id === 'closed' && items.length > CLOSED_SHOWN
         ? (left > 0
           ? <button type="button" className="pn-link" onClick={() => setClosedShown(n => n + CLOSED_STEP)}>{fmt(p.seeMore, { n: Math.min(CLOSED_STEP, left), total: items.length })}</button>
@@ -135,22 +155,43 @@ export default function Tablero() {
         : null,
     };
   });
+  const missing = steps ? STEPS.filter(x => !steps.done[x]).map(x => p.onb.short[x]) : [];
+  const notices = [
+    aipi?.state === 'overdue' && (
+      <Notice key="aipi" id="pn-aipi" tone="danger" text={p.aipiLateT} see={p.see} hide={p.hide}>
+        <p>{fmt(p.aipiLateText, { date: fLong(aipi.due, lang) })}</p>
+        <Button variant="soft" size="xs" to="/admin/ajustes">{p.onb.goSettings}</Button>
+      </Notice>
+    ),
+    !!due?.length && (
+      <Notice key="ret" id="pn-ret" tone="warn" text={due.length === 1 ? p.ret1 : fmt(p.retN, { n: due.length })} see={p.see} hide={p.hide}>
+        <p>{p.retText}</p>
+        <ul className="pn-notice-refs">{due.map(d => <li key={d.id}><Link to={`/admin/complaints/${d.id}`} state={{ from }}>{d.reference}</Link></li>)}</ul>
+      </Notice>
+    ),
+    steps && steps.count < STEPS.length && (
+      <Notice key="steps" id="pn-onb" className="is-steps" text={fmt(p.onb.line, { n: steps.count })} see={p.see} hide={p.hide}>
+        <p>{fmt(p.onb.missing, { list: joinList(missing, p.onb.and) })}</p>
+        <Button variant="soft" size="xs" to="/admin/integration">{p.onb.seeSteps}</Button>
+      </Notice>
+    ),
+  ].filter(Boolean);
 
   return (
     <div className="pn-page">
       <div className="pn-top">
         <div className="pn-hello">
-          <span>{fmt(p.hello, { name: firstName })}</span>
-          <Tp as="h1" className="ds-h1 is-sm" lang={lang} pick={x => (loading ? x.nav.board : need === 0 ? x.need0 : need === 1 ? x.need1 : fmt(x.needN, { n: need }))} />
+          <Tp as="h1" className="ds-h1" lang={lang} pick={x => x.nav.board} />
+          {/* Cuántos casos piden algo hoy. Mientras carga, la línea guarda su sitio */}
+          <Tp as="p" className="pn-lead" lang={lang} pick={x => (loading ? '\u00a0' : need === 0 ? x.need0 : need === 1 ? x.need1 : fmt(x.needN, { n: need }))} />
         </div>
         <div className="pn-actions">
-          {steps && steps.count < STEPS.length && <StepsRing state={steps} p={p} />}
-          <Button variant="bg" size="sm" onClick={() => setFiltering(true)} icon={<SlidersHorizontal size={16} strokeWidth={2.2} aria-hidden="true" />}>
+          <Button variant="soft" size="md" onClick={() => setFiltering(true)} icon={<SlidersHorizontal size={16} strokeWidth={1.8} aria-hidden="true" />}>
             {p.filter}{active > 0 && <span className="pn-count">{active}</span>}
           </Button>
-          <Menu label={p.more} trigger={props => <IconButton variant="bg" label={p.more} busy={exporting} {...props}><Ellipsis size={20} strokeWidth={2.4} aria-hidden="true" /></IconButton>}>
-            <MenuItem icon={<FileSpreadsheet size={16} aria-hidden="true" />} onClick={() => doExport('xlsx')} disabled={loading || !shown.length}>{p.exportXls}</MenuItem>
-            <MenuItem icon={<FileText size={16} aria-hidden="true" />} onClick={() => doExport('pdf')} disabled={loading || !shown.length}>{p.exportPdf}</MenuItem>
+          <Menu label={p.export} trigger={props => <Button variant="soft" size="md" busy={exporting} iconEnd={<ChevronDown size={16} strokeWidth={1.8} aria-hidden="true" />} {...props}>{p.export}</Button>}>
+            <MenuItem icon={<FileSpreadsheet size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={() => doExport('xlsx')} disabled={loading || !shown.length}>{p.exportXls}</MenuItem>
+            <MenuItem icon={<FileText size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={() => doExport('pdf')} disabled={loading || !shown.length}>{p.exportPdf}</MenuItem>
           </Menu>
         </div>
       </div>
@@ -167,30 +208,10 @@ export default function Tablero() {
         </p>
       )}
 
-      {aipi?.state === 'overdue' && (
-        <section className="pn-banner is-danger" aria-labelledby="pn-aipi-t">
-          <CircleAlert size={20} strokeWidth={2} aria-hidden="true" />
-          <div>
-            <h2 id="pn-aipi-t">{p.aipiLateT}</h2>
-            <p>{fmt(p.aipiLateText, { date: fLong(aipi.due, lang) })}</p>
-          </div>
-          <Button variant="white" size="xs" to="/admin/ajustes">{p.onb.goSettings}</Button>
-        </section>
-      )}
-
-      {!!due?.length && (
-        <section className="pn-banner" aria-labelledby="pn-ret-t">
-          <Eraser size={20} strokeWidth={2} aria-hidden="true" />
-          <div>
-            <h2 id="pn-ret-t">{due.length === 1 ? p.ret1 : fmt(p.retN, { n: due.length })}</h2>
-            <p>{p.retText}</p>
-            <ul>{due.map(d => <li key={d.id}><Link to={`/admin/complaints/${d.id}`} state={{ from }}>{d.reference}</Link></li>)}</ul>
-          </div>
-        </section>
-      )}
+      {notices.length > 0 && <div className="pn-notices">{notices}</div>}
 
       {failed ? (
-        <div className="pn-error" role="alert"><CircleAlert size={20} strokeWidth={2.2} aria-hidden="true" /><span>{p.loadErr}</span><Button variant="white" size="xs" onClick={load}>{p.retry}</Button></div>
+        <p className="pn-error" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" /><span>{p.loadErr}</span><button type="button" className="pn-link" onClick={load}>{p.retry}</button></p>
       ) : loading ? (
         <div className="ds-kanban is-skel" aria-hidden="true">
           {/* En el móvil, con la forma final: pestañas y una columna */}
@@ -198,32 +219,36 @@ export default function Tablero() {
           {[2, 3, 2].map((n, i) => (
             <div className="ds-kcol" key={i}>
               <Skeleton width={90} height={18} />
-              {Array.from({ length: n }, (_, j) => <Card radius="md" key={j}><Skeleton width="85%" height={18} /><Skeleton width="55%" /><Skeleton width={120} height={24} /></Card>)}
+              {Array.from({ length: n }, (_, j) => <div className="ds-case-skel" key={j}><Skeleton width="70%" height={16} /><Skeleton width="45%" /><Skeleton width={140} /></div>)}
             </div>
           ))}
         </div>
       ) : (
         <>
           {rows.length === 0 && (
-            <Card tone="bg" className="pn-empty">
-              <Inbox size={28} strokeWidth={1.7} aria-hidden="true" />
-              <h2 className="pn-empty-t">{p.emptyTitle}</h2>
-              <p>{fmt(p.emptyText, { org: org?.name ?? '' })}</p>
-              {isSuperadmin && <Button variant="ink" size="sm" to="/admin/integration">{p.shareCta}</Button>}
-            </Card>
+            <p className="pn-emptyline">
+              <b>{p.emptyTitle}.</b> {fmt(p.emptyText, { org: org?.name ?? '' })}
+              {isSuperadmin && <> <Link to="/admin/integration">{p.shareCta}</Link></>}
+            </p>
           )}
           <Kanban
             lang={lang} columns={cols} getId={x => x.c.id} onMove={onMove} canMove={canMove}
             moveLabel={(item, fromCol) => (fromCol === 'new' ? p.n1 : p.n4)}
-            renderCard={({ c, s }, { move, dragging }) => (
-              <CaseCard
-                lang={lang} title={caseTitle(c, p)} to={`/admin/complaints/${c.id}`} linkState={{ from }}
-                meta={[catName(c.category), c.is_anonymous ? p.anon : p.ident, s.column === 'new' ? relDay(c.created_at, p) : null].filter(Boolean).join(' · ')}
-                today={s.today} deadline={s.deadline} overdue={s.overdue} done={s.done}
-                meeting={!!s.meeting?.pending} wrote={(c.unread ?? 0) > 0} priority={s.closed ? undefined : c.priority}
-                move={move} dragging={dragging}
-              />
-            )}
+            renderCard={({ c, s }, { move, dragging }) => {
+              // Sin título propio, el título es la referencia y el tema; con él, esos dos datos bajan a la segunda línea
+              const own = !!c.title && !c.anonymized_at;
+              const when = s.column === 'closed' ? (c.anonymized_at ? null : lower(fmt(p.closedOn, { date: fShort(c.answered_at ?? c.updated_at, lang) }))) : relDay(c.created_at, p);
+              return (
+                <CaseCard
+                  lang={lang} to={`/admin/complaints/${c.id}`} linkState={{ from }}
+                  title={own || c.anonymized_at ? caseTitle(c, tr) : <>{c.reference} <span className="ds-case-sep">·</span> {catName(c.category)}</>}
+                  meta={[own ? c.reference : null, own ? catName(c.category) : null, c.is_anonymous ? p.anon : p.ident, when].filter(Boolean).join(' · ')}
+                  deadline={s.deadline} overdue={s.overdue} done={s.done}
+                  meeting={!!s.meeting?.pending} wrote={(c.unread ?? 0) > 0} priority={s.closed ? undefined : c.priority}
+                  move={move} dragging={dragging}
+                />
+              );
+            }}
           />
         </>
       )}
@@ -232,7 +257,7 @@ export default function Tablero() {
         side open={filtering} onClose={() => setFiltering(false)} title={p.filters} closeLabel={p.close}
         actions={<>
           {active > 0 && <Button variant="soft" size="md" onClick={clear}>{p.clearFilters}</Button>}
-          <Button variant="ink" size="md" onClick={() => setFiltering(false)}>{p.done}</Button>
+          <Button variant="report" size="md" onClick={() => setFiltering(false)}>{p.done}</Button>
         </>}
       >
         <Field as="select" size="sm" label={p.fCategory} value={f.cat} onChange={e => setFilter({ cat: e.target.value })}>

@@ -1,7 +1,7 @@
 import { chromium } from './lib/playwright.mjs';
 const browser = await chromium.launch();
 const problems = [];
-const ROUTES = [['/admin', '.pn-steps'], ['/admin/report', '.rp-figs dd'], ['/admin/integration', '.sh-list'], ['/admin/ajustes', '.tm-list li'], ['/admin/mfa', '.sg-state'], ['/canal/demo?lang=es', '.ds-hero']];
+const ROUTES = [['/admin', '.pn-notice'], ['/admin/report', '.rp-figs dd'], ['/admin/integration', '.sh-qr img'], ['/admin/ajustes', '.tm-list li'], ['/admin/mfa', '.sg-state'], ['/canal/demo?lang=es', '.ds-hero']];
 for (const [w, h, touch] of [[320, 640, true], [375, 812, true], [414, 896, true], [768, 1024, true], [1024, 768, false], [1280, 800, false], [1366, 768, false], [1440, 900, false], [1920, 1080, false]]) {
   for (const lang of ['es', 'ca', 'en']) {
     const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: touch, isMobile: touch && w < 700 });
@@ -17,7 +17,7 @@ for (const [w, h, touch] of [[320, 640, true], [375, 812, true], [414, 896, true
       const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       if (over > 0) problems.push(`${w}px ${lang} ${path}: desborda ${over}px`);
       // Texto que se sale de su caja (recortado sin puntos suspensivos)
-      const clipped = await page.evaluate(() => [...document.querySelectorAll('.ds-btn, .ds-seg-item, .ds-nav-item, .st-tile b, .rp-fig dd, .pn-steps-txt')].filter(el => { const b = el.getBoundingClientRect(); return b.width > 0 && el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).textOverflow !== 'ellipsis'; }).map(el => (el.innerText || '').trim().slice(0, 30)));
+      const clipped = await page.evaluate(() => [...document.querySelectorAll('.ds-btn, .ds-seg-item, .ds-nav-item, .st-tile b, .rp-fig dd, .ds-case-title')].filter(el => { const b = el.getBoundingClientRect(); return b.width > 0 && el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).textOverflow !== 'ellipsis'; }).map(el => (el.innerText || '').trim().slice(0, 30)));
       if (clipped.length) problems.push(`${w}px ${lang} ${path}: texto que no cabe: ${[...new Set(clipped)].join(' · ')}`);
       // Zona táctil: 40 px en el móvil y 24 en el ordenador (WCAG 2.2; la escala nueva tiene botones pequeños de 32)
       if (lang === 'es' && [1440, 375].includes(w) && path.startsWith('/admin')) {

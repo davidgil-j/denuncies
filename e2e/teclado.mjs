@@ -148,14 +148,19 @@ await dialogCheck('buscar un caso', 'Buscar');
 await tabTo('Filtrar');
 await page.keyboard.press('Enter');
 await dialogCheck('filtros', 'Filtrar');
-await tabTo('Más acciones');
+await tabTo('Exportar');
 await page.keyboard.press('Enter');
-ok('menú «···»: se abre con Enter', await page.locator('.ds-menu-panel').count() === 1);
+ok('menú «Exportar»: se abre con Enter', await page.locator('.ds-menu-panel').count() === 1);
 await page.keyboard.press('Tab');
-ok('menú «···»: Tab entra en sus opciones', ((await focused())?.name ?? '').includes('Excel'), (await focused())?.name);
+ok('menú «Exportar»: Tab entra en sus opciones', ((await focused())?.name ?? '').includes('Excel'), (await focused())?.name);
 await page.keyboard.press('Escape');
 await page.waitForTimeout(200);
-ok('menú «···»: Esc lo cierra y el foco vuelve al botón', await page.locator('.ds-menu-panel').count() === 0 && ((await focused())?.name ?? '').includes('Más acciones'));
+ok('menú «Exportar»: Esc lo cierra y el foco vuelve al botón', await page.locator('.ds-menu-panel').count() === 0 && ((await focused())?.name ?? '').includes('Exportar'));
+// Los avisos de una línea se despliegan con el teclado
+await tabTo('Puesta en marcha');
+await page.keyboard.press('Enter');
+ok('aviso «Puesta en marcha»: se despliega con Enter', await page.locator('.pn-notice.is-steps .pn-notice-body').count() === 1);
+await page.keyboard.press('Enter');
 // Ficha del caso
 await page.goto(`${B}/admin/complaints/c-vk7p2mqa`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.cs-desc');
@@ -165,11 +170,13 @@ await page.waitForSelector('.cs-desc');
 await tabTo('Enviar el acuse de recibo');
 await page.keyboard.press('Enter');
 await dialogCheck('acuse de recibo', 'Enviar el acuse');
-await tabTo('Añadir nota interna');
-await page.keyboard.press('Space');
-await dialogCheck('nota interna', 'Añadir nota');
+await tabTo('Añadir una nota para el equipo');
+await page.keyboard.type('Nota escrita solo con el teclado.');
+await page.keyboard.press('Enter');
+await page.locator('.cs-notes-list').getByText('Nota escrita solo con el teclado.').waitFor({ timeout: 6000 });
+ok('nota interna: se escribe y se guarda sin ratón', true);
 // Registrar, informe, compartir, ajustes y seguridad
-for (const [path, sel, name] of [['/admin/nueva', '.rg-form', 'registrar una denuncia'], ['/admin/report', '.rp-figs dd', 'informe'], ['/admin/integration', '.sh-list', 'compartir el canal'], ['/admin/ajustes', '.tm-list li', 'equipo y ajustes'], ['/admin/mfa', '.sg-state', 'verificación (ajustes)']]) {
+for (const [path, sel, name] of [['/admin/nueva', '.rg-form', 'registrar una denuncia'], ['/admin/report', '.rp-figs dd', 'informe'], ['/admin/integration', '.sh-qr img', 'compartir el canal'], ['/admin/ajustes', '.tm-list li', 'equipo y ajustes'], ['/admin/mfa', '.sg-state', 'verificación (ajustes)']]) {
   await page.goto(`${B}${path}`, { waitUntil: 'networkidle' });
   await page.waitForSelector(sel);
   await page.waitForTimeout(400);

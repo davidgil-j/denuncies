@@ -153,7 +153,7 @@ for (const [w, h] of [[360, 640], [390, 844]]) {
   await page.getByRole('button', { name: 'Contratar' }).click();
   await dialogFits('planes');
   await page.keyboard.press('Escape');
-  for (const [path, sel, name] of [['/admin/report', '.rp-figs dd', 'informe'], ['/admin/integration', '.sh-list', 'compartir'], ['/admin/mfa', '.sg-state', 'seguridad']]) { await page.goto(B + path, { waitUntil: 'networkidle' }); await page.waitForSelector(sel); await over(name); }
+  for (const [path, sel, name] of [['/admin/report', '.rp-figs dd', 'informe'], ['/admin/integration', '.sh-qr img', 'compartir'], ['/admin/mfa', '.sg-state', 'seguridad']]) { await page.goto(B + path, { waitUntil: 'networkidle' }); await page.waitForSelector(sel); await over(name); }
   await page.screenshot({ path: `${OUT}/movil-${w}x${h}-compartir.png` });
   await ctx.close();
 }

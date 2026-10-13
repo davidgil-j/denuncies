@@ -64,23 +64,24 @@ ok('A3 · si están vacíos, no salen', !(await page.locator('.review').innerTex
 await page.goto(`${B}/admin`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.ds-case');
 await col('Nuevas');
-const card = page.locator('.ds-case', { hasText: 'Comentarios sexuales a compañeras' }).first();
+const card = page.locator('.ds-case', { hasText: 'REF-7P2MQA' }).first();
 ok('B5 · un solo enlace por tarjeta, que la cubre entera', await card.locator('a').count() === 1 && await card.evaluate(el => getComputedStyle(el).cursor) === 'pointer');
 if (!mobile) {
   await card.hover();
   await page.waitForTimeout(250);
-  const look = await card.evaluate(el => getComputedStyle(el).boxShadow);
-  ok('B5 · al pasar el ratón, borde azul', /47, 84, 235/.test(look), look);
-  const boxes = await card.evaluate(el => { const r = x => { const b = x.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; }; const m = el.querySelector('.ds-case-move'); const hit = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]; const chips = [...el.querySelectorAll('.ds-chip')].map(r); const range = document.createRange(); range.selectNodeContents(el.querySelector('.ds-case-link')); const title = [...range.getClientRects()].map(b => [b.left, b.top, b.right, b.bottom]); return { visible: getComputedStyle(m).opacity === '1', text: m.innerText.trim(), label: m.getAttribute('aria-label'), covers: chips.some(c => hit(r(m), c)) || title.some(c => hit(r(m), c)) }; });
+  const look = await card.evaluate(el => getComputedStyle(el).borderTopColor);
+  ok('B5 · al pasar el ratón, la línea de la tarjeta se oscurece (no se mueve ni crece)', look === 'rgb(138, 147, 173)', look);
+  const boxes = await card.evaluate(el => { const r = x => { const b = x.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; }; const m = el.querySelector('.ds-case-move'); const hit = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]; const chips = [...el.querySelectorAll('.ds-chip, .ds-case-plain, .ds-case-new')].map(r); const range = document.createRange(); range.selectNodeContents(el.querySelector('.ds-case-link')); const title = [...range.getClientRects()].map(b => [b.left, b.top, b.right, b.bottom]); return { visible: getComputedStyle(m).opacity === '1', text: m.innerText.trim(), label: m.getAttribute('aria-label'), covers: chips.some(c => hit(r(m), c)) || title.some(c => hit(r(m), c)) }; });
   // (desde la auditoría C-12, la flecha se llama como lo que hace: «Enviar el acuse de recibo» o «Responder y cerrar»)
   ok('B6 · la flecha: solo el icono, con el nombre de lo que hace, y no tapa ni los chips ni el título', boxes.visible && boxes.text === '' && /Enviar el acuse de recibo|Responder y cerrar/.test(boxes.label) && !boxes.covers, JSON.stringify(boxes));
   await shot('B5-B6-tarjeta-al-pasar-el-raton', { clip: page.locator('.ds-kcol').first() });
   await page.mouse.move(5, 5);
   await page.keyboard.press('Tab');
   for (let i = 0; i < 40; i++) { await page.keyboard.press('Tab'); if (await page.evaluate(() => document.activeElement?.classList.contains('ds-case-link'))) break; }
-  ok('B5 · con el teclado también se marca la tarjeta', /47, 84, 235/.test(await page.evaluate(() => getComputedStyle(document.activeElement.closest('.ds-case')).boxShadow)));
+  ok('B5 · con el teclado también se marca la tarjeta', await page.evaluate(() => { const c = getComputedStyle(document.activeElement, '::after'); return c.outlineStyle !== 'none' && parseFloat(c.outlineWidth) >= 2 && /47, 84, 235/.test(c.outlineColor); }));
   await shot('B5-tarjeta-con-el-foco-del-teclado', { clip: page.locator('.ds-kcol').first() });
-  await page.mouse.click(700, 5);
+  // Un clic en el margen de la página (arriba ahora está la cabecera con el menú) para soltar el foco
+  await page.mouse.click(5, 300);
   const area = await card.boundingBox();
   await page.mouse.click(area.x + area.width - 60, area.y + area.height - 14);
   await page.waitForURL(/complaints\/c-vk7p2mqa/);
@@ -114,7 +115,7 @@ ok('A4 · al escribir, el aviso se va', await page.getByText('Completa lo que fa
 await page.locator('.ds-compose').getByRole('button', { name: 'Enviar' }).click();
 await page.locator('.cs-next').getByRole('button', { name: 'Marcar la reunión como hecha' }).waitFor();
 ok('A4 · completa, se envía', true);
-await page.getByRole('button', { name: 'Cambiar el título' }).click();
+await page.getByRole('button', { name: 'Añadir un título' }).click();
 await page.getByLabel('Título del caso').fill('  en curso ');
 ok('B12 · título igual a una columna: nota suave, sin bloquear', await page.getByText('Ese título es el nombre de una columna del tablero').isVisible() && await page.getByRole('button', { name: 'Guardar', exact: true }).isEnabled());
 await page.getByLabel('Título del caso').scrollIntoViewIfNeeded();
@@ -162,7 +163,7 @@ await page.waitForSelector('.rp-figs dd');
 const before = { open: await page.locator('.rp-facts dd').nth(0).innerText(), total: await page.locator('.rp-figs dd').first().innerText(), missed: await page.locator('.rp-figs dd').nth(3).innerText() };
 await page.goto(`${B}/admin`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.ds-case');
-const needBefore = Number((await page.locator('h1').first().innerText()).match(/\d+/)?.[0] ?? 0);
+const needBefore = Number((await page.locator('.pn-lead').innerText()).match(/\d+/)?.[0] ?? 0);
 await page.goto(`${B}/admin/complaints/c-p3ve8nqc`, { waitUntil: 'networkidle' }); // fraude, en investigación, crítica
 await page.waitForSelector('.cs-desc');
 await page.getByRole('button', { name: 'Más acciones' }).click();
@@ -177,10 +178,10 @@ await col('Cerradas');
 while (await page.getByRole('button', { name: /^Ver \d+ más/ }).count()) await page.getByRole('button', { name: /^Ver \d+ más/ }).click();
 const erasedCard = page.locator('.ds-case', { hasText: 'Datos suprimidos · REF-' });
 const where = await erasedCard.first().evaluate(el => { const k = el.closest('.ds-kcol'); return k ? (k.querySelector('.ds-kcol-name, h2')?.innerText ?? k.innerText.split('\n')[0]) : ''; }).catch(() => 'no está');
-ok('A2 · el caso suprimido está en «Cerradas» con el chip «Datos suprimidos»', await erasedCard.count() === 1 && (mobile || /Cerradas/.test(where)) && await erasedCard.locator('.ds-chip', { hasText: 'Datos suprimidos' }).count() === 1 && await erasedCard.locator('.ds-chip').count() === 1, where);
+ok('A2 · el caso suprimido está en «Cerradas» con «Datos suprimidos» como única marca', await erasedCard.count() === 1 && (mobile || /Cerradas/.test(where)) && await erasedCard.locator('.ds-case-plain', { hasText: 'Datos suprimidos' }).count() === 1 && await erasedCard.locator('.ds-chip, .ds-case-new').count() === 0, where);
 await erasedCard.scrollIntoViewIfNeeded();
 await shot('A2-tablero-caso-suprimido-en-cerradas');
-const needAfter = Number((await page.locator('h1').first().innerText()).match(/\d+/)?.[0] ?? 0);
+const needAfter = Number((await page.locator('.pn-lead').innerText()).match(/\d+/)?.[0] ?? 0);
 ok('A2 · ya no cuenta como «te necesita hoy»', needAfter <= needBefore, `${needBefore} → ${needAfter}`);
 await page.goto(`${B}/admin/report`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.rp-figs dd');
@@ -213,20 +214,17 @@ await page.waitForSelector('.pn-filtered');
 ok('B10 · en inglés', (await page.locator('.pn-filtered .ds-chip').first().innerText()) === `Year ${y}`);
 await page.evaluate(() => localStorage.setItem('reportia-panel-lang', 'es'));
 
-// ── B11 · «Primeros pasos» plegable ──
+// ── B11 · la puesta en marcha, en una línea que se despliega ──
 await page.goto(`${B}/admin`, { waitUntil: 'networkidle' });
-await page.waitForSelector('.pn-steps');
-await shot('B11-primeros-pasos-desplegado');
-await page.getByRole('button', { name: 'Plegar «Primeros pasos»' }).click();
-ok('B11 · plegada: una píldora «Primeros pasos · 3/5»', (await page.locator('.pn-steps-pill').innerText()) === 'Primeros pasos · 3/5' && await page.locator('.pn-steps').count() === 0);
-await shot('B11-primeros-pasos-plegado');
-await page.reload({ waitUntil: 'networkidle' });
-await page.waitForSelector('.ds-case');
-await page.waitForSelector('.pn-steps-pill');
-ok('B11 · al recargar sigue plegada', await page.locator('.pn-steps').count() === 0);
-ok('B11 · la píldora sigue llevando a Compartir', (await page.locator('.pn-steps-pill').getAttribute('href')) === '/admin/integration');
-await page.getByRole('button', { name: 'Desplegar «Primeros pasos»' }).click();
-ok('B11 · se vuelve a desplegar', await page.locator('.pn-steps').count() === 1);
+const onb = page.locator('.pn-notice.is-steps');
+await onb.waitFor();
+ok('B11 · plegada: una línea «Puesta en marcha: 3 de 5 pasos»', (await onb.locator('.pn-notice-txt').innerText()) === 'Puesta en marcha: 3 de 5 pasos' && await onb.locator('.pn-notice-body').count() === 0 && await onb.evaluate(el => el.getBoundingClientRect().height) <= 48);
+await shot('B11-puesta-en-marcha-plegada');
+await onb.getByRole('button').click();
+ok('B11 · desplegada: lo que falta y el enlace a Compartir', (await onb.locator('.pn-notice-body').innerText()).includes('Falta:') && (await onb.getByRole('link', { name: 'Ver los pasos' }).getAttribute('href')) === '/admin/integration');
+await shot('B11-puesta-en-marcha-desplegada');
+await onb.getByRole('button').click();
+ok('B11 · se vuelve a plegar', await onb.locator('.pn-notice-body').count() === 0);
 
 console.log(problems.length ? `\nPROBLEMAS (${problems.length} de ${checks}):\n${problems.join('\n')}` : `\n${checks} comprobaciones, sin problemas`);
 await browser.close();

@@ -126,7 +126,7 @@ if (SCENE === 'gestor') {
   ok('gestor: menú sin «Compartir el canal»', nav.join('|') === 'Tablero|Informe|Equipo y ajustes', nav.join(' · '));
   ok('gestor: los ajustes van a la página única', navHref[2] === '/admin/ajustes', navHref.join(' '));
   await page.waitForTimeout(500);
-  ok('gestor: sin anillo de primeros pasos ni aviso de la AIPI', await page.locator('.pn-steps').count() === 0 && await page.locator('.pn-banner.is-danger').count() === 0);
+  ok('gestor: sin la línea de la puesta en marcha ni aviso de la AIPI', await page.locator('.pn-notice.is-steps').count() === 0 && await page.locator('.pn-notice.is-danger').count() === 0);
   ok('gestor: no se le pide a la base de datos la lista del equipo', log.every(l => l.path !== '/rest/v1/rpc/list_org_members' && !(l.path === '/rest/v1/profiles' && l.method === 'GET' && !l.query.includes('id=eq.'))));
   await page.goto(`${APP}/admin/ajustes`, { waitUntil: 'networkidle' });
   await page.waitForSelector('.st-card');
@@ -152,14 +152,19 @@ if (SCENE === 'gestor') {
 
 if (SCENE === 'nueva') {
   ok('administradora: menú completo', nav.join('|') === 'Tablero|Informe|Compartir el canal|Equipo y ajustes', nav.join(' · '));
-  await page.waitForSelector('.pn-steps');
-  ok('empresa recién creada: anillo 0/5', (await page.locator('.pn-ring b').innerText()) === '0/5' && await page.locator('.pn-ring-on').count() === 0);
-  const miss = await page.locator('.pn-steps-txt span').innerText();
-  ok('empresa recién creada: lo que falta, resumido', miss === 'Falta: designar al responsable, el canal en la web y 3 más', miss);
+  const onb = page.locator('.pn-notice.is-steps');
+  await onb.waitFor();
+  ok('empresa recién creada: «Puesta en marcha: 0 de 5 pasos»', (await onb.locator('.pn-notice-txt').innerText()) === 'Puesta en marcha: 0 de 5 pasos');
+  await onb.getByRole('button').click();
+  const miss = (await onb.locator('.pn-notice-body p').innerText()).trim();
+  ok('empresa recién creada: al desplegarla, lo que falta', miss === 'Falta: designar al responsable, el canal en la web, invitar a alguien, cartel con QR y comunicar a la AIPI', miss);
+  await onb.getByRole('button').first().click();
   const rows = await page.evaluate(() => new Set([...document.querySelector('.pn-top').children].map(c => Math.round(c.getBoundingClientRect().top / 40))).size);
   ok('con el nombre de empresa largo la cabecera no se rompe', rows <= 2);
   await shot('tablero-0-de-5');
   await page.goto(`${APP}/admin/integration`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('.sh-qr img');
+  await page.locator('.sh-steps-see').click();
   await page.waitForSelector('.sh-list');
   ok('compartir: 0 de 5 y lo primero es designar al responsable', (await page.locator('.sh-steps-head > span').innerText()) === '0 de 5' && await page.getByText('Nombra a la persona responsable del sistema').isVisible());
   await page.locator('.sh-list button', { hasText: 'Poner el canal en la web' }).click();
@@ -222,8 +227,8 @@ if (SCENE === 'nueva') {
   ok('contraseña: se cambia en la cuenta de acceso', last('PUT', '/auth/v1/user')?.body?.password === 'una-frase-larga-2026');
   // Al volver al tablero: responsable + web + equipo = 3 de 5
   await page.goto(`${APP}/admin`, { waitUntil: 'networkidle' });
-  await page.waitForSelector('.pn-steps');
-  ok('tablero: ya van 3/5', (await page.locator('.pn-ring b').innerText()) === '3/5', await page.locator('.pn-steps-txt').innerText());
+  await page.waitForSelector('.pn-notice.is-steps');
+  ok('tablero: ya van 3 de 5', (await page.locator('.pn-notice.is-steps .pn-notice-txt').innerText()) === 'Puesta en marcha: 3 de 5 pasos');
   await page.goto(`${APP}/canal/acme?lang=es`, { waitUntil: 'networkidle' });
   await page.waitForSelector('.entry-links');
   await page.getByRole('button', { name: 'Canales externos' }).click();
@@ -236,7 +241,7 @@ if (SCENE === 'nueva') {
 
 if (SCENE === 'sin012') {
   await page.waitForTimeout(600);
-  ok('sin la 012: el tablero carga y no enseña primeros pasos ni aviso', await page.locator('.pn-steps').count() === 0 && await page.locator('.pn-banner.is-danger').count() === 0);
+  ok('sin la 012: el tablero carga y no enseña la puesta en marcha ni aviso', await page.locator('.pn-notice.is-steps').count() === 0 && await page.locator('.pn-notice.is-danger').count() === 0);
   await page.goto(`${APP}/admin/integration`, { waitUntil: 'networkidle' });
   await page.waitForSelector('.sh-qr img');
   ok('sin la 012: Compartir sin tarjeta de primeros pasos y con sus 4 piezas', await page.locator('.sh-steps').count() === 0 && await page.locator('.sh-cards > section').count() === 4);

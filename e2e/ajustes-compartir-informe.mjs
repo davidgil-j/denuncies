@@ -29,6 +29,8 @@ async function shot(name, { view = false } = {}) {
   } else await page.screenshot({ path, fullPage: true });
 }
 const toast = async (text) => { await page.locator('.pn-toast', { hasText: text }).first().waitFor({ timeout: 8000 }); await page.locator('.pn-toast').waitFor({ state: 'detached', timeout: 8000 }); };
+// En Compartir, la puesta en marcha va en una línea: «Ver los pasos» la despliega
+const openSteps = async () => { await page.locator('.sh-steps-see').click(); await page.waitForSelector('.sh-list'); };
 const store = () => page.evaluate(() => JSON.parse(sessionStorage.getItem('reportia-demo-store-v4')));
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
@@ -47,22 +49,26 @@ ok('en la denuncia tampoco hay enlace al acceso real', await page.locator('a[hre
 await page.goto(`${BASE}${manageHref}`, { waitUntil: 'networkidle' });
 ok('la página de crear cuenta abre en castellano', await page.evaluate(() => document.documentElement.lang) === 'es');
 
-// 2 · Tablero: anillo de primeros pasos
+// 2 · Tablero: la puesta en marcha, en una línea plegada
 await page.goto(`${BASE}/admin`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.ds-case');
-await page.waitForSelector('.pn-steps');
-ok('tablero: saluda a Laura (como las maquetas)', (await page.locator('.pn-hello > span').innerText()).includes('Laura'));
-ok('tablero: anillo 3/5', (await page.locator('.pn-ring b').innerText()) === '3/5');
-ok('tablero: dice lo que falta', (await page.locator('.pn-steps-txt').innerText()).includes('Falta: cartel con QR y comunicar a la AIPI'));
-ok('tablero: el anillo lleva a Compartir', (await page.locator('.pn-steps').getAttribute('href')) === '/admin/integration');
-ok('tablero: sin aviso rojo de la AIPI mientras hay plazo', await page.locator('.pn-banner.is-danger').count() === 0);
+const onb = page.locator('.pn-notice.is-steps');
+await onb.waitFor();
+ok('tablero: se titula «Tablero», sin saludo', (await page.locator('h1').first().innerText()).trim() === 'Tablero' && await page.getByText(/Hola, /).count() === 0);
+ok('tablero: «Puesta en marcha: 3 de 5 pasos» en una línea', (await onb.locator('.pn-notice-txt').innerText()) === 'Puesta en marcha: 3 de 5 pasos' && await onb.locator('.pn-notice-body').count() === 0);
+await onb.getByRole('button').click();
+ok('tablero: al desplegarla dice lo que falta', (await onb.locator('.pn-notice-body').innerText()).includes('Falta: cartel con QR y comunicar a la AIPI'));
+ok('tablero: «Ver los pasos» lleva a Compartir', (await onb.getByRole('link', { name: 'Ver los pasos' }).getAttribute('href')) === '/admin/integration');
+ok('tablero: sin aviso rojo de la AIPI mientras hay plazo', await page.locator('.pn-notice.is-danger').count() === 0);
 await shot('G2-tablero-primeros-pasos', { view: true });
 
 // 3 · Compartir
-await page.locator('.pn-steps').click();
+await onb.getByRole('link', { name: 'Ver los pasos' }).click();
 await page.waitForURL(/\/admin\/integration/);
 await page.waitForSelector('.sh-qr img');
-await page.waitForSelector('.sh-list');
+ok('compartir: la puesta en marcha, en una línea con lo siguiente', await page.locator('.sh-list').count() === 0 && (await page.locator('.sh-steps-next').innerText()) === 'Siguiente: colgar el cartel con el QR');
+ok('compartir: una lista de cuatro filas, cada una con su acción', await page.locator('.sh-cards > section.sh-item').count() === 4 && await page.locator('.sh-cards .sh-acts').count() === 4);
+await openSteps();
 ok('compartir: 3 de 5', (await page.locator('.sh-steps-head > span').innerText()) === '3 de 5');
 ok('compartir: tres pasos hechos y dos pendientes', await page.locator('.sh-list li.is-done').count() === 3 && await page.locator('.sh-list li').count() === 5);
 ok('compartir: lo siguiente es el cartel', await page.getByText('Imprime el cartel y cuélgalo en los tablones y zonas comunes.').isVisible());
@@ -102,7 +108,8 @@ ok('lo siguiente pasa a ser la AIPI', await page.getByText('Comunica a la AIPI q
 ok('paso de la AIPI: enlace a la autoridad y a los ajustes', (await page.locator('.sh-next a[href="https://www.proteccioninformante.gob.es"]').count()) === 1 && (await page.locator('.sh-next a[href="/admin/ajustes"]').count()) === 1);
 await shot('G4-compartir-siguiente-paso-AIPI');
 await page.reload({ waitUntil: 'networkidle' });
-await page.waitForSelector('.sh-list');
+await page.waitForSelector('.sh-qr img');
+await openSteps();
 ok('el paso marcado sigue ahí al recargar', (await page.locator('.sh-steps-head > span').innerText()) === '4 de 5');
 await page.locator('.sh-list button[aria-pressed="true"]', { hasText: 'Colgar el cartel con el QR' }).click();
 await page.locator('.sh-steps-head > span', { hasText: '3 de 5' }).waitFor();
@@ -277,10 +284,13 @@ await resp.getByRole('button', { name: 'Guardar' }).click();
 await toast('Guardado.');
 await page.goto(`${BASE}/admin`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.ds-case');
-await page.waitForSelector('.pn-banner.is-danger');
-ok('tablero: aviso rojo de la AIPI con la fecha', (await page.locator('.pn-banner.is-danger').innerText()).includes('El plazo de 10 días hábiles venció el 15 de septiembre de 2026'));
+const late = page.locator('.pn-notice.is-danger');
+await late.waitFor();
+ok('tablero: aviso de la AIPI en una línea, con su punto rojo', (await late.locator('.pn-notice-txt').innerText()) === 'Falta comunicar el responsable a la AIPI' && await late.locator('.pn-notice-dot').evaluate(el => getComputedStyle(el).backgroundColor) === 'rgb(180, 35, 24)');
+await late.getByRole('button').click();
+ok('tablero: al desplegarlo, la fecha en que venció', (await late.locator('.pn-notice-body').innerText()).includes('El plazo de 10 días hábiles venció el 15 de septiembre de 2026'));
 await shot('G2-tablero-aviso-AIPI', { view: true });
-await page.locator('.pn-banner.is-danger a').click();
+await late.locator('.pn-notice-body a').click();
 await page.waitForURL(/\/admin\/ajustes/);
 await page.waitForSelector('.tm-list li');
 // Al anotar la fecha de comunicación, desaparece el aviso y se marca el paso
@@ -289,19 +299,20 @@ ok('con la fecha anotada ya no hay cuenta atrás', await page.locator('.ds-field
 await resp.getByRole('button', { name: 'Guardar' }).click();
 await toast('Guardado.');
 await page.goto(`${BASE}/admin`, { waitUntil: 'networkidle' });
-await page.waitForSelector('.pn-steps');
-ok('tablero: sin aviso rojo y con 4/5', await page.locator('.pn-banner.is-danger').count() === 0 && (await page.locator('.pn-ring b').innerText()) === '4/5');
-// Con los cinco pasos hechos, el anillo desaparece y Compartir dice «Todo listo»
+await page.waitForSelector('.pn-notice.is-steps');
+ok('tablero: sin aviso rojo y con 4 de 5', await page.locator('.pn-notice.is-danger').count() === 0 && (await page.locator('.pn-notice.is-steps .pn-notice-txt').innerText()) === 'Puesta en marcha: 4 de 5 pasos');
+// Con los cinco pasos hechos, la línea desaparece del tablero y Compartir dice «Puesta en marcha completada»
 await page.goto(`${BASE}/admin/integration`, { waitUntil: 'networkidle' });
-await page.waitForSelector('.sh-list');
+await page.waitForSelector('.sh-qr img');
+await openSteps();
 await page.getByRole('button', { name: 'Ya está hecho' }).click();
-await page.getByText('Todo listo').waitFor();
-ok('compartir: 5 de 5 y «Todo listo»', (await page.locator('.sh-steps-head > span').innerText()) === '5 de 5');
+await page.getByText('Puesta en marcha completada').first().waitFor();
+ok('compartir: 5 de 5 y «Puesta en marcha completada»', (await page.locator('.sh-steps-head > span').innerText()) === '5 de 5');
 await shot('G4-compartir-todo-listo', { view: true });
 await page.goto(`${BASE}/admin`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.ds-case');
 await page.waitForTimeout(600);
-ok('tablero: con 5 de 5 el anillo desaparece', await page.locator('.pn-steps').count() === 0);
+ok('tablero: con 5 de 5 la línea de la puesta en marcha desaparece', await page.locator('.pn-notice.is-steps').count() === 0);
 // Se deja la demo como estaba (3 de 5, AIPI pendiente)
 await page.evaluate((d) => { const s = JSON.parse(sessionStorage.getItem('reportia-demo-store-v4')); s.org.responsible_appointed_at = d; s.org.aipi_notified_at = null; s.org.onboarding = { web: true }; sessionStorage.setItem('reportia-demo-store-v4', JSON.stringify(s)); }, appointedBefore);
 
@@ -309,13 +320,14 @@ await page.evaluate((d) => { const s = JSON.parse(sessionStorage.getItem('report
 await page.goto(`${BASE}/admin/report`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.rp-figs dd');
 const year = new Date().getFullYear();
-ok('informe: titular con el año', (await page.locator('h1').first().innerText()).trim().startsWith(`${year}, de un vistazo`));
+ok('informe: se titula «Informe de {año}»', (await page.locator('h1').first().innerText()).trim() === `Informe de ${year}`);
+ok('informe: las cuatro cifras en una fila, en una sola tarjeta blanca, sin tarjeta azul ni rosa', await page.locator('.rp-fig.is-report').count() === 0 && await page.locator('.rp-figs').evaluate(el => getComputedStyle(el).backgroundColor) === 'rgb(255, 255, 255)' && await page.locator('.rp-fig').evaluateAll(els => els.every(e => getComputedStyle(e).backgroundColor === 'rgba(0, 0, 0, 0)')));
 const figs = await page.locator('.rp-figs dd').allInnerTexts();
 ok('informe: cuatro cifras', figs.length === 4 && /^\d+$/.test(figs[0]) && /de \d+/.test(figs[1]) && /%/.test(figs[2]), figs.join(' | '));
 const bars = await page.locator('.rp-bar').count();
 const rowsM = await page.locator('section[aria-labelledby="rp-series"] table tbody tr').count();
 ok('informe: barras por mes con su tabla oculta', bars > 1 && bars === rowsM && await page.locator('.rp-bars').getAttribute('aria-hidden') === 'true', `${bars} barras`);
-ok('informe: el mes con más denuncias, en azul fuerte', await page.locator('.rp-bar.is-max').count() >= 1);
+ok('informe: barras en gris; el acento, solo en el mes en curso', await page.locator('.rp-bar.is-now').count() === 1 && await page.locator('.rp-bar').last().evaluate(el => el.classList.contains('is-now')));
 const sumM = (await page.locator('section[aria-labelledby="rp-series"] table tbody td:nth-child(2)').allInnerTexts()).reduce((a, b) => a + Number(b), 0);
 ok('informe: los meses suman las recibidas', sumM === Number(figs[0]), `${sumM} / ${figs[0]}`);
 const sumT = (await page.locator('section[aria-labelledby="rp-topics"] table tbody td:nth-child(2)').allInnerTexts()).reduce((a, b) => a + Number(b), 0);
@@ -328,7 +340,7 @@ ok('informe: libro-registro en Excel', xls.suggestedFilename().endsWith('.xlsx')
 const [pdf] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Informe para dirección (PDF)' }).click()]);
 ok('informe: PDF para dirección', pdf.suggestedFilename().endsWith('.pdf'), pdf.suggestedFilename());
 await page.getByLabel('Periodo').selectOption('all');
-await page.getByRole('heading', { name: 'Todo el historial, de un vistazo' }).waitFor();
+await page.getByRole('heading', { name: 'Informe de todo el historial' }).waitFor();
 ok('informe: todo el historial agrupa por año', await page.getByRole('heading', { name: 'Denuncias por año' }).isVisible() && (await page.locator('.rp-see').getAttribute('href')) === '/admin');
 await page.locator('.rp-see').click();
 await page.waitForURL(/\/admin\/?$/);
@@ -342,7 +354,7 @@ await page.waitForURL(/\/admin\/ajustes$/);
 ok('/admin/users y /admin/account llevan a Equipo y ajustes', true);
 await page.goto(`${BASE}/admin/ajustes?invitar=1`, { waitUntil: 'networkidle' });
 await page.getByRole('heading', { name: 'Invitar a alguien del equipo' }).waitFor();
-ok('desde «Primeros pasos» se abre la invitación y la dirección queda limpia', !page.url().includes('invitar'));
+ok('desde la puesta en marcha se abre la invitación y la dirección queda limpia', !page.url().includes('invitar'));
 await page.keyboard.press('Escape');
 
 // 7 · Verificación en dos pasos: estado y alta
@@ -384,12 +396,12 @@ ok('catalán: ajustes', await page.getByRole('heading', { name: 'Equip i ajustos
 await shot('G5-ajustes-catala');
 await page.goto(`${BASE}/admin/integration`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.sh-qr img');
-await page.waitForSelector('.sh-list');
+await openSteps();
 await shot('G4-compartir-catala');
 await page.evaluate(() => localStorage.setItem('reportia-panel-lang', 'en'));
 await page.goto(`${BASE}/admin/report`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.rp-figs dd');
-ok('inglés: informe', (await page.locator('h1').first().innerText()).includes('at a glance'));
+ok('inglés: informe', /^\d{4} report$/.test((await page.locator('h1').first().innerText()).trim()));
 await shot('G6-informe-english');
 await page.goto(`${BASE}/admin/ajustes`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.tm-list li');

@@ -20,18 +20,16 @@ export function deadlineLook(kind, days, { soon = SOON[kind] } = {}) {
 }
 
 /**
- * Chip de un plazo legal. kind: ack (acuse, 7 días) | meeting (reunión, 7 días) | resp (respuesta, 3 meses).
+ * Un plazo legal. kind: ack (acuse, 7 días) | meeting (reunión, 7 días) | resp (respuesta, 3 meses).
  * days: días que quedan; negativo si ya ha vencido. En el móvil el texto se acorta solo; short lo acorta siempre.
- * onBg: va sobre una tarjeta gris.
+ * Solo lleva fondo si importa: rojo suave si está vencido y ámbar suave si vence pronto. Si queda lejos, texto gris.
  */
-export default function DeadlineChip({ lang, kind = 'resp', days, short = false, soon, onBg = false, size }) {
+export default function DeadlineChip({ lang, kind = 'resp', days, short = false, soon, size }) {
   const { tone, k, kShort, n } = deadlineLook(kind, days, { soon });
   const same = short || k === kShort;
-  // Los chips se ajustan a su texto: no reservan el ancho de los otros idiomas
+  // Las etiquetas se ajustan a su texto: no reservan el ancho de los otros idiomas
   const text = (key) => fmt(translations[lang].ds[key], { n });
-  return (
-    <Chip tone={tone === 'neutral' && onBg ? 'white' : tone} size={size}>
-      {same ? text(short ? kShort : k) : <><span className="ds-wide">{text(k)}</span><span className="ds-narrow">{text(kShort)}</span></>}
-    </Chip>
-  );
+  const inner = same ? text(short ? kShort : k) : <><span className="ds-wide">{text(k)}</span><span className="ds-narrow">{text(kShort)}</span></>;
+  if (tone === 'neutral') return <span className="ds-case-plain">{inner}</span>;
+  return <Chip tone={tone} size={size}>{inner}</Chip>;
 }

@@ -28,15 +28,8 @@ const PEOPLE = {
   nuria:  { id: 'mgr-nuria', full_name: 'Núria Soler Vidal', email: 'n.soler@empresa-demo.es' },
 };
 
-// Títols curts dels casos (els posa qui gestiona; mai es mostren a qui informa). La resta de
-// casos no en tenen i el tauler n'ensenya les primeres paraules de la descripció.
-const TITLES = {
-  'c-r7kd4wpn': 'Vertidos del taller de mantenimiento al desagüe',
-  'c-vk7p2mqa': 'Comentarios sexuales a compañeras en el turno de noche',
-  'c-3hxd8rne': 'Datos de clientes enviados a correos personales',
-  'c-m9tf6bzq': 'Rutas de transporte facturadas que no se hicieron',
-  'c-d7tn4vka': 'Carretilla del turno de tarde con los frenos en mal estado',
-};
+// Los casos de ejemplo no llevan título propio: el tablero y la ficha enseñan el título neutro (referencia y tema).
+// Quien gestiona puede añadir uno desde la ficha; nunca se le muestra a quien informa.
 
 function seed() {
   const now = Date.now();
@@ -66,7 +59,7 @@ function seed() {
       extended_until: null, extension_reason: null, anonymized_at: null,
       // Columnes de les migracions 011 i 012
       channel: 'web', meeting_requested: false, meeting_requested_at: null, meeting_held_at: null, outcome: null,
-      investigation_started_at: null, fiscal_referral_at: null, title: TITLES[c.id] ?? null, assigned_to: null, incident_when: null,
+      investigation_started_at: null, fiscal_referral_at: null, title: null, assigned_to: null, incident_when: null,
       ...c,
       // Referència interna del panell: el codi de seguiment només el coneix qui denuncia
       reference: `REF-${c.tracking_code.replace('-', '').slice(2)}`,

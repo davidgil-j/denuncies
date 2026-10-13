@@ -2,7 +2,7 @@
 import { chromium } from './lib/playwright.mjs';
 const b = await chromium.launch(); const bad = []; let n = 0;
 const PAGES = [['/', 'main, h1'], ['/crear-compte', 'form'], ['/privacitat', 'h1'], ['/no-existe', 'h1'], ['/canal/demo', '.ds-hero'], ['/canal/demo/formulario', '.cats'], ['/canal/demo/consulta', 'form'], ['/canal/demo/privacidad', '.priv-sec'], ['/canal/no-existe', '.canal-lost'],
-  ['/admin/login?from=demo', '.ac-form'], ['/admin/forgot-password', '.ac-form'], ['/admin/reset-password', '.ac-form'], ['/admin', '.ds-case'], ['/admin/complaints/c-w2lc9pxa', '.cs-desc'], ['/admin/complaints/c-f4qj7mbn', '.cs-desc'], ['/admin/complaints/no-existe', 'h1'], ['/admin/nueva', '.rg-form'], ['/admin/report', '.rp-figs dd'], ['/admin/integration', '.sh-list'], ['/admin/ajustes', '.tm-list li'], ['/admin/mfa', '.sg-state']];
+  ['/admin/login?from=demo', '.ac-form'], ['/admin/forgot-password', '.ac-form'], ['/admin/reset-password', '.ac-form'], ['/admin', '.ds-case'], ['/admin/complaints/c-w2lc9pxa', '.cs-desc'], ['/admin/complaints/c-f4qj7mbn', '.cs-desc'], ['/admin/complaints/no-existe', 'h1'], ['/admin/nueva', '.rg-form'], ['/admin/report', '.rp-figs dd'], ['/admin/integration', '.sh-qr img'], ['/admin/ajustes', '.tm-list li'], ['/admin/mfa', '.sg-state']];
 for (const lang of ['es', 'ca', 'en']) {
   const ctx = await b.newContext({ viewport: { width: 1366, height: 900 } }); const p = await ctx.newPage();
   p.on('pageerror', e => bad.push(`${lang} error: ${e.message.slice(0, 120)}`));

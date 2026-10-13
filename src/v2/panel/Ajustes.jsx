@@ -17,7 +17,7 @@ import PasswordField from './PasswordField.jsx';
 const MIN_PASSWORD = 8;
 const HTTPS = /^https:\/\/[^\s<>"]+$/;
 const mailto = (subject, body) => `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-const alertIcon = <CircleAlert size={18} strokeWidth={2.2} aria-hidden="true" />;
+const alertIcon = <CircleAlert size={18} strokeWidth={1.8} aria-hidden="true" />;
 
 /** Avisa antes de cerrar la pestaña con cambios sin guardar */
 function useUnsavedGuard(dirty) {
@@ -123,17 +123,17 @@ function Responsable() {
   }
 
   return (
-    <Card as="form" tone="bg" className="st-card" aria-labelledby="st-resp-t" onSubmit={save} noValidate>
+    <Card as="form" className="st-card" aria-labelledby="st-resp-t" onSubmit={save} noValidate>
       <h2 className="st-h" id="st-resp-t">{s.respT}</h2>
       <p className="st-p">{s.respLead}</p>
       <div className="st-two">
-        <Field size="sm" plain label={s.respName} value={form.responsible_name} onChange={set('responsible_name')} autoComplete="off" maxLength={120} />
-        <Field size="sm" plain label={s.respRole} value={form.responsible_role} onChange={set('responsible_role')} autoComplete="off" maxLength={120} />
+        <Field size="sm" label={s.respName} value={form.responsible_name} onChange={set('responsible_name')} autoComplete="off" maxLength={120} />
+        <Field size="sm" label={s.respRole} value={form.responsible_role} onChange={set('responsible_role')} autoComplete="off" maxLength={120} />
         {withDates && (
           <>
-            <Field size="sm" plain type="date" label={s.appointed} value={form.responsible_appointed_at} max={today} onChange={set('responsible_appointed_at')} />
+            <Field size="sm" type="date" label={s.appointed} value={form.responsible_appointed_at} max={today} onChange={set('responsible_appointed_at')} />
             <Field
-              size="sm" plain type="date" label={s.notified} value={form.aipi_notified_at} max={today} min={form.responsible_appointed_at || undefined}
+              size="sm" type="date" label={s.notified} value={form.aipi_notified_at} max={today} min={form.responsible_appointed_at || undefined}
               onChange={set('aipi_notified_at')} help={aipiHelp} warn={!!aipiHelp && aipi.state !== 'overdue'} className={aipi?.state === 'overdue' ? 'is-late' : undefined}
             />
           </>
@@ -142,23 +142,23 @@ function Responsable() {
       {counting && <p className="st-small">{s.noHolidays}</p>}
       {withAuthority && (
         <>
-          <Field as="select" size="sm" plain label={s.authority} value={form.auth} onChange={set('auth')}>
+          <Field as="select" size="sm" label={s.authority} value={form.auth} onChange={set('auth')}>
             <option value="none">{s.authNone}</option>
             <option value="antifrau">{s.authAntifrau}</option>
             <option value="other">{s.authOther}</option>
           </Field>
           {form.auth === 'other' && (
             <div className="st-two">
-              <Field id="st-auth-name" size="sm" plain label={s.authName} value={form.authName} onChange={set('authName')} autoComplete="off" maxLength={160} aria-invalid={errors.auth ? true : undefined} />
-              <Field id="st-auth-url" size="sm" plain type="url" inputMode="url" label={s.authUrl} placeholder="https://" value={form.authUrl} onChange={set('authUrl')} autoComplete="off" spellCheck={false} maxLength={300} aria-invalid={errors.auth ? true : undefined} />
+              <Field id="st-auth-name" size="sm" label={s.authName} value={form.authName} onChange={set('authName')} autoComplete="off" maxLength={160} aria-invalid={errors.auth ? true : undefined} />
+              <Field id="st-auth-url" size="sm" type="url" inputMode="url" label={s.authUrl} placeholder="https://" value={form.authUrl} onChange={set('authUrl')} autoComplete="off" spellCheck={false} maxLength={300} aria-invalid={errors.auth ? true : undefined} />
             </div>
           )}
           {errors.auth && <p className="ac-error" role="alert">{alertIcon}{errors.auth}</p>}
         </>
       )}
       <div className="st-foot">
-        <a className="st-ext" href={AIPI_URL} target="_blank" rel="noopener noreferrer">{s.howAipi}<ArrowUpRight size={16} strokeWidth={2.4} aria-hidden="true" /></a>
-        <Button type="submit" variant="ink" size="sm" busy={busy} disabled={!dirty}>{busy ? p.saving : p.save}</Button>
+        <a className="st-ext" href={AIPI_URL} target="_blank" rel="noopener noreferrer">{s.howAipi}<ArrowUpRight size={16} strokeWidth={1.8} aria-hidden="true" /></a>
+        <Button type="submit" variant="report" size="sm" busy={busy} disabled={!dirty}>{busy ? p.saving : p.save}</Button>
       </div>
     </Card>
   );
@@ -222,14 +222,14 @@ function Plan() {
   }
 
   return (
-    <Card as="section" tone="bg" className="st-card" aria-labelledby="st-plan-t">
+    <Card as="section" className="st-card" aria-labelledby="st-plan-t">
       <h2 className="st-h" id="st-plan-t">{s.planT}</h2>
       <div className="st-tile">
         <span className="st-tile-txt">
           <b>{state.title}</b>
           {state.text && <span className={cx(state.warn && 'is-warn', state.late && 'is-late')}>{state.text}</span>}
         </span>
-        <Button variant="ink" size="xs" onClick={() => setPricing(true)}>{paying ? s.renew : s.contract}</Button>
+        <Button variant="soft" size="xs" onClick={() => setPricing(true)}>{paying ? s.renew : s.contract}</Button>
       </div>
       <div className="st-links">
         <button type="button" className="st-link" onClick={openBilling}>{s.billing}</button>
@@ -237,7 +237,7 @@ function Plan() {
       </div>
 
       <Dialog side open={pricing} onClose={() => setPricing(false)} title={s.plansT} closeLabel={p.close}
-        actions={<Button variant="ink" size="md" href={contractHref} icon={<Mail size={18} strokeWidth={2} aria-hidden="true" />}>{paying ? s.renewByMail : s.byMail}</Button>}
+        actions={<Button variant="report" size="md" href={contractHref} icon={<Mail size={18} strokeWidth={2} aria-hidden="true" />}>{paying ? s.renewByMail : s.byMail}</Button>}
       >
         <ul className="st-plans">
           {PLANS.map(pl => {
@@ -265,7 +265,7 @@ function Plan() {
           <Field id="st-billing_email" size="sm" type="email" inputMode="email" label={s.billEmail} tag={p.optional.toLowerCase()} value={form.billing_email} onChange={set('billing_email')} error={errors.billing_email} autoComplete="email" spellCheck={false} maxLength={160} />
           <div className="ds-dialog-actions">
             <Button variant="soft" size="md" onClick={() => setBilling(false)} disabled={busy}>{p.cancel}</Button>
-            <Button type="submit" variant="ink" size="md" busy={busy}>{busy ? p.saving : p.save}</Button>
+            <Button type="submit" variant="report" size="md" busy={busy}>{busy ? p.saving : p.save}</Button>
           </div>
         </form>
       </Dialog>
@@ -296,7 +296,7 @@ function Empresa() {
   }
 
   return (
-    <Card as="section" tone="bg" className="st-card" aria-labelledby="st-org-t">
+    <Card as="section" className="st-card" aria-labelledby="st-org-t">
       <h2 className="st-h" id="st-org-t">{s.orgT}</h2>
       <div className="st-tile">
         <span className="st-tile-txt"><span>{s.orgName}</span><b>{org?.name}</b></span>
@@ -311,7 +311,7 @@ function Empresa() {
           <Field id="st-org-name" size="sm" label={s.orgName} hideLabel value={name} error={error} help={s.orgNameHelp} autoComplete="organization" maxLength={120} autoFocus onChange={e => { setName(e.target.value); setError(''); }} />
           <div className="ds-dialog-actions">
             <Button variant="soft" size="md" onClick={() => setEditing(false)} disabled={busy}>{p.cancel}</Button>
-            <Button type="submit" variant="ink" size="md" busy={busy}>{busy ? p.saving : p.save}</Button>
+            <Button type="submit" variant="report" size="md" busy={busy}>{busy ? p.saving : p.save}</Button>
           </div>
         </form>
       </Dialog>
@@ -357,7 +357,7 @@ function TuSeguridad() {
   }
 
   return (
-    <Card as="section" tone="bg" className="st-card" aria-labelledby="st-sec-t">
+    <Card as="section" className="st-card" aria-labelledby="st-sec-t">
       <h2 className="st-h" id="st-sec-t">{s.secT}</h2>
       <div className="st-tile">
         <span className="st-tile-row"><span className={cx('st-dot', mfaSetup && 'is-off')} aria-hidden="true" /><b>{mfaSetup ? s.mfaOff : s.mfaOn}</b></span>
@@ -369,7 +369,7 @@ function TuSeguridad() {
       </div>
       <div className="st-tile">
         <span className="st-tile-row"><b>{p.language}</b></span>
-        <Segmented tone="bg" label={p.language} value={lang} onChange={setLang} options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: translations[l].langName, lang: l }))} />
+        <Segmented tone="plain" label={p.language} value={lang} onChange={setLang} options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: translations[l].langName, lang: l }))} />
       </div>
 
       <Dialog open={changing} onClose={() => { if (!busy) setChanging(false); }} title={s.pwdT}>
@@ -393,7 +393,7 @@ function TuSeguridad() {
           {errors.form && <p className="ac-error" role="alert">{alertIcon}{errors.form}</p>}
           <div className="ds-dialog-actions">
             <Button variant="soft" size="md" onClick={() => setChanging(false)} disabled={busy}>{p.cancel}</Button>
-            <Button type="submit" variant="ink" size="md" busy={busy}>{busy ? p.saving : w.saveReset}</Button>
+            <Button type="submit" variant="report" size="md" busy={busy}>{busy ? p.saving : w.saveReset}</Button>
           </div>
         </form>
       </Dialog>

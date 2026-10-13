@@ -58,13 +58,13 @@ ok('formato #access_token…&type=recovery: sale el formulario y guarda la contr
 r = await run('hash recovery móvil', `/admin/reset-password${HASH}recovery`, { w: 375, capture: 'enlace-de-recuperacion' });
 ok('lo mismo en móvil', r.result === 'formulario' && r.saved, `${r.result} en ${r.secs}s`);
 r = await run('hash invite', `/admin/reset-password${HASH}invite`, { capture: 'invitacion' });
-ok('invitación (#…type=invite): formulario de bienvenida', r.result === 'formulario' && r.saved && r.h1 === 'Te damos la bienvenida', `${r.result} · «${r.h1}»`);
+ok('invitación (#…type=invite): formulario para crear la contraseña', r.result === 'formulario' && r.saved && r.h1 === 'Crea tu contraseña', `${r.result} · «${r.h1}»`);
 r = await run('code', '/admin/reset-password?code=codigo-bueno', { seedVerifier: true });
 ok('formato ?code=…: sale el formulario y guarda la contraseña', r.result === 'formulario' && r.saved, `${r.result} en ${r.secs}s`);
 r = await run('token_hash', '/admin/reset-password?token_hash=hash-bueno&type=recovery');
 ok('formato ?token_hash=…&type=recovery: sale el formulario y guarda', r.result === 'formulario' && r.saved, `${r.result} en ${r.secs}s`);
 r = await run('token_hash invite', '/admin/reset-password?token_hash=hash-bueno&type=invite');
-ok('invitación con ?token_hash=…: formulario de bienvenida', r.result === 'formulario' && r.h1 === 'Te damos la bienvenida', `${r.result} · «${r.h1}»`);
+ok('invitación con ?token_hash=…: formulario para crear la contraseña', r.result === 'formulario' && r.h1 === 'Crea tu contraseña', `${r.result} · «${r.h1}»`);
 r = await run('caducado', '/admin/reset-password#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired', { capture: 'enlace-caducado' });
 ok('enlace caducado de verdad: lo dice enseguida, sin esperar 10 s', r.result === 'caducado' && Number(r.secs) < 5, `${r.result} en ${r.secs}s`);
 r = await run('caducado móvil', '/admin/reset-password#error=access_denied&error_code=otp_expired', { w: 375, capture: 'enlace-caducado' });

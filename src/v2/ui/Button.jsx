@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { cx } from './text.jsx';
 
 /**
- * Botón. variant: report (el principal) | soft (secundario: blanco con línea) | bg (gris) | tint | line (contorno oscuro) |
+ * Botón. variant: report (el principal) | soft (secundario: blanco con línea) | bg (gris) | ghost (sin fondo) | tint | line (contorno oscuro) |
  * ink | white y shade (sobre el color: lleno y en contorno) | glass (sobre oscuro) | danger.
  * size: xl (48, la entrada) | lg (44) | md (40) | sm (36) | xs (32). Con `to` es un enlace de la aplicación y con `href`, uno normal.
  */

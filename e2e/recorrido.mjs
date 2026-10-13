@@ -86,8 +86,10 @@ await page.keyboard.type('02', { delay: 90 });
 await page.waitForURL(/\/admin\/?$/, { timeout: 10000 });
 await page.waitForSelector('.ds-case');
 await col('Nuevas');
-const card = page.locator('.ds-kcol').first().locator('.ds-case', { hasText: 'Desde hace semanas, uno de los responsables' }).first();
-ok('3 · el caso nuevo está en «Nuevas», con «Pide reunión» y «Te ha escrito»', await card.count() === 1 && await card.getByText('Pide reunión').count() === 1 && await card.getByText('Te ha escrito').count() === 1);
+// En el panel el caso se ve con su referencia interna (nunca con el código de quien informa) y el tema: título neutro
+const ref = `REF-${code.replace('-', '').slice(2)}`;
+const card = page.locator('.ds-kcol').first().locator('.ds-case', { hasText: ref }).first();
+ok('3 · el caso nuevo está en «Nuevas», con título neutro, «Pide reunión» y «Te ha escrito»', await card.count() === 1 && (await card.locator('.ds-case-title').innerText()).trim() === `${ref} · Acoso laboral o sexual` && await card.getByText('Pide reunión').count() === 1 && await card.getByText('Te ha escrito').count() === 1 && await page.locator('.ds-kanban').getByText('Desde hace semanas').count() === 0);
 await shot('3c-tablero-caso-en-nuevas');
 
 // ── 4 · Enviar el acuse y verlo pasar a «En curso» ──
@@ -102,12 +104,12 @@ await toast('Acuse enviado');
 await page.getByRole('link', { name: 'Tablero' }).first().click();
 await page.waitForSelector('.ds-case');
 await col('En curso');
-const moved = page.locator('.ds-kcol').nth(mobile ? 0 : 1).locator('.ds-case', { hasText: 'Desde hace semanas, uno de los responsables' });
-ok('4 · tras el acuse, el caso está en «En curso»', await page.locator('.ds-case', { hasText: 'Desde hace semanas, uno de los responsables' }).count() === 1 && (mobile || await moved.count() === 1));
+const moved = page.locator('.ds-kcol').nth(mobile ? 0 : 1).locator('.ds-case', { hasText: ref });
+ok('4 · tras el acuse, el caso está en «En curso»', await page.locator('.ds-case', { hasText: ref }).count() === 1 && (mobile || await moved.count() === 1));
 await shot('4c-tablero-caso-en-curso');
 
 // ── 5 · Marcar la reunión hecha, iniciar la investigación, responder y cerrar con un resultado ──
-await page.locator('.ds-case', { hasText: 'Desde hace semanas, uno de los responsables' }).getByRole('link').first().click();
+await page.locator('.ds-case', { hasText: ref }).getByRole('link').first().click();
 await page.waitForSelector('.cs-desc');
 await page.locator('.cs-next').getByRole('button', { name: 'Proponer la reunión' }).click();
 await page.locator('#cs-msg').fill('Te proponemos reunirnos el jueves a las 10:00 en la sala 2. Si no te va bien, dinos otro momento.');
@@ -179,7 +181,7 @@ await shot('7d-tablero-final');
 await page.evaluate(() => localStorage.setItem('reportia-panel-lang', 'ca'));
 await page.goto(`${B}/admin`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.ds-case');
-ok('catalán: tablero', /casos? et necessit|Tot al dia/.test(await page.locator('h1').first().innerText()));
+ok('catalán: tablero', (await page.locator('h1').first().innerText()).trim() === 'Tauler' && /requereix/.test(await page.locator('.pn-lead').innerText()));
 await shot('8a-tauler-catala');
 await page.goto(`${B}/canal/demo?lang=en`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.ds-hero');

@@ -4,8 +4,8 @@ import Segmented from './Segmented.jsx';
 import { cx, Txt } from './text.jsx';
 
 /**
- * Tablero de columnas. En el móvil las columnas son pestañas en píldora («Nuevas · 2»).
- *   columns: [{ id, title (lo que se ve), name (texto, para pestañas y avisos), items, total, footer, empty }]
+ * Tablero de columnas. En el móvil las columnas son pestañas («Nuevas · 2»).
+ *   columns: [{ id, title (lo que se ve), icon (un icono pequeño delante), name (texto, para pestañas y avisos), items, total, footer, empty }]
  *   renderCard(item, { column, move, dragging }): devuelve la <CaseCard>; `move` ya trae la columna siguiente.
  *   onMove(item, from, to): al soltar una tarjeta en otra columna o pulsar su botón de mover.
  *   canMove(item, from, to): si ese paso está permitido (por defecto, cualquiera).
@@ -58,7 +58,7 @@ export default function Kanban({ lang, columns, renderCard, onMove, canMove = ()
               onDrop={e => drop(e, col)}
             >
               <div className="ds-kcol-head">
-                <h2 className="ds-kcol-title" id={`${uid}-${col.id}-t`}>{col.title ?? col.name}</h2>
+                <h2 className="ds-kcol-title" id={`${uid}-${col.id}-t`}>{col.icon}{col.title ?? col.name}</h2>
                 <span className="ds-kcol-n">{countOf(col)}</span>
               </div>
               {col.items.length === 0 ? (

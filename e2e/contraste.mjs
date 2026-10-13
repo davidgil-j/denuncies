@@ -82,7 +82,9 @@ await page.evaluate(() => { sessionStorage.setItem('reportia-demo-session', '1')
 await go('/admin', '.ds-case'); await check('panel · tablero');
 await page.locator('.ds-case').first().hover(); await check('panel · tablero con el ratón en una tarjeta');
 await page.getByRole('button', { name: 'Filtrar' }).click(); await page.locator('dialog[open]').waitFor(); await check('panel · filtros'); await page.keyboard.press('Escape');
-await page.getByRole('button', { name: 'Más acciones' }).click(); await check('panel · menú «···»'); await page.keyboard.press('Escape');
+await page.getByRole('button', { name: 'Exportar', exact: true }).click(); await check('panel · menú «Exportar»'); await page.keyboard.press('Escape');
+for (const n of await page.locator('.pn-notice-line').all()) await n.click();
+await check('panel · avisos desplegados');
 await page.locator('.pn-avatar').click(); await check('panel · menú de la cuenta'); await page.keyboard.press('Escape');
 await go('/admin?cat=other&pr=low&st=archived', '.pn-filtered'); await check('panel · tablero filtrado y vacío');
 await go('/admin/complaints/c-vk7p2mqa', '.cs-desc'); await check('panel · ficha de un caso nuevo');
@@ -94,6 +96,7 @@ await go('/admin/complaints/no-existe', 'h1'); await page.waitForTimeout(500); a
 await go('/admin/nueva', '.rg-form'); await page.getByRole('button', { name: 'Registrar y obtener el código' }).click(); await check('panel · registrar con errores');
 await go('/admin/report', '.rp-figs dd'); await check('panel · informe');
 await go('/admin/integration', '.sh-qr img'); await check('panel · compartir');
+await page.locator('.sh-steps-see').click(); await page.waitForSelector('.sh-list'); await check('panel · compartir con los pasos desplegados');
 await go('/admin/ajustes', '.tm-list li'); await check('panel · equipo y ajustes');
 await page.getByRole('button', { name: 'Cambiar los permisos de Daniel Ortega Ruiz' }).click(); await page.waitForSelector('.tm-perms'); await check('panel · permisos'); await page.keyboard.press('Escape');
 await page.getByRole('button', { name: 'Contratar' }).click(); await page.locator('dialog[open]').waitFor(); await check('panel · planes'); await page.keyboard.press('Escape');

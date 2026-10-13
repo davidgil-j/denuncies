@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
-import { KeyRound, MailCheck, Link2Off, Check, Circle, CircleAlert, ArrowLeft } from 'lucide-react';
+import { Check, Circle, CircleAlert, ArrowLeft } from 'lucide-react';
 import { translations } from '../../translations.js';
 import './texts.js'; // textos del panel (lado Gestionar)
 import { sendPasswordReset, updatePassword, onAuthEvent, getPasswordLinkState } from '../../lib/supabase.js';
@@ -51,20 +51,18 @@ export function Recuperar() {
   if (sent) {
     return (
       <div className="ac-form" aria-live="polite">
-        <span className="ac-ico" aria-hidden="true"><MailCheck size={34} strokeWidth={1.6} /></span>
         <div className="ac-title">
           <Tp as="h1" className="ds-h1 is-sm" lang={lang} pick={x => x.pw.sentTitle} ref={sentRef} tabIndex={-1} />
           <p className="ac-lead">{fmt(t.sentText, { email: email.trim() })}</p>
         </div>
         <p className="ac-note">{t.sentSpam}</p>
-        <Button variant="ink" size="lg" full to={loginTo} icon={<ArrowLeft size={20} strokeWidth={2.2} aria-hidden="true" />}><Tp lang={lang} pick={x => x.pw.back} /></Button>
+        <Button variant="soft" size="lg" full to={loginTo} icon={<ArrowLeft size={16} strokeWidth={1.8} aria-hidden="true" />}><Tp lang={lang} pick={x => x.pw.back} /></Button>
       </div>
     );
   }
 
   return (
     <form className="ac-form" onSubmit={submit} noValidate>
-      <span className="ac-ico" aria-hidden="true"><KeyRound size={34} strokeWidth={1.6} /></span>
       <div className="ac-title">
         <Tp as="h1" className="ds-h1 is-sm" lang={lang} pick={x => x.pw.fgTitle} />
         <Tp as="p" className="ac-lead" lang={lang} pick={x => x.pw.fgLead} />
@@ -75,8 +73,8 @@ export function Recuperar() {
           autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false}
           onChange={e => { setEmail(e.target.value); setEmailError(false); }}
         />
-        {submitError && <p className="ac-error" role="alert"><CircleAlert size={18} strokeWidth={2.2} aria-hidden="true" />{submitError}</p>}
-        <Button type="submit" variant="ink" size="lg" full busy={loading}><Tp lang={lang} pick={x => (loading ? x.pw.fgSending : x.pw.fgSend)} /></Button>
+        {submitError && <p className="ac-error" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />{submitError}</p>}
+        <Button type="submit" variant="report" size="lg" full busy={loading}><Tp lang={lang} pick={x => (loading ? x.pw.fgSending : x.pw.fgSend)} /></Button>
         <div className="ac-row"><Link className="ac-link" to={loginTo}>{t.back}</Link></div>
       </div>
     </form>
@@ -142,18 +140,17 @@ export function Cambiar() {
   }
 
   if (status === 'checking') {
-    return <div className="ac-form" role="status" aria-live="polite"><Skeleton width={72} height={72} /><p className="ac-lead">{t.checking}</p></div>;
+    return <div className="ac-form" role="status" aria-live="polite"><Skeleton width={180} height={26} /><p className="ac-lead">{t.checking}</p></div>;
   }
 
   if (status === 'invalid') {
     return (
       <div className="ac-form">
-        <span className="ac-ico" aria-hidden="true"><Link2Off size={34} strokeWidth={1.6} /></span>
         <div className="ac-title">
           <Tp as="h1" className="ds-h1 is-sm" lang={lang} pick={x => x.pw.invalidTitle} ref={titleRef} tabIndex={-1} />
           <Tp as="p" className="ac-lead" lang={lang} pick={x => x.pw.invalidText} />
         </div>
-        <Button variant="ink" size="lg" full to="/admin/forgot-password"><Tp lang={lang} pick={x => x.pw.invalidCta} /></Button>
+        <Button variant="report" size="lg" full to="/admin/forgot-password"><Tp lang={lang} pick={x => x.pw.invalidCta} /></Button>
       </div>
     );
   }
@@ -164,7 +161,6 @@ export function Cambiar() {
 
   return (
     <form className="ac-form" onSubmit={submit} noValidate>
-      <span className="ac-ico" aria-hidden="true"><KeyRound size={34} strokeWidth={1.6} /></span>
       <div className="ac-title">
         <Tp as="h1" className="ds-h1 is-sm" lang={lang} pick={x => (isInvite ? x.pw.titleInvite : x.pw.titleReset)} ref={titleRef} tabIndex={-1} />
         <Tp as="p" className="ac-lead" lang={lang} pick={x => (isInvite ? x.pw.leadInvite : x.pw.leadReset)} />
@@ -186,8 +182,8 @@ export function Cambiar() {
             </li>
           ))}
         </ul>
-        {submitError && <p className="ac-error" role="alert"><CircleAlert size={18} strokeWidth={2.2} aria-hidden="true" />{submitError}</p>}
-        <Button type="submit" variant="ink" size="lg" full busy={loading}><Tp lang={lang} pick={x => (isInvite ? x.pw.saveInvite : x.pw.saveReset)} /></Button>
+        {submitError && <p className="ac-error" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />{submitError}</p>}
+        <Button type="submit" variant="report" size="lg" full busy={loading}><Tp lang={lang} pick={x => (isInvite ? x.pw.saveInvite : x.pw.saveReset)} /></Button>
       </div>
     </form>
   );

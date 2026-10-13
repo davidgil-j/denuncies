@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, BarChart3, CircleAlert, FileSpreadsheet, FileText, LockKeyhole } from 'lucide-react';
+import { ArrowRight, BarChart3, CircleAlert, FileSpreadsheet, FileText, AlignLeft, Clock, LayoutDashboard } from 'lucide-react';
 import { listComplaints } from '../../lib/supabase.js';
 import { fmt } from '../V2Layout.jsx';
 import { STATUS_ORDER, OPEN, ANSWERED, deadlineInfo, daysBetween, localeOf } from '../admin/adminKit.jsx';
 import { Button, Card, Field, Skeleton, cx } from '../ui/index.js';
 import { usePanel, Tp, meetingInfo } from './kit.jsx';
 
-const BAR_MAX = 168; // altura, en px, de la barra del mes con más denuncias
+const BAR_MAX = 120; // altura, en px, de la barra del mes con más denuncias
 const NONE = '–';
 
 function median(values) {
@@ -27,8 +27,8 @@ function monthNames(year, month, lang) {
 }
 
 /**
- * Informe: el periodo de un vistazo. Cuatro cifras, las denuncias por mes y por tema en barras (con su
- * tabla para quien no las ve) y, debajo, el detalle de plazos y estados que ya tenía el informe anterior.
+ * Informe del periodo, sobrio: cuatro cifras en una fila (en rojo, solo los plazos vencidos si los hay), las
+ * denuncias por mes y por tema en barras neutras (con su tabla para quien no las ve) y, debajo, plazos y estados.
  * Cada persona ve solo las categorías que tiene asignadas.
  */
 export default function Informe() {
@@ -133,7 +133,7 @@ export default function Informe() {
   if (noAccess) {
     return (
       <div className="pn-page">
-        <Card tone="bg" className="pn-empty"><LockKeyhole size={28} strokeWidth={1.7} aria-hidden="true" /><h1 className="pn-empty-t">{t.noAccessTitle}</h1><p>{t.noAccessText}</p></Card>
+        <Card className="pn-empty"><h1 className="pn-empty-t">{t.noAccessTitle}</h1><p>{t.noAccessText}</p></Card>
       </div>
     );
   }
@@ -143,13 +143,16 @@ export default function Informe() {
   const maxBar = ready ? Math.max(...data.series.map(s => s.n), 0) : 0;
   const maxCat = ready ? Math.max(...data.byCat.map(c => c.n), 0) : 0;
   const dense = ready && data.series.length > 8;
+  // El acento, solo en el periodo en curso (este mes o este año); el resto de barras, en gris
+  const today = new Date();
+  const nowKey = year ? `${today.getFullYear()}-${today.getMonth()}` : String(today.getFullYear());
   const listHref = year ? `/admin?from=${year}-01-01&to=${year}-12-31` : '/admin';
 
   return (
     <div className="pn-page rp">
       <div className="pn-top">
         <div className="rp-title">
-          <Tp as="h1" className="ds-h1 is-sm" lang={lang} pick={x => (period === 'all' ? x.rep.titleAll : fmt(x.rep.title, { year: year ?? new Date().getFullYear() }))} />
+          <Tp as="h1" className="ds-h1" lang={lang} pick={x => (period === 'all' ? x.rep.titleAll : fmt(x.rep.title, { year: year ?? new Date().getFullYear() }))} />
           {years.length > 0 && (
             <Field as="select" size="sm" className="rp-period" label={r.period} hideLabel value={period} onChange={e => setPeriod(e.target.value)}>
               {years.map(y => <option key={y} value={String(y)}>{y}</option>)}
@@ -158,40 +161,36 @@ export default function Informe() {
           )}
         </div>
         <div className="pn-actions rp-exports">
-          <Button variant="bg" size="sm" disabled={!ready} busy={exporting === 'xlsx'} onClick={() => doExport('xlsx')} icon={<FileSpreadsheet size={16} strokeWidth={2.2} aria-hidden="true" />}>{r.xls}</Button>
-          <Button variant="ink" size="sm" disabled={!ready} busy={exporting === 'pdf'} onClick={() => doExport('pdf')} icon={<FileText size={16} strokeWidth={2.2} aria-hidden="true" />}>{r.pdf}</Button>
+          <Button variant="soft" size="md" disabled={!ready} busy={exporting === 'xlsx'} onClick={() => doExport('xlsx')} icon={<FileSpreadsheet size={16} strokeWidth={1.8} aria-hidden="true" />}>{r.xls}</Button>
+          <Button variant="soft" size="md" disabled={!ready} busy={exporting === 'pdf'} onClick={() => doExport('pdf')} icon={<FileText size={16} strokeWidth={1.8} aria-hidden="true" />}>{r.pdf}</Button>
         </div>
       </div>
 
       {failed ? (
-        <div className="pn-error" role="alert"><CircleAlert size={20} strokeWidth={2.2} aria-hidden="true" /><span>{p.loadErr}</span><Button variant="white" size="xs" onClick={load}>{p.retry}</Button></div>
+        <p className="pn-error" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" /><span>{p.loadErr}</span><button type="button" className="pn-link" onClick={load}>{p.retry}</button></p>
       ) : loading ? (
         <div role="status" aria-live="polite" className="rp-loading">
           <span className="ds-vh">{p.loading}</span>
-          <div className="rp-figs" aria-hidden="true">{[0, 1, 2, 3].map(i => <Skeleton key={i} height={112} />)}</div>
+          <Skeleton height={92} aria-hidden="true" />
           <div className="rp-charts" aria-hidden="true"><Skeleton height={300} /><Skeleton height={300} /></div>
         </div>
       ) : data.total === 0 ? (
-        <Card tone="bg" className="pn-empty">
-          <BarChart3 size={28} strokeWidth={1.7} aria-hidden="true" />
-          <h2 className="pn-empty-t">{years.length ? r.emptyTitle : p.emptyTitle}</h2>
-          <p>{years.length ? r.emptyText : fmt(p.emptyText, { org: org?.name ?? '' })}</p>
-        </Card>
+        <p className="pn-emptyline"><b>{years.length ? r.emptyTitle : p.emptyTitle}.</b> {years.length ? r.emptyText : fmt(p.emptyText, { org: org?.name ?? '' })}</p>
       ) : (
         <>
           <dl className="rp-figs">
-            <div className="rp-fig is-report"><dt>{r.received}</dt><dd>{data.total}</dd></div>
+            <div className="rp-fig"><dt>{r.received}</dt><dd>{data.total}</dd></div>
             <div className="rp-fig"><dt>{r.onTime}</dt><dd>{data.onTime} <small>{fmt(r.of, { total: data.closed })}</small></dd></div>
             <div className="rp-fig"><dt>{r.anonymous}</dt><dd>{pct(data.anonymous, data.total)}</dd></div>
             <div className={cx('rp-fig', data.missed > 0 && 'is-danger')}><dt>{r.missed}</dt><dd>{data.missed}</dd></div>
           </dl>
 
           <div className="rp-charts">
-            <Card as="section" tone="bg" className="rp-card" aria-labelledby="rp-series">
-              <h2 className="ds-card-title" id="rp-series">{year ? r.byMonth : r.byYear}</h2>
+            <Card as="section" className="rp-card" aria-labelledby="rp-series">
+              <h2 className="pn-sec-t" id="rp-series"><BarChart3 size={16} strokeWidth={2} aria-hidden="true" />{year ? r.byMonth : r.byYear}</h2>
               <div className={cx('rp-bars', dense && 'is-dense')} style={{ '--n': data.series.length }} aria-hidden="true">
                 {data.series.map(s => (
-                  <div key={s.key} className={cx('rp-bar', s.n === maxBar && 'is-max')}>
+                  <div key={s.key} className={cx('rp-bar', s.key === nowKey && 'is-now')}>
                     <b>{s.n}</b>
                     <i style={{ height: Math.max(Math.round((s.n / maxBar) * BAR_MAX), 4) }} />
                     <span className={dense ? 'ds-wide' : undefined}>{s.short}</span>
@@ -206,13 +205,13 @@ export default function Informe() {
               </table>
             </Card>
 
-            <Card as="section" tone="bg" className="rp-card" aria-labelledby="rp-topics">
-              <h2 className="ds-card-title" id="rp-topics">{r.byTopic}</h2>
+            <Card as="section" className="rp-card" aria-labelledby="rp-topics">
+              <h2 className="pn-sec-t" id="rp-topics"><AlignLeft size={16} strokeWidth={2} aria-hidden="true" />{r.byTopic}</h2>
               <div className="rp-topics" aria-hidden="true">
                 {data.byCat.map(c => (
                   <React.Fragment key={c.value}>
                     <span>{catName(c.value)}</span>
-                    <i className={c.n === maxCat ? 'is-max' : undefined} style={{ width: `${Math.max((c.n / maxCat) * 100, 3)}%` }} />
+                    <span className="rp-track"><i className={c.n === maxCat ? 'is-max' : undefined} style={{ width: `${Math.max((c.n / maxCat) * 100, 3)}%` }} /></span>
                     <b>{c.n}</b>
                   </React.Fragment>
                 ))}
@@ -227,8 +226,8 @@ export default function Informe() {
           </div>
 
           <div className="rp-charts">
-            <Card as="section" tone="bg" className="rp-card" aria-labelledby="rp-detail">
-              <h2 className="ds-card-title" id="rp-detail">{r.detail}</h2>
+            <Card as="section" className="rp-card" aria-labelledby="rp-detail">
+              <h2 className="pn-sec-t" id="rp-detail"><Clock size={16} strokeWidth={2} aria-hidden="true" />{r.detail}</h2>
               <dl className="rp-facts">
                 <div><dt>{r.open}</dt><dd>{data.open}</dd></div>
                 <div><dt>{r.closed}</dt><dd>{data.closed}</dd></div>
@@ -241,8 +240,8 @@ export default function Informe() {
               <p className="rp-note">{r.medianNote}</p>
             </Card>
 
-            <Card as="section" tone="bg" className="rp-card" aria-labelledby="rp-status">
-              <h2 className="ds-card-title" id="rp-status">{r.byStatus}</h2>
+            <Card as="section" className="rp-card" aria-labelledby="rp-status">
+              <h2 className="pn-sec-t" id="rp-status"><LayoutDashboard size={16} strokeWidth={2} aria-hidden="true" />{r.byStatus}</h2>
               <table className="rp-table">
                 <thead><tr><th scope="col">{r.colStatus}</th><th scope="col">{r.colCount}</th><th scope="col">{r.colShare}</th></tr></thead>
                 <tbody>{data.byStatus.map(s => <tr key={s.value}><th scope="row">{s.value === 'erased' ? r.erased : t.status[s.value] ?? s.value}</th><td>{s.n}</td><td>{pct(s.n, data.total)}</td></tr>)}</tbody>
@@ -250,7 +249,7 @@ export default function Informe() {
             </Card>
           </div>
 
-          <Button variant="bg" size="sm" className="rp-see" to={listHref} iconEnd={<ArrowRight size={16} strokeWidth={2.4} aria-hidden="true" />}>{r.seeList}</Button>
+          <Button variant="soft" size="sm" className="rp-see" to={listHref} iconEnd={<ArrowRight size={16} strokeWidth={1.8} aria-hidden="true" />}>{r.seeList}</Button>
         </>
       )}
     </div>

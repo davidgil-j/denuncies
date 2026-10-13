@@ -3,7 +3,6 @@ import { useOutletContext } from 'react-router-dom';
 import { Stable, fmt } from '../V2Layout.jsx';
 import { deadlineInfo, daysBetween, auditText } from '../admin/adminKit.jsx';
 import { madridDay, dayToDate } from '../../lib/deadlines.js';
-import { AI_ENABLED } from '../../lib/supabase.js';
 import { LOCALES } from '../../lib/format.js';
 import './texts.js'; // textos del panel (lado Gestionar)
 
@@ -25,16 +24,14 @@ export const CHANNELS = ['phone', 'in_person', 'mail', 'email', 'other'];
 const MEETING_DAYS = 7;
 
 /**
- * Título del caso: el que puso el equipo; si no hay, el que propuso la IA (solo con la IA encendida)
- * y, si tampoco, las primeras palabras de lo que contó.
+ * Título del caso: el que le puso el equipo. Si no tiene, uno neutro con la referencia y el tema
+ * («REF-7P2MQA · Acoso laboral o sexual»): lo que contó quien informa no se lee en un título, ni desde lejos.
+ * El título que propone la IA solo se usa si alguien lo acepta («Usar como título»). tr: los textos del idioma.
  */
-export function caseTitle(c, p) {
+export function caseTitle(c, tr) {
   if (c.title) return c.title;
-  if (AI_ENABLED && c.ai_title && !c.anonymized_at) return c.ai_title;
-  if (c.anonymized_at) return `${p.suppressed} · ${c.reference}`;
-  const words = (c.description ?? '').trim().split(/\s+/).filter(Boolean);
-  if (!words.length) return c.reference;
-  return words.length > 9 ? `${words.slice(0, 9).join(' ').replace(/[,;:.]$/, '')}…` : words.join(' ');
+  if (c.anonymized_at) return `${tr.panel.suppressed} · ${c.reference}`;
+  return `${c.reference} · ${tr.canal.cats[c.category]?.[0] ?? c.category}`;
 }
 
 /** Reunión presencial: el plazo legal son 7 días desde que se pidió (art. 7.2) */

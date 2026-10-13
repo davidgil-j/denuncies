@@ -86,7 +86,7 @@ export default function Seguridad() {
 
   return (
     <div className="pn-page sg">
-      {!mfaSetup && <Link className="pn-back" to="/admin/ajustes"><ArrowLeft size={16} strokeWidth={2.4} aria-hidden="true" />{s.back}</Link>}
+      {!mfaSetup && <Link className="pn-back" to="/admin/ajustes"><ArrowLeft size={16} strokeWidth={1.8} aria-hidden="true" />{s.back}</Link>}
       <div className="pn-hello">
         <Tp as="h1" className="ds-h1 is-sm" lang={lang} pick={x => x.sec.title} />
         <Tp as="p" className="pn-lead" lang={lang} pick={x => x.sec.lead} />
@@ -101,9 +101,9 @@ export default function Seguridad() {
 
       <div className="sg-grid">
         {factors === null ? (
-          <Card tone="bg" className="sg-main" role="status" aria-live="polite"><span className="ds-vh">{p.loading}</span><Skeleton width={220} height={22} /><Skeleton width="80%" /><Skeleton width={180} height={44} /></Card>
+          <Card className="sg-main" role="status" aria-live="polite"><span className="ds-vh">{p.loading}</span><Skeleton width={220} height={22} /><Skeleton width="80%" /><Skeleton width={180} height={44} /></Card>
         ) : step === 'status' ? (
-          <Card as="section" tone="bg" className="sg-main" aria-labelledby="sg-state-t">
+          <Card as="section" className="sg-main" aria-labelledby="sg-state-t">
             <div className="sg-state">
               <span className={verified ? 'sg-ico is-on' : 'sg-ico'} aria-hidden="true">{verified ? <ShieldCheck size={26} strokeWidth={1.8} /> : <ShieldAlert size={26} strokeWidth={1.8} />}</span>
               <div>
@@ -113,14 +113,14 @@ export default function Seguridad() {
             </div>
             {verified ? <p className="sg-note">{s.onNote}</p> : (
               <>
-                {error && <p className="ac-error" role="alert"><CircleAlert size={18} strokeWidth={2.2} aria-hidden="true" />{error}</p>}
-                <Button variant="ink" size="md" className="sg-go" onClick={start} busy={busy} icon={<Smartphone size={18} strokeWidth={2} aria-hidden="true" />}>{s.enable}</Button>
+                {error && <p className="ac-error" role="alert"><CircleAlert size={18} strokeWidth={1.8} aria-hidden="true" />{error}</p>}
+                <Button variant="report" size="md" className="sg-go" onClick={start} busy={busy} icon={<Smartphone size={18} strokeWidth={2} aria-hidden="true" />}>{s.enable}</Button>
               </>
             )}
             {IS_DEMO && !verified && <p className="sg-note">{s.demo}</p>}
           </Card>
         ) : step === 'scan' ? (
-          <Card as="section" tone="bg" className="sg-main" aria-labelledby="sg-scan-t">
+          <Card as="section" className="sg-main" aria-labelledby="sg-scan-t">
             <span className="sg-step">{fmt(s.stepOf, { n: 1 })}</span>
             <h2 className="sg-h" id="sg-scan-t" ref={headRef} tabIndex={-1}>{s.s1T}</h2>
             <p className="sg-p">{s.s1Text}</p>
@@ -129,33 +129,33 @@ export default function Seguridad() {
               <div className="sg-key">
                 <p className="sg-p">{s.manualKey}</p>
                 <code>{secretShown}</code>
-                <Button variant="white" size="xs" onClick={copyKey}><Swap lang={lang} on={keyCopied} pick={T => T.panel.sec.copyKey} pickOn={T => T.panel.sec.keyCopied} /></Button>
+                <Button variant="soft" size="xs" onClick={copyKey}><Swap lang={lang} on={keyCopied} pick={T => T.panel.sec.copyKey} pickOn={T => T.panel.sec.keyCopied} /></Button>
               </div>
             </div>
             {IS_DEMO && <p className="sg-note">{s.demo}</p>}
             <div className="sg-btns">
-              <Button variant="white" size="md" onClick={cancelSetup}>{p.cancel}</Button>
-              <Button variant="ink" size="md" onClick={() => setStep('code')} iconEnd={<ArrowRight size={18} strokeWidth={2.4} aria-hidden="true" />}>{s.cont}</Button>
+              <Button variant="soft" size="md" onClick={cancelSetup}>{p.cancel}</Button>
+              <Button variant="report" size="md" onClick={() => setStep('code')} iconEnd={<ArrowRight size={18} strokeWidth={1.8} aria-hidden="true" />}>{s.cont}</Button>
             </div>
           </Card>
         ) : (
-          <Card as="form" tone="bg" className="sg-main" aria-labelledby="sg-code-t" onSubmit={e => { e.preventDefault(); verify(); }} noValidate>
+          <Card as="form" className="sg-main" aria-labelledby="sg-code-t" onSubmit={e => { e.preventDefault(); verify(); }} noValidate>
             <span className="sg-step">{fmt(s.stepOf, { n: 2 })}</span>
             <h2 className="sg-h" id="sg-code-t" ref={headRef} tabIndex={-1}>{s.s2T}</h2>
             <p className="sg-p" id="sg-code-h">{s.s2Text}</p>
             <div className="sg-otp" ref={otpRef}>
               <OtpInput value={code} onChange={v => { setCode(v); setError(''); }} onComplete={verify} label={s.s2T} digitLabel={p.digit} invalid={!!error} describedBy={error ? 'sg-code-e' : 'sg-code-h'} />
             </div>
-            {error && <p className="ac-error" id="sg-code-e" role="alert"><CircleAlert size={18} strokeWidth={2.2} aria-hidden="true" />{error}</p>}
+            {error && <p className="ac-error" id="sg-code-e" role="alert"><CircleAlert size={18} strokeWidth={1.8} aria-hidden="true" />{error}</p>}
             {IS_DEMO && <p className="sg-note">{s.demo}</p>}
             <div className="sg-btns">
-              <Button variant="white" size="md" onClick={() => { setError(''); setStep('scan'); }}>{s.backStep}</Button>
-              <Button type="submit" variant="ink" size="md" busy={busy} disabled={code.length !== 6}>{busy ? s.verifying : s.verify}</Button>
+              <Button variant="soft" size="md" onClick={() => { setError(''); setStep('scan'); }}>{s.backStep}</Button>
+              <Button type="submit" variant="report" size="md" busy={busy} disabled={code.length !== 6}>{busy ? s.verifying : s.verify}</Button>
             </div>
           </Card>
         )}
 
-        <Card as="section" tone="bg" className="sg-side" aria-labelledby="sg-acc-t">
+        <Card as="section" className="sg-side" aria-labelledby="sg-acc-t">
           <h2 className="ds-card-title" id="sg-acc-t">{s.accountT}</h2>
           <dl className="sg-acc">
             <div><dt>{s.name}</dt><dd>{profile.full_name || NONE}</dd></div>

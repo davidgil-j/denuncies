@@ -86,7 +86,7 @@ const skeleton = (page) => page.evaluate(() => [...document.querySelectorAll('.c
   const h1Before = (await p2.locator('.cs-title h1').innerText()).trim();
   await p2.getByRole('button', { name: 'Usar como título' }).click();
   await p2.locator('.cs-title h1', { hasText: 'Comentarios y trato humillante hacia varias compañeras' }).waitFor();
-  ok('«Usar como título» cambia el título (antes era el puesto a mano)', h1Before !== 'Comentarios y trato humillante hacia varias compañeras' && await p2.getByRole('button', { name: 'Usar como título' }).count() === 0, h1Before);
+  ok('«Usar como título» cambia el título (antes era el neutro: referencia y tema)', h1Before !== 'Comentarios y trato humillante hacia varias compañeras' && await p2.getByRole('button', { name: 'Usar como título' }).count() === 0, h1Before);
   // Redactar en la conversación: propone, no envía
   await p2.locator('.pn-toast').waitFor({ state: 'detached', timeout: 8000 }).catch(() => {});
   await p2.getByRole('button', { name: 'Redactar con IA' }).click();
@@ -116,14 +116,14 @@ const skeleton = (page) => page.evaluate(() => [...document.querySelectorAll('.c
   await p2.locator('.pn-toast').waitFor({ state: 'detached', timeout: 8000 }).catch(() => {});
   await shot(p2, 'IA-encendida-acuse-con-borrador', { view: true });
   await p2.keyboard.press('Escape');
-  // El título propuesto sale en el tablero cuando no hay uno puesto a mano
+  // El título propuesto no se pone solo: en el tablero sigue el título neutro hasta que alguien pulse «Usar como título»
   await p2.goto(`${ON}${CASE2}`, { waitUntil: 'networkidle' });
   await p2.waitForSelector('.ai-card');
   await p2.getByRole('button', { name: 'Resumir con IA' }).click();
   await p2.locator('.ai-title').waitFor({ timeout: 8000 });
   await p2.goto(`${ON}/admin`, { waitUntil: 'networkidle' });
   await p2.waitForSelector('.ds-case');
-  ok('tablero: el caso sin título a mano enseña el propuesto por la IA', await p2.locator('.ds-case', { hasText: 'Posibles apuntes contables que no reflejan la realidad' }).count() === 1);
+  ok('tablero: el título que propone la IA no se pone solo; sigue el neutro', await p2.locator('.ds-case', { hasText: 'Posibles apuntes contables que no reflejan la realidad' }).count() === 0 && await p2.locator('.ds-case', { hasText: 'REF-YB3KMV · Cuentas y gastos' }).count() === 1);
   await shot(p2, 'IA-encendida-tablero', { view: true });
   // Suprimir borra el resumen
   await p2.goto(`${ON}${CASE2}`, { waitUntil: 'networkidle' });

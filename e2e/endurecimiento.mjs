@@ -281,9 +281,10 @@ ok('B-12 · un error pasajero no hace creer que falta la 012 (se sigue pidiendo 
 
 const board = await page.locator('body').innerText();
 ok('B-2 · ninguna tarjeta dice «undefined»', !/undefined/.test(board));
-const h1 = await page.locator('h1').first().innerText();
-ok('B-11 · el caso cerrado con un mensaje nuevo cuenta para «te necesitan hoy» (3)', /^3 casos/.test(h1), h1);
-const closedCard = page.locator('.ds-case', { hasText: 'Comentarios humillantes' });
+const h1 = await page.locator('.pn-lead').innerText();
+ok('B-11 · el caso cerrado con un mensaje nuevo cuenta entre los que requieren una acción hoy (3)', /^3 casos/.test(h1), h1);
+ok('ninguna tarjeta enseña lo que contó quien informa: título neutro', !/Comentarios humillantes|Salidas de emergencia|Facturas de rutas/.test(board));
+const closedCard = page.locator('.ds-case', { hasText: 'REF-CERRA4' });
 ok('B-11 · y su tarjeta dice «Te ha escrito»', await closedCard.getByText('Te ha escrito').count() === 1);
 await page.screenshot({ path: `${OUT}/panel-tablero.png`, fullPage: true });
 
@@ -303,7 +304,7 @@ const menuItems = async () => {
 };
 
 // B-2 y A1-3 · Caso reabierto
-await openCase('Salidas de emergencia bloqueadas');
+await openCase('REF-REABI2');
 const reo = await page.locator('.cs').innerText();
 ok('B-2 · el caso reabierto muestra «Respondida el…», sin cuenta atrás ni «undefined»', /Respondida el/.test(reo) && !/undefined/.test(reo));
 ok('B-2 · y no ofrece ampliar el plazo', !/Ampliar el plazo/.test(await menuItems()));
@@ -311,13 +312,13 @@ const hist = await page.locator('.cs-hist').innerText();
 ok('A1-3 · el registro dice quién lo hizo con el nombre de entonces', /Marta Antigua/.test(hist) && !/Marta Nueva/.test(hist), hist.replace(/\n/g, ' ').slice(0, 120));
 
 // B-3 · Plazo vencido: no se amplía; en plazo, sí
-await openCase('Un proveedor cobra dos veces');
+await openCase('REF-VENCI3');
 ok('B-3 · con el plazo de respuesta vencido no se ofrece ampliarlo', !/Ampliar el plazo/.test(await menuItems()));
-await openCase('Las carretillas elevadoras');
+await openCase('REF-ENPLA5');
 { const items = await menuItems(); ok('B-3 · dentro de plazo sí se ofrece', /Ampliar el plazo/.test(items), items); }
 
 // B-6 y B-7 · Doble clic en «Enviar el acuse», y el cambio de estado que falla una vez
-await openCase('Facturas de rutas de reparto');
+await openCase('REF-NUEVA1');
 await page.locator('.cs-next').getByRole('button', { name: 'Enviar el acuse de recibo' }).click();
 const msgsBefore = calls('/rest/v1/messages').length;
 S.failPatchOnce = true;

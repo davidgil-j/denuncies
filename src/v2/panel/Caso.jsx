@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Ellipsis, Pencil, Check, X, Paperclip, Download, CircleAlert, LockKeyhole, Archive, Eraser, CalendarPlus,
-  MessageSquareReply, RotateCcw, Search, Eye, FileQuestion, Scale,
+  MessageSquareReply, RotateCcw, Search, Eye, Scale, Flag, FileText, MessageSquare, SlidersHorizontal, CalendarDays, CircleCheck, User, History,
 } from 'lucide-react';
 import {
   getComplaintById, getReporterIdentity, getMessages, sendMessage, getAuditLogs, updateComplaint, addComplaintNote,
@@ -13,14 +13,21 @@ import './texts.js'; // textos del panel (lado Gestionar)
 import { fmt } from '../V2Layout.jsx';
 import { deadlineInfo, fDateTime, fLong, fShort, auditText, PRIORITIES } from '../admin/adminKit.jsx';
 import { extensionUntil } from '../../lib/deadlines.js';
-import { Button, IconButton, Card, Chip, Chips, Field, StepBar, ChatThread, ChatComposer, Dialog, Menu, MenuItem, Skeleton } from '../ui/index.js';
+import { Button, IconButton, Card, Chip, Field, StepBar, ChatThread, ChatComposer, Dialog, Menu, MenuItem, Skeleton } from '../ui/index.js';
 import { deadlineLook } from '../ui/DeadlineChip.jsx';
-import { usePanel, Tp, caseState, caseTitle, relDay, historyText, blanksError, sameAsColumn, OUTCOMES, CLOSED } from './kit.jsx';
+import { usePanel, Tp, caseState, caseTitle, historyText, blanksError, sameAsColumn, OUTCOMES, CLOSED } from './kit.jsx';
 import { AiSummary, AiDraft } from './Ia.jsx';
 import { formatBytes } from '../../lib/format.js';
 
 
-/** Ficha de un caso: qué ha contado, la conversación y un único botón con el siguiente paso */
+// Icono pequeño de un título de sección (16 px, trazo 2), en el color de acento por CSS
+const ti = (Icon) => <Icon size={16} strokeWidth={2} aria-hidden="true" />;
+const LOCALE = { ca: 'ca-ES', es: 'es-ES', en: 'en-GB' };
+
+/**
+ * Ficha de un caso: el siguiente paso en una franja con su único botón de color; lo que ha contado, la
+ * conversación en su bloque y las notas internas aparte; y, a la derecha, una sola columna de gestión.
+ */
 export default function Caso() {
   const { id } = useParams();
   const location = useLocation();
@@ -34,7 +41,8 @@ export default function Caso() {
   const [people, setPeople] = useState([]);
   const [identity, setIdentity] = useState(null);
   const [loadErr, setLoadErr] = useState(false);
-  const [dialog, setDialog] = useState(null); // ack | close | note | extend | suppress | fiscal
+  const [dialog, setDialog] = useState(null); // ack | close | extend | suppress | fiscal
+  const [note, setNote] = useState(''); // la nota interna que se está escribiendo
   const [text, setText] = useState('');
   const [outcome, setOutcome] = useState('');
   const [dErr, setDErr] = useState('');
@@ -104,12 +112,11 @@ export default function Caso() {
     const denied = c !== null;
     return (
       <div className="pn-page">
-        <Link className="pn-back" to={backTo}><ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" />{p.back}</Link>
-        <Card tone="bg" className="pn-empty">
-          {denied ? <LockKeyhole size={28} strokeWidth={1.7} aria-hidden="true" /> : loadErr ? <CircleAlert size={28} strokeWidth={1.7} aria-hidden="true" /> : <FileQuestion size={28} strokeWidth={1.7} aria-hidden="true" />}
+        <Link className="pn-back" to={backTo}><ArrowLeft size={14} strokeWidth={1.8} aria-hidden="true" />{p.back}</Link>
+        <Card className="pn-empty">
           <h1 className="pn-empty-t">{denied ? t.noViewTitle : loadErr ? t.loadErrTitle : t.notFoundTitle}</h1>
           <p>{denied ? t.noViewText : loadErr ? t.loadErrText : t.notFoundText}</p>
-          {loadErr ? <Button variant="ink" size="sm" onClick={loadAll}>{p.retry}</Button> : <Button variant="ink" size="sm" to="/admin">{p.back}</Button>}
+          {loadErr ? <Button variant="report" size="sm" onClick={loadAll}>{p.retry}</Button> : <Button variant="soft" size="sm" to="/admin">{p.back}</Button>}
         </Card>
       </div>
     );
@@ -182,13 +189,14 @@ export default function Caso() {
     notify(p.closedOk);
     refresh();
   }
-  async function saveNote() {
-    if (busy || !text.trim()) return;
+  async function saveNote(e) {
+    e.preventDefault();
+    if (busy || !note.trim()) return;
     setBusy(true);
-    const { error } = await addComplaintNote(c.id, text.trim(), actor);
+    const { error } = await addComplaintNote(c.id, note.trim(), actor);
     setBusy(false);
-    if (error) { setDErr(p.saveErr); return; }
-    setDialog(null);
+    if (error) { notify(p.saveErr, 'err'); return; }
+    setNote('');
     notify(p.noteOk);
     refresh();
   }
@@ -301,74 +309,91 @@ export default function Caso() {
     when: fDateTime(m.created_at, lang), text: m.content, isNew: m.sender === 'reporter' && !m.is_read,
   }));
   const history = [...logs].reverse();
-  const title = caseTitle(c, p);
+  // Las notas internas son entradas del historial; aquí se leen juntas, de la más antigua a la más reciente
+  const notes = logs.filter(l => l.action === 'note_added' && l.details?.note);
+  const title = caseTitle(c, tr);
+  const cat = cats[c.category]?.[0] ?? c.category;
   const via = p.via[c.channel ?? 'web'] ?? p.via.other;
+  const received = fmt(p.receivedOn, { date: fShort(c.created_at, lang), time: new Date(c.created_at).toLocaleTimeString(LOCALE[lang] ?? 'es-ES', { hour: '2-digit', minute: '2-digit' }), via });
+  const flag = <Flag size={13} strokeWidth={2} aria-hidden="true" />;
+  const meetLeft = meeting?.pending
+    ? (meeting.days < -1 ? fmt(p.meetOverN, { n: -meeting.days }) : meeting.days === -1 ? p.meetOver1 : meeting.days === 0 ? p.meetToday : meeting.days === 1 ? p.meetLeft1 : fmt(p.meetLeftN, { n: meeting.days }))
+    : '';
 
   return (
     <div className="pn-page cs">
       <div className="cs-bar">
-        <Link className="pn-back" to={backTo}><ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" />{p.back}</Link>
+        <Link className="pn-back" to={backTo}><ArrowLeft size={14} strokeWidth={1.8} aria-hidden="true" />{p.back}</Link>
         <div className="cs-bar-tools">
-          <Button variant="bg" size="sm" onClick={exportPdf}>{p.exportOne}</Button>
+          <Button variant="soft" size="xs" onClick={exportPdf}>{p.exportOne}</Button>
           {(canEdit || canDelete) && (
-            <Menu label={p.more} trigger={props => <IconButton variant="bg" label={p.more} {...props}><Ellipsis size={20} strokeWidth={2.4} aria-hidden="true" /></IconButton>}>
-              {canEdit && info.canExtend && <MenuItem icon={<CalendarPlus size={16} aria-hidden="true" />} onClick={() => open('extend')}>{p.extend}</MenuItem>}
-              {canEdit && c.status === 'investigating' && <MenuItem icon={<MessageSquareReply size={16} aria-hidden="true" />} onClick={() => change({ status: 'waiting' }, p.statusOk)}>{p.toWaiting}</MenuItem>}
-              {canEdit && c.status === 'waiting' && <MenuItem icon={<Search size={16} aria-hidden="true" />} onClick={() => change({ status: 'investigating' }, p.statusOk)}>{p.toInvestigating}</MenuItem>}
-              {canEdit && ['resolved', 'closed'].includes(c.status) && <MenuItem icon={<Archive size={16} aria-hidden="true" />} onClick={() => change({ status: 'archived' }, p.statusOk)}>{p.archive}</MenuItem>}
-              {canEdit && answered && <MenuItem icon={<RotateCcw size={16} aria-hidden="true" />} onClick={() => change({ status: 'investigating' }, p.statusOk)}>{p.reopen}</MenuItem>}
-              {canDelete && <><div className="ds-menu-sep" /><MenuItem danger icon={<Eraser size={16} aria-hidden="true" />} onClick={() => open('suppress')}>{p.suppress}</MenuItem></>}
+            <Menu label={p.more} trigger={props => <IconButton variant="soft" size="xs" label={p.more} {...props}><Ellipsis size={16} strokeWidth={1.8} aria-hidden="true" /></IconButton>}>
+              {canEdit && info.canExtend && <MenuItem icon={<CalendarPlus size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={() => open('extend')}>{p.extend}</MenuItem>}
+              {canEdit && c.status === 'investigating' && <MenuItem icon={<MessageSquareReply size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={() => change({ status: 'waiting' }, p.statusOk)}>{p.toWaiting}</MenuItem>}
+              {canEdit && c.status === 'waiting' && <MenuItem icon={<Search size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={() => change({ status: 'investigating' }, p.statusOk)}>{p.toInvestigating}</MenuItem>}
+              {canEdit && ['resolved', 'closed'].includes(c.status) && <MenuItem icon={<Archive size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={() => change({ status: 'archived' }, p.statusOk)}>{p.archive}</MenuItem>}
+              {canEdit && answered && <MenuItem icon={<RotateCcw size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={() => change({ status: 'investigating' }, p.statusOk)}>{p.reopen}</MenuItem>}
+              {canDelete && <><div className="ds-menu-sep" /><MenuItem danger icon={<Eraser size={16} strokeWidth={1.8} aria-hidden="true" />} onClick={() => open('suppress')}>{p.suppress}</MenuItem></>}
             </Menu>
           )}
         </div>
       </div>
 
       <div className="cs-head">
-        <span className="cs-meta">{c.reference} · {fmt(p.received, { when: `${relDay(c.created_at, p)}, ${new Date(c.created_at).toLocaleTimeString(lang === 'en' ? 'en-GB' : lang === 'ca' ? 'ca-ES' : 'es-ES', { hour: '2-digit', minute: '2-digit' })}`, via })}</span>
         {editing !== null ? (
           <form className="cs-title-edit" onSubmit={e => { e.preventDefault(); saveTitle(); }}>
             <Field label={p.titleLabel} help={sameAsColumn(editing, tr) ? p.titleLikeColumn : p.titleHelp} value={editing} maxLength={160} autoFocus onChange={e => setEditing(e.target.value)} />
             <div className="cs-title-btns">
-              <Button type="submit" variant="ink" size="sm" busy={busy} icon={<Check size={16} strokeWidth={2.6} aria-hidden="true" />}>{p.save}</Button>
-              <Button variant="bg" size="sm" onClick={() => setEditing(null)} icon={<X size={16} strokeWidth={2.4} aria-hidden="true" />}>{p.cancel}</Button>
+              <Button type="submit" variant="report" size="sm" busy={busy} icon={<Check size={16} strokeWidth={1.8} aria-hidden="true" />}>{p.save}</Button>
+              <Button variant="soft" size="sm" onClick={() => setEditing(null)} icon={<X size={16} strokeWidth={1.8} aria-hidden="true" />}>{p.cancel}</Button>
             </div>
           </form>
         ) : (
           <div className="cs-title">
             <h1>{title}</h1>
-            {redesign && canEdit && <IconButton variant="bg" size="xs" label={p.editTitle} onClick={() => setEditing(c.title ?? '')}><Pencil size={16} strokeWidth={2} aria-hidden="true" /></IconButton>}
+            {/* Sin título propio, el título es la referencia y el tema: se puede añadir uno, que solo ve el equipo */}
+            {redesign && canEdit && (c.title
+              ? <IconButton variant="ghost" size="xs" label={p.editTitle} onClick={() => setEditing(c.title)}><Pencil size={16} strokeWidth={1.8} aria-hidden="true" /></IconButton>
+              : <button type="button" className="pn-link is-muted" onClick={() => setEditing('')}>{p.addTitle}</button>)}
           </div>
         )}
-        <Chips>
-          <Chip size="md">{cats[c.category]?.[0] ?? c.category}</Chip>
-          <Chip size="md">{c.is_anonymous ? p.anon : p.ident}</Chip>
-          {p.prioChip[c.priority] && <Chip size="md" tone={c.priority === 'critical' ? 'danger' : c.priority === 'high' ? 'warn' : 'neutral'}>{p.prioChip[c.priority]}</Chip>}
-          {meeting?.pending && <Chip size="md" tone="report">{p.askMeeting}</Chip>}
-          {c.status === 'waiting' && <Chip size="md" tone="report">{p.waitingChip}</Chip>}
-          {c.status === 'archived' && <Chip size="md">{p.archivedChip}</Chip>}
-          {info.extended && !answered && <Chip size="md">{p.extendedChip}</Chip>}
-          {c.fiscal_referral_at && <Chip size="md" tone="warn">{p.fiscalChip}</Chip>}
-        </Chips>
+        <p className="cs-meta">
+          <span>{c.title && !erased ? `${c.reference} · ${cat} · ` : ''}{received}</span>
+          <Chip>{c.is_anonymous ? p.anon : p.ident}</Chip>
+          {/* La prioridad, en gris con su icono; solo la crítica va en rojo. El ámbar queda para los plazos */}
+          {c.priority === 'critical'
+            ? <Chip tone="danger" icon={flag}>{p.prioChip.critical}</Chip>
+            : p.prioChip[c.priority] && <span className="ds-case-plain">{flag}{p.prioChip[c.priority]}</span>}
+          {meeting?.pending && <Chip tone="report">{p.askMeeting}</Chip>}
+          {c.status === 'waiting' && <Chip>{p.waitingChip}</Chip>}
+          {c.status === 'archived' && <Chip>{p.archivedChip}</Chip>}
+          {info.extended && !answered && <Chip>{p.extendedChip}</Chip>}
+          {c.fiscal_referral_at && <Chip>{p.fiscalChip}</Chip>}
+        </p>
       </div>
 
       {erased ? (
-        <Card tone="bg" className="cs-erased"><Archive size={22} strokeWidth={1.8} aria-hidden="true" /><p><b>{fmt(t.anonBanner, { date: fLong(c.anonymized_at, lang) })}</b> {t.anonBannerText}</p></Card>
+        <p className="cs-erased"><Archive size={16} strokeWidth={1.8} aria-hidden="true" /><span><b>{fmt(t.anonBanner, { date: fLong(c.anonymized_at, lang) })}</b> {t.anonBannerText}</span></p>
       ) : (
-        <section className="cs-next ds-on-ink" aria-label={p.next}>
+        <section className="cs-next" aria-label={p.next}>
           <div className="cs-next-main">
-            <StepBar tone="ink" current={stepAt} names={p.steps} label={p.stepsLabel} />
-            <p className="cs-deadlines">{deadlines.map((d, i) => <span key={i} className={`is-${d.tone}`}>{d.text}</span>)}</p>
+            <StepBar tone="line" current={stepAt} names={p.steps} label={p.stepsLabel} />
+            <p className="cs-deadlines">
+              {deadlines.map((d, i) => (d.tone === 'danger' || d.tone === 'warn'
+                ? <Chip key={i} tone={d.tone}>{d.text}</Chip>
+                : <span key={i} className="ds-case-plain">{d.tone === 'done' && <Check size={13} strokeWidth={1.8} aria-hidden="true" />}{d.text}</span>))}
+            </p>
             {c.extension_reason && <p className="cs-ext">{c.extension_reason}</p>}
           </div>
           <div className="cs-next-do">
             {next && <span className="cs-next-label">{p.next}</span>}
             {next ? (
               next.ok
-                ? <Button variant="white" size="md" full busy={busy && !dialog} onClick={next.go}><Tp lang={lang} pick={() => next.label} /></Button>
-                : <p className="cs-next-note"><LockKeyhole size={16} strokeWidth={2} aria-hidden="true" />{next.label}. {p.noPerm}</p>
+                ? <Button variant="report" size="lg" full busy={busy && !dialog} onClick={next.go}><Tp lang={lang} pick={() => next.label} /></Button>
+                : <p className="cs-next-note"><LockKeyhole size={16} strokeWidth={1.8} aria-hidden="true" />{next.label}. {p.noPerm}</p>
             ) : (
               <div className="cs-closed">
-                <p className="cs-next-note is-done"><Check size={18} strokeWidth={2.6} aria-hidden="true" />{fmt(p.closedOn, { date: fLong(c.answered_at ?? c.updated_at, lang) })}</p>
+                <p className="cs-next-note is-done"><Check size={16} strokeWidth={1.8} aria-hidden="true" />{fmt(p.closedOn, { date: fLong(c.answered_at ?? c.updated_at, lang) })}</p>
                 <p className="cs-closed-result">{fmt(p.resultIs, { outcome: p.outcomes[c.outcome] ?? p.outcomes.none })}</p>
                 {canEdit && <p className="cs-closed-hint">{p.reopenHint}</p>}
               </div>
@@ -381,8 +406,8 @@ export default function Caso() {
         <div className="cs-main">
           {/* Solo con la IA encendida; apagada, la ficha es exactamente la de siempre */}
           {AI_ENABLED && !erased && <AiSummary c={c} canEdit={canEdit} onUseTitle={title => change({ title })} onGenerated={refresh} />}
-          <Card tone="outline" as="section" aria-labelledby="cs-told">
-            <h2 className="ds-card-title" id="cs-told">{p.told}</h2>
+          <Card as="section" className="cs-told" aria-labelledby="cs-told">
+            <h2 className="pn-sec-t" id="cs-told">{ti(FileText)}{p.told}</h2>
             <p className="cs-desc">{c.description}</p>
             {(facts.length > 0 || files.length > 0) && (
               <dl className="cs-facts">
@@ -395,7 +420,7 @@ export default function Caso() {
                         {files.map(a => (
                           <li key={a.id}>
                             <button type="button" className="cs-file" onClick={() => download(a)} aria-label={fmt(p.downloadAria, { name: a.filename })}>
-                              <Paperclip size={15} strokeWidth={2} aria-hidden="true" /><span title={a.filename}>{a.filename}</span><small>{formatBytes(a.file_size)}</small><Download size={15} strokeWidth={2} aria-hidden="true" />
+                              <Paperclip size={15} strokeWidth={1.8} aria-hidden="true" /><span title={a.filename}>{a.filename}</span><small>{formatBytes(a.file_size)}</small><Download size={15} strokeWidth={1.8} aria-hidden="true" />
                             </button>
                             {fileNote?.id === a.id && <span className={`cs-file-note${fileNote.err ? ' is-err' : ''}`} role="status">{fileNote.text}</span>}
                           </li>
@@ -408,67 +433,102 @@ export default function Caso() {
             )}
           </Card>
 
-          <Card tone="outline" as="section" aria-labelledby="cs-conv">
-            <div className="cs-conv-head"><h2 className="ds-card-title" id="cs-conv">{p.conv}</h2><span>{p.convNote}</span></div>
-            <ChatThread lang={lang} messages={thread} label={p.conv} empty={c.status === 'received' ? p.convEmptyFirst : p.convEmpty} />
-            {erased ? null : canReply ? (
-              <>
-                {sendErr && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={2.2} aria-hidden="true" />{p.msgErr}</p>}
-                {blankErr && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={2.2} aria-hidden="true" />{blankErr}</p>}
-                <ChatComposer lang={lang} id="cs-msg" stacked value={draft} onChange={v => { setDraft(v); if (blankErr) setBlankErr(''); }} onSend={send} busy={sending} placeholder={c.is_anonymous ? p.msgPh : p.msgPhIdent} sendLabel={p.send}
-                  actions={AI_ENABLED ? <AiDraft c={c} kinds={['ack', 'question', 'answer']} current={draft} onApply={setDraft} align="start" /> : undefined} />
-              </>
-            ) : <p className="cs-locked"><LockKeyhole size={16} strokeWidth={2} aria-hidden="true" />{p.noReply}</p>}
-          </Card>
+          {/* La conversación, en su bloque: cabecera con el tinte, las burbujas por lado y la caja pegada abajo */}
+          <section className="pn-block is-tint cs-conv" aria-labelledby="cs-conv">
+            <div className="pn-block-head">
+              <h2 className="pn-sec-t" id="cs-conv">{ti(MessageSquare)}{p.conv}</h2>
+              <span className="pn-block-tag"><LockKeyhole size={14} strokeWidth={1.8} aria-hidden="true" />{p.convNote}</span>
+            </div>
+            <div className="pn-block-body">
+              <ChatThread lang={lang} messages={thread} label={p.conv} empty={c.status === 'received' ? p.convEmptyFirst : p.convEmpty} />
+              {erased ? null : canReply ? (
+                <>
+                  {sendErr && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />{p.msgErr}</p>}
+                  {blankErr && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />{blankErr}</p>}
+                  <ChatComposer lang={lang} id="cs-msg" className="cs-compose" stacked value={draft} onChange={v => { setDraft(v); if (blankErr) setBlankErr(''); }} onSend={send} busy={sending} placeholder={c.is_anonymous ? p.msgPh : p.msgPhIdent} sendLabel={p.send}
+                    actions={AI_ENABLED ? <AiDraft c={c} kinds={['ack', 'question', 'answer']} current={draft} onApply={setDraft} align="start" /> : undefined} />
+                </>
+              ) : <p className="cs-locked"><LockKeyhole size={16} strokeWidth={1.8} aria-hidden="true" />{p.noReply}</p>}
+            </div>
+          </section>
+
+          {/* Las notas internas, aparte y en ámbar suave: nunca se confunden con lo que lee quien informa */}
+          {!erased && (notes.length > 0 || canEdit) && (
+            <section className="pn-block is-note cs-notes" aria-labelledby="cs-notes">
+              <div className="pn-block-head">
+                <h2 className="pn-sec-t" id="cs-notes">{ti(LockKeyhole)}{p.notesT}</h2>
+                <span className="pn-block-tag">{p.notesTag}</span>
+              </div>
+              <div className="pn-block-body">
+                {notes.length === 0 ? <p className="cs-notes-empty">{p.notesEmpty}</p> : (
+                  <ul className="cs-notes-list">
+                    {notes.map(l => (
+                      <li key={l.id}>
+                        <span className="cs-note-by">{l.details.actor_name && <><b>{l.details.actor_name}</b> · </>}<time dateTime={l.created_at}>{fDateTime(l.created_at, lang)}</time></span>
+                        <p>{l.details.note}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {canEdit && (
+                  <form className="cs-note-form" onSubmit={saveNote}>
+                    <Field label={p.notePh} hideLabel placeholder={p.notePh} value={note} maxLength={2000} onChange={e => setNote(e.target.value)} />
+                    <Button type="submit" variant="soft" size="md" disabled={!note.trim()} busy={busy && !dialog && !!note.trim()}>{p.noteSave}</Button>
+                  </form>
+                )}
+              </div>
+            </section>
+          )}
         </div>
 
-        <aside className="cs-side">
+        {/* Una sola columna de gestión: secciones con su título y una línea entre ellas */}
+        <Card as="aside" className="cs-side">
           {!erased && (
-            <Card tone="bg" as="section" aria-labelledby="cs-manage">
-              <h2 className="ds-card-title is-sm" id="cs-manage">{p.manageT}</h2>
-              <Field as="select" size="sm" plain label={p.priority} value={c.priority} disabled={!canEdit || busy} onChange={e => change({ priority: e.target.value })}>
+            <section className="cs-sec" aria-labelledby="cs-manage">
+              <h2 className="pn-sec-t" id="cs-manage">{ti(SlidersHorizontal)}{p.manageT}</h2>
+              <Field as="select" size="sm" label={p.priority} value={c.priority} disabled={!canEdit || busy} onChange={e => change({ priority: e.target.value })}>
                 {PRIORITIES.map(v => <option key={v} value={v}>{p.prios[v]}</option>)}
               </Field>
               {redesign && (
-                <Field as="select" size="sm" plain label={p.owner} value={c.assigned_to ?? ''} disabled={!canEdit || busy} onChange={e => change({ assigned_to: e.target.value || null })}>
+                <Field as="select" size="sm" label={p.owner} value={c.assigned_to ?? ''} disabled={!canEdit || busy} onChange={e => change({ assigned_to: e.target.value || null })}>
                   <option value="">{p.nobody}</option>
                   {people.map(x => <option key={x.id} value={x.id}>{x.full_name}</option>)}
                 </Field>
               )}
-              {canEdit && <Button variant="white" size="sm" full onClick={() => open('note')}>{p.addNote}</Button>}
-            </Card>
+            </section>
           )}
 
           {meeting && !erased && (
-            <Card tone="bg" as="section" aria-labelledby="cs-meet">
-              <h2 className="ds-card-title is-sm" id="cs-meet">{p.meetT}</h2>
+            <section className="cs-sec" aria-labelledby="cs-meet">
+              <div className="cs-sec-head">
+                <h2 className="pn-sec-t" id="cs-meet">{ti(CalendarDays)}{p.meetT}</h2>
+                {meeting.pending && <Chip tone={meeting.days < 0 ? 'danger' : 'warn'}>{meetLeft.replace(/\.$/, '')}</Chip>}
+              </div>
               {meeting.heldAt ? <p className="cs-p">{fmt(p.meetHeld, { date: fLong(meeting.heldAt, lang) })}</p> : (
                 <>
-                  <p className="cs-p">{fmt(p.meetPending, { date: fLong(meeting.due, lang) })} <b className={meeting.days < 0 ? 'is-over' : undefined}>
-                    {meeting.days < -1 ? fmt(p.meetOverN, { n: -meeting.days }) : meeting.days === -1 ? p.meetOver1 : meeting.days === 0 ? p.meetToday : meeting.days === 1 ? p.meetLeft1 : fmt(p.meetLeftN, { n: meeting.days })}
-                  </b></p>
-                  {canEdit && meeting.pending && <Button variant="white" size="sm" full busy={busy && !dialog} onClick={() => run(() => markMeetingHeld(c.id, actor), p.meetOk)}>{p.meetMark}</Button>}
+                  <p className="cs-p">{fmt(p.meetPending, { date: fLong(meeting.due, lang) })}</p>
+                  {canEdit && meeting.pending && <Button variant="soft" size="xs" className="cs-sec-btn" busy={busy && !dialog} onClick={() => run(() => markMeetingHeld(c.id, actor), p.meetOk)}>{p.meetMark}</Button>}
                 </>
               )}
-            </Card>
+            </section>
           )}
 
           {!erased && (
-            <Card tone="bg" as="section" aria-labelledby="cs-close">
-              <h2 className="ds-card-title is-sm" id="cs-close">{p.closeT}</h2>
-              <Field as="select" size="sm" plain label={p.outcome} value={c.outcome ?? ''} disabled={!canEdit || busy} onChange={e => change({ outcome: e.target.value || null })}>
+            <section className="cs-sec" aria-labelledby="cs-close">
+              <h2 className="pn-sec-t" id="cs-close">{ti(CircleCheck)}{p.closeT}</h2>
+              <Field as="select" size="sm" label={p.outcome} value={c.outcome ?? ''} disabled={!canEdit || busy} onChange={e => change({ outcome: e.target.value || null })}>
                 <option value="">{p.outcomes.none}</option>
                 {OUTCOMES.map(v => <option key={v} value={v}>{p.outcomes[v]}</option>)}
               </Field>
               {c.fiscal_referral_at
                 ? <p className="cs-p">{fmt(p.fiscalDone, { date: fLong(c.fiscal_referral_at, lang) })}</p>
-                : canEdit && <Button variant="white" size="xs" className="cs-fiscal" onClick={() => open('fiscal')} icon={<Scale size={15} strokeWidth={2.2} aria-hidden="true" />}>{p.fiscal}</Button>}
-            </Card>
+                : canEdit && <Button variant="soft" size="xs" className="cs-fiscal cs-sec-btn" onClick={() => open('fiscal')} icon={<Scale size={14} strokeWidth={1.8} aria-hidden="true" />}>{p.fiscal}</Button>}
+            </section>
           )}
 
           {!erased && (
-            <Card tone="bg" as="section" aria-labelledby="cs-ident">
-              <h2 className="ds-card-title is-sm" id="cs-ident">{p.identT}</h2>
+            <section className="cs-sec" aria-labelledby="cs-ident">
+              <h2 className="pn-sec-t" id="cs-ident">{ti(User)}{p.identT}</h2>
               {c.is_anonymous ? <p className="cs-p">{p.identAnon}</p> : identity ? (
                 <dl className="cs-ident">
                   <div><dt>{p.name}</dt><dd>{identity.reporter_name || p.notGiven}</dd></div>
@@ -478,37 +538,39 @@ export default function Caso() {
               ) : (
                 <>
                   <p className="cs-p">{p.identWarn}</p>
-                  <Button variant="white" size="sm" full busy={idBusy} onClick={reveal} icon={<Eye size={16} strokeWidth={2} aria-hidden="true" />}>{p.identShow}</Button>
-                  {idErr && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={2.2} aria-hidden="true" />{p.identErr}</p>}
+                  <Button variant="soft" size="xs" className="cs-sec-btn" busy={idBusy} onClick={reveal} icon={<Eye size={14} strokeWidth={1.8} aria-hidden="true" />}>{p.identShow}</Button>
+                  {idErr && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />{p.identErr}</p>}
                 </>
               )}
-            </Card>
+            </section>
           )}
 
-          <Card tone="bg" as="section" aria-labelledby="cs-hist">
-            <h2 className="ds-card-title is-sm" id="cs-hist">{p.history}</h2>
+          <section className="cs-sec" aria-labelledby="cs-hist">
+            <h2 className="pn-sec-t" id="cs-hist">{ti(History)}{p.history}</h2>
             <ol className="cs-hist">
-              {history.map((l, i) => (
-                <li key={l.id} className={i === 0 ? 'is-last' : undefined}>
-                  <span className="cs-dot" aria-hidden="true" />
-                  <span><b>{historyText(p, t, l)}</b><time dateTime={l.created_at}>{fDateTime(l.created_at, lang)}</time>{l.details?.note && <q>{l.details.note}</q>}</span>
+              {history.map(l => (
+                <li key={l.id}>
+                  <b>{historyText(p, t, l)}</b>
+                  <time dateTime={l.created_at}>{fDateTime(l.created_at, lang)}</time>
+                  {/* El texto de una nota interna ya está en su bloque: aquí solo consta que se añadió */}
+                  {l.details?.note && l.action !== 'note_added' && <q>{l.details.note}</q>}
                 </li>
               ))}
             </ol>
-          </Card>
-        </aside>
+          </section>
+        </Card>
       </div>
 
       {/* ── Diálogos propios: nada se envía ni se borra sin verlo antes ── */}
       <Dialog open={dialog === 'ack'} onClose={closeDialog} title={p.ackTitle}
-        actions={<><Button variant="soft" size="md" onClick={closeDialog}>{p.cancel}</Button><Button variant="ink" size="md" busy={busy} onClick={sendAck}>{p.ackSend}</Button></>}>
+        actions={<><Button variant="soft" size="md" onClick={closeDialog}>{p.cancel}</Button><Button variant="report" size="md" busy={busy} onClick={sendAck}>{p.ackSend}</Button></>}>
         <p>{p.ackText}</p>
         {AI_ENABLED && <AiDraft c={c} kinds={['ack']} current={text === tpl('ackTpl') ? '' : text} onApply={v => { setText(v); setDErr(''); }} />}
         <Field as="textarea" rows={5} label={p.ackLabel} value={text} maxLength={10000} error={dErr} onChange={e => { setText(e.target.value); setDErr(''); }} />
       </Dialog>
 
       <Dialog open={dialog === 'close'} onClose={closeDialog} title={p.closeTitle}
-        actions={<><Button variant="soft" size="md" onClick={closeDialog}>{p.cancel}</Button><Button variant="ink" size="md" busy={busy} onClick={sendClose}>{p.closeSend}</Button></>}>
+        actions={<><Button variant="soft" size="md" onClick={closeDialog}>{p.cancel}</Button><Button variant="report" size="md" busy={busy} onClick={sendClose}>{p.closeSend}</Button></>}>
         <p>{p.closeText}</p>
         <Field as="select" size="sm" label={p.outcome} value={outcome} onChange={e => { setOutcome(e.target.value); setDErr(''); }}>
           <option value="">{p.outcomes.none}</option>
@@ -518,14 +580,8 @@ export default function Caso() {
         <Field as="textarea" rows={5} label={p.finalMsg} value={text} maxLength={10000} error={dErr} onChange={e => { setText(e.target.value); setDErr(''); }} />
       </Dialog>
 
-      <Dialog open={dialog === 'note'} onClose={closeDialog} title={p.noteTitle}
-        actions={<><Button variant="soft" size="md" onClick={closeDialog}>{p.cancel}</Button><Button variant="ink" size="md" busy={busy} disabled={!text.trim()} onClick={saveNote}>{p.noteSave}</Button></>}>
-        <p>{p.noteText}</p>
-        <Field as="textarea" rows={4} label={p.noteLabel} hideLabel value={text} maxLength={2000} error={dErr} onChange={e => setText(e.target.value)} />
-      </Dialog>
-
       <Dialog open={dialog === 'extend'} onClose={closeDialog} title={t.extendTitle}
-        actions={<><Button variant="soft" size="md" onClick={closeDialog}>{p.cancel}</Button><Button variant="ink" size="md" busy={busy} onClick={doExtend}>{fmt(t.extendConfirm, { date: fLong(extensionUntil(c.created_at), lang) })}</Button></>}>
+        actions={<><Button variant="soft" size="md" onClick={closeDialog}>{p.cancel}</Button><Button variant="report" size="md" busy={busy} onClick={doExtend}>{fmt(t.extendConfirm, { date: fLong(extensionUntil(c.created_at), lang) })}</Button></>}>
         <p>{t.extendText}</p>
         <Field as="textarea" rows={3} label={t.extendReason} value={text} maxLength={500} error={dErr} onChange={e => { setText(e.target.value); setDErr(''); }} />
       </Dialog>
@@ -537,7 +593,7 @@ export default function Caso() {
       </Dialog>
 
       <Dialog open={dialog === 'fiscal'} onClose={closeDialog} title={p.fiscalTitle}
-        actions={<><Button variant="soft" size="md" onClick={closeDialog}>{p.cancel}</Button><Button variant="ink" size="md" busy={busy} onClick={doFiscal}>{p.fiscalDo}</Button></>}>
+        actions={<><Button variant="soft" size="md" onClick={closeDialog}>{p.cancel}</Button><Button variant="report" size="md" busy={busy} onClick={doFiscal}>{p.fiscalDo}</Button></>}>
         <p>{p.fiscalText}</p>
         <Field as="textarea" rows={3} label={p.fiscalNote} value={text} maxLength={500} onChange={e => setText(e.target.value)} />
       </Dialog>

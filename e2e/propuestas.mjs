@@ -9,10 +9,10 @@ for (const [w, h] of [[1440, 900], [1366, 768], [1280, 720], [1280, 700], [1180,
   p.on('pageerror', e => problems.push(e.message));
   await p.addInitScript(() => { sessionStorage.setItem('reportia-demo-session', '1'); sessionStorage.setItem('reportia-demo-aal', '2'); localStorage.setItem('reportia-panel-lang', 'es'); });
   await p.goto('http://localhost:3111/admin', { waitUntil: 'networkidle' }); await p.waitForSelector('.ds-case'); await p.waitForTimeout(400);
-  const head = await p.evaluate(() => { const h = document.querySelector('.pn-head'); const mids = [...h.children].filter(c => getComputedStyle(c).position !== 'fixed').map(c => { const b = c.getBoundingClientRect(); return b.top + b.height / 2; }); const rows = Math.max(...mids) - Math.min(...mids) < 20 ? 1 : 2; const chips = [...document.querySelectorAll('.pn-brand .ds-chip')].filter(c => c.getBoundingClientRect().width > 0).length; const cols = [...document.querySelectorAll('.ds-kcol')].filter(k => k.getBoundingClientRect().width > 0).map(k => [...k.querySelectorAll('.ds-case')].filter(c => c.getBoundingClientRect().bottom <= innerHeight).length); const reg = getComputedStyle(document.querySelector('.pn-register')).backgroundColor; return { rows, chips, cols, reg, over: document.documentElement.scrollWidth - innerWidth }; });
+  const head = await p.evaluate(() => { const h = document.querySelector('.pn-head-in'); const mids = [...h.children].filter(c => getComputedStyle(c).position !== 'fixed').map(c => { const b = c.getBoundingClientRect(); return b.top + b.height / 2; }); const rows = Math.max(...mids) - Math.min(...mids) < 20 ? 1 : 2; const chips = [...document.querySelectorAll('.pn-chip, .pn-plan')].filter(c => c.getBoundingClientRect().width > 0).length; const cols = [...document.querySelectorAll('.ds-kcol')].filter(k => k.getBoundingClientRect().width > 0).map(k => [...k.querySelectorAll('.ds-case')].filter(c => c.getBoundingClientRect().bottom <= innerHeight).length); const reg = getComputedStyle(document.querySelector('.pn-register')).backgroundColor; return { rows, chips, cols, reg, over: document.documentElement.scrollWidth - innerWidth }; });
   if (!mobile) {
     if (w >= 1180) ok(`${w}×${h} cabecera en una fila`, head.rows === 1, `${head.rows} filas`);
-    ok(`${w}×${h} chips «Demo»/«Prueba» ${w > 1367 ? 'visibles' : 'escondidos'}`, w > 1367 ? head.chips === 2 : head.chips === 0, String(head.chips));
+    ok(`${w}×${h} «Demo» y el plan (en texto pequeño) ${w > 1367 ? 'visibles' : 'escondidos'}`, w > 1367 ? head.chips === 2 : head.chips === 0, String(head.chips));
     if (h <= 768 && w >= 1280) ok(`${w}×${h} dos tarjetas por columna`, head.cols.length === 3 && head.cols.every(n => n >= 2), head.cols.join('/'));
   }
   ok(`${w}×${h} sin desbordar`, head.over <= 0);
@@ -24,7 +24,10 @@ for (const [w, h] of [[1440, 900], [1366, 768], [1280, 720], [1280, 700], [1180,
     await p.screenshot({ path: `${OUT}/${w}-P1-registrar-gris-en-informe.png` });
     await p.goto('http://localhost:3111/admin/nueva', { waitUntil: 'networkidle' }); await p.waitForSelector('.rg-form');
     const txt = await p.locator('.pn-page').innerText();
-    ok(`${w} P2 · «Registrar un caso» y sin «denuncia» en la pantalla`, txt.includes('Registrar un caso') && !/denuncia/i.test(txt) && txt.includes('Recibida el'), (txt.match(/[^\n]*denuncia[^\n]*/i) ?? [''])[0]);
+    const form = await p.locator('.rg-form').innerText();
+    // La frase de arriba dice «denuncias» desde la tabla de textos del 13 oct; el título y el formulario siguen diciendo «caso»
+    ok(`${w} P2 · «Registrar un caso», y el formulario sin la palabra «denuncia»`, txt.includes('Registrar un caso') && !/denuncia/i.test(form) && form.includes('Recibida el'), (form.match(/[^\n]*denuncia[^\n]*/i) ?? [''])[0]);
+    ok(`${w} P2 · la explicación de la derecha va en texto, sin tarjeta negra`, await p.locator('.rg-aside').evaluate(el => getComputedStyle(el).backgroundColor) === 'rgba(0, 0, 0, 0)');
     await p.screenshot({ path: `${OUT}/${w}-P2-registrar-un-caso.png` });
     await p.goto('http://localhost:3111/admin/ajustes', { waitUntil: 'networkidle' }); await p.waitForSelector('.tm-list li');
     const sec = p.locator('section[aria-labelledby="st-sec-t"]');

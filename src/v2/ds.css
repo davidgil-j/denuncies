@@ -231,6 +231,7 @@ body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: #
 .ds .ds-btn.is-report { background: var(--report); color: #FFFFFF; }
 .ds .ds-btn.is-soft { background: var(--surface); color: var(--ink); border-color: var(--line); }
 .ds .ds-btn.is-bg { background: var(--soft); color: var(--ink); }
+.ds .ds-btn.is-ghost { background: transparent; color: var(--ink); }
 .ds .ds-btn.is-tint { background: var(--report-soft); color: var(--report-soft-ink); }
 .ds .ds-btn.is-line { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
 .ds .ds-btn.is-shade { background: transparent; color: #FFFFFF; border-color: rgba(255, 255, 255, .7); }
@@ -243,6 +244,7 @@ body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: #
   .ds .ds-btn.is-report:hover { background: #2647D0; }
   .ds .ds-btn.is-soft:hover, .ds .ds-btn.is-line:hover { background: var(--soft); }
   .ds .ds-btn.is-bg:hover { background: #E7EAF0; }
+  .ds .ds-btn.is-ghost:hover { background: var(--soft); }
   .ds .ds-btn.is-tint:hover { background: #DCE4FF; }
   .ds .ds-btn.is-shade:hover { background: rgba(255, 255, 255, .12); }
   .ds .ds-btn.is-glass:hover { background: rgba(255, 255, 255, .22); }
@@ -346,6 +348,10 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 36p
 }
 /* Lo seleccionado: el tinte del acento */
 .ds-seg-item[aria-pressed="true"], .ds-seg-item[aria-checked="true"], .ds-seg-item[aria-selected="true"] { background: var(--report-soft); color: var(--report-soft-ink); font-weight: 700; }
+/* El selector de idioma (tone="plain"): tres letras sin marco; la elegida, en gris neutro */
+.ds-seg.is-plain { padding: 0; background: none; box-shadow: none; }
+.ds-seg.is-plain .ds-seg-item { min-width: 34px; padding: 0 8px; }
+.ds-seg.is-plain .ds-seg-item[aria-pressed="true"] { background: var(--soft); color: var(--ink); }
 /* Suelto: cada opción es su propio botón (radio de «¿cómo ha llegado?», pestañas del tablero en el móvil) */
 .ds-seg.is-loose { padding: 0; gap: 8px; background: none; box-shadow: none; flex-wrap: wrap; }
 .ds-seg.is-loose .ds-seg-item { min-height: 36px; padding: 0 14px; border-radius: 10px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); font-size: 14px; font-weight: 600; }
@@ -364,30 +370,44 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 36p
 .ds-steps-seg.is-done::before { background: var(--report); }
 .ds-steps-count { font-size: 13px; font-weight: 500; color: var(--muted); white-space: nowrap; }
 .ds-steps-name { font-size: 12px; font-weight: 600; line-height: 1.25; color: var(--on-ink-muted); }
+/* El paso a paso de un caso (tone="line"): puntos unidos por una línea fina y el nombre debajo */
+.ds-steps.is-line.ds-steps-bar { gap: 0; align-items: flex-start; }
+.ds-steps.is-line .ds-steps-seg { position: relative; gap: 8px; padding-right: 8px; }
+.ds-steps.is-line .ds-steps-seg::before { position: relative; z-index: 1; align-self: flex-start; width: 10px; height: 10px; border: 2px solid var(--field-line); border-radius: 50%; background: var(--surface); }
+.ds-steps.is-line .ds-steps-seg::after { content: ''; position: absolute; top: 4px; left: 10px; right: 0; height: 2px; background: var(--field-line); opacity: .4; }
+.ds-steps.is-line .ds-steps-seg:last-child::after { display: none; }
+.ds-steps.is-line .ds-steps-seg.is-done::before { border-color: var(--report); background: var(--report); }
+.ds-steps.is-line .ds-steps-seg.is-done:has(+ .is-done)::after { background: var(--report); opacity: 1; }
+.ds-steps.is-line .ds-steps-name { font-size: 13px; font-weight: 500; color: var(--muted); }
+.ds-steps.is-line .ds-steps-seg.is-done .ds-steps-name { color: var(--ink); }
+.ds-steps.is-line .ds-steps-seg[aria-current="step"] .ds-steps-name { font-weight: 700; }
 .ds-steps.is-ink .ds-steps-bar { gap: 6px; }
 .ds-steps.is-ink .ds-steps-seg::before { height: 4px; background: rgba(255, 255, 255, .2); }
 .ds-steps.is-ink .ds-steps-seg.is-done::before { background: var(--on-ink-accent); }
 .ds-steps.is-ink .ds-steps-seg[aria-current="step"] .ds-steps-name { color: #FFFFFF; }
 @media (max-width: 640px) { .ds-steps.is-compact .ds-steps-count { display: none; } .ds-steps-name { overflow-wrap: anywhere; } }
+@media (max-width: 640px) { .ds-steps.is-line .ds-steps-name { font-size: 12px; overflow-wrap: normal; } .ds-steps.is-line .ds-steps-seg { padding-right: 4px; } }
 
 /* ── Menú del panel ────────────────────────────────────────────────── */
-.ds-nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 24px; background: var(--bg); }
-.ds-nav-item { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 18px; border-radius: 22px; font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+/* En el ordenador, texto: la pantalla en la que se está va en negrita y subrayada con el acento */
+.ds-nav { display: flex; align-self: stretch; gap: 24px; min-width: 0; }
+.ds-nav-item { display: inline-flex; align-items: center; gap: 8px; border-top: 2px solid transparent; border-bottom: 2px solid transparent; font-size: 15px; font-weight: 500; text-decoration: none; white-space: nowrap; }
 .ds .ds-nav-item { color: var(--muted); }
 .ds .ds-nav-item:hover { color: var(--ink); }
-.ds .ds-nav-item[aria-current="page"] { background: var(--ink); color: #FFFFFF; font-weight: 700; }
+.ds .ds-nav-item[aria-current="page"] { border-bottom-color: var(--report); color: var(--ink); font-weight: 700; }
+.ds .ds-nav-item:focus-visible { outline-offset: -2px; }
 .ds-nav-ico { display: none; }
 .ds-nav-short { display: none; }
 @media (max-width: 640px) {
   /* En el móvil: barra fija abajo con las 4 opciones */
   .ds-nav {
     position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
-    gap: 0; padding: 8px 8px calc(14px + env(safe-area-inset-bottom)); border-radius: 0; background: #FFFFFF; border-top: 1px solid #E6E9F0;
+    gap: 0; padding: 8px 8px calc(14px + env(safe-area-inset-bottom)); background: #FFFFFF; border-top: 1px solid var(--line);
   }
-  .ds-nav-item { flex-direction: column; gap: 4px; min-height: 52px; padding: 6px 0; border-radius: 14px; font-size: 12px; font-weight: 700; }
-  .ds .ds-nav-item[aria-current="page"] { background: none; color: var(--ink); }
-  .ds-nav-ico { display: flex; align-items: center; justify-content: center; width: 52px; height: 30px; border-radius: 15px; }
-  .ds-nav-item[aria-current="page"] .ds-nav-ico { background: var(--report-soft); }
+  .ds-nav-item { flex-direction: column; justify-content: center; gap: 4px; min-height: 52px; padding: 6px 0; border: 0; border-radius: 10px; font-size: 12px; font-weight: 600; }
+  .ds .ds-nav-item[aria-current="page"] { color: var(--ink); font-weight: 700; }
+  .ds-nav-ico { display: flex; align-items: center; justify-content: center; width: 52px; height: 30px; border-radius: 10px; }
+  .ds-nav-item[aria-current="page"] .ds-nav-ico { background: var(--report-soft); color: var(--report-soft-ink); }
   .ds-nav-long { display: none; }
   .ds-nav-short { display: inline; }
   /* El contenido no queda tapado por la barra fija */
@@ -395,53 +415,61 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 36p
 }
 
 /* ── Tarjeta de caso ───────────────────────────────────────────────── */
-.ds-case { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 18px; border-radius: var(--r-md); background: var(--surface); color: var(--ink); }
-.ds-case.is-bg { background: var(--bg); }
-.ds-case.is-overdue { box-shadow: inset 0 0 0 2px var(--danger-line); }
-.ds-case.is-selected { box-shadow: 0 0 0 2px var(--report); }
+/* Compacta y neutra. La urgencia se ve sin leer: una barra a la izquierda, roja si el plazo está vencido y ámbar si
+   vence pronto. Dentro, fondo suave solo en las etiquetas que importan; lo demás, texto gris. */
+.ds-case { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px 12px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); }
+.ds-case.is-overdue { box-shadow: inset 4px 0 0 var(--danger-ink); }
+.ds-case.is-soon { box-shadow: inset 4px 0 0 var(--warn-ink); }
+.ds-case.is-selected { outline: 2px solid var(--report); outline-offset: -1px; }
 .ds-case.is-dragging { opacity: .5; }
-.ds-case-title { font-size: 16px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+/* Mientras carga, el hueco de una tarjeta con su misma forma */
+.ds-case-skel { display: flex; flex-direction: column; gap: 8px; padding: 14px 14px 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.ds-case-title { font-size: 15px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.ds-case-sep { font-weight: 500; color: var(--muted); }
 .ds .ds-case-link { color: inherit; text-decoration: none; }
 .ds .ds-case-link::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
 .ds .ds-case-link:focus-visible { outline: none; }
-.ds .ds-case-link:focus-visible::after { outline: 3px solid var(--focus); outline-offset: 2px; }
-.ds-case-meta { font-size: 13px; color: var(--muted); }
-.ds-case-done { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ok-ink); }
-.ds-case-done.is-late { color: var(--danger-ink); }
+.ds .ds-case-link:focus-visible::after { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ds-case-meta { font-size: 13px; line-height: 1.45; color: var(--muted); }
+.ds-case-marks { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding-top: 2px; }
+/* Lo que no es urgente: texto gris con su icono (plazo lejano, prioridad alta, respondida a tiempo) */
+.ds-case-plain { display: inline-flex; align-items: center; gap: 5px; min-height: 22px; font-size: 13px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+.ds-case-plain.is-late { font-weight: 600; color: var(--danger-ink); }
+/* «Te ha escrito»: en el color de acento, sin fondo */
+.ds-case-new { min-height: 22px; display: inline-flex; align-items: center; font-size: 13px; font-weight: 600; color: var(--report-soft-ink); white-space: nowrap; }
 /* «Mover a…»: una flecha con sitio propio en la esquina de arriba (el título le deja hueco), para que nunca
-   tape los chips. Aparece al apuntar la tarjeta o al llegar con el teclado; su nombre va en aria-label y title. */
-.ds-case-move.ds-btn { position: absolute; z-index: 1; top: 12px; right: 12px; width: 36px; min-width: 36px; height: 36px; padding: 0; margin: 0; opacity: 0; pointer-events: none; transition: opacity 120ms; }
-.ds-case.has-move .ds-case-title { padding-right: 40px; }
+   tape las etiquetas. Aparece al apuntar la tarjeta o al llegar con el teclado; su nombre va en aria-label y title. */
+.ds-case-move.ds-btn { position: absolute; z-index: 1; top: 8px; right: 8px; width: 32px; min-width: 32px; --h: 32px; padding: 0; margin: 0; opacity: 0; pointer-events: none; transition: opacity 120ms; }
+.ds-case.has-move .ds-case-title { padding-right: 32px; }
 .ds-case:hover .ds-case-move, .ds-case:focus-within .ds-case-move { opacity: 1; pointer-events: auto; }
 @media (hover: none) { .ds-case-move.ds-btn { opacity: 1; pointer-events: auto; } }
 @media (max-width: 640px) { .ds-case-move.ds-btn { display: none; } .ds-case.has-move .ds-case-title { padding-right: 0; } }
-/* Toda la tarjeta abre el caso (el enlace del título la cubre entera): se nota con la mano y un borde azul */
-.ds-case:has(.ds-case-link) { cursor: pointer; transition: box-shadow 120ms; }
+/* Toda la tarjeta abre el caso (el enlace del título la cubre entera): se nota con la mano y con la línea más oscura */
+.ds-case:has(.ds-case-link) { cursor: pointer; transition: border-color 120ms; }
 @media (hover: hover) {
-  .ds-case:has(.ds-case-link):hover { box-shadow: 0 0 0 2px var(--report); }
-  .ds-case:has(.ds-case-link:hover) .ds-case-title { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+  .ds-case:has(.ds-case-link):hover { border-color: var(--field-line); }
+  .ds-case:has(.ds-case-link:hover) .ds-case-title { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 }
-.ds-case:has(.ds-case-link:focus-visible) { box-shadow: 0 0 0 2px var(--report); }
 
 /* ── Tablero ───────────────────────────────────────────────────────── */
-.ds-kanban { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
+/* Tres columnas sin fondo propio: su título con icono, el recuento y las tarjetas */
+.ds-kanban { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; align-items: start; }
 .ds-kanban-tabs { display: none; }
-.ds-kcol { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 14px; border-radius: var(--r-lg); background: var(--bg); }
-.ds-kcol.is-over { box-shadow: inset 0 0 0 2px var(--report); }
-.ds-kcol-head { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; }
-.ds-kcol-title { font-size: 15px; font-weight: 700; }
-.ds-kcol-n { font-size: 13px; font-weight: 700; padding: 2px 10px; border-radius: 10px; background: #FFFFFF; font-variant-numeric: tabular-nums; }
+.ds-kcol { display: flex; flex-direction: column; gap: 10px; min-width: 0; border-radius: 10px; }
+.ds-kcol.is-over { outline: 2px dashed var(--report); outline-offset: 6px; }
+.ds-kcol-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 24px; padding: 0 2px; }
+.ds-kcol-title { display: flex; align-items: center; gap: 8px; font-size: 16px; line-height: 1.3; font-weight: 700; }
+.ds-kcol-title svg { color: var(--report); }
+.ds-kcol-n { font-size: 13px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
 .ds-kcol-list { display: flex; flex-direction: column; gap: 10px; }
-.ds-kcol-empty { padding: 18px 6px; font-size: 14px; color: var(--muted); }
-.ds-kcol-foot { padding: 0 6px; font-size: 14px; font-weight: 700; }
+.ds-kcol-empty { padding: 4px 2px; font-size: 14px; color: var(--muted); }
+.ds-kcol-foot { padding: 0 2px; font-size: 14px; font-weight: 600; }
 @media (max-width: 640px) {
   .ds-kanban { display: block; }
   .ds-kanban-tabs { display: flex; margin-bottom: 14px; }
-  .ds-kcol { padding: 0; background: none; border-radius: 0; }
   .ds-kcol[data-off] { display: none; }
-  .ds-kcol-head { display: none; }
-  .ds-kcol .ds-case { background: var(--bg); }
-  .ds-kcol .ds-case.is-selected { box-shadow: inset 0 0 0 2px var(--report); }
+  /* El título de la columna ya está en su pestaña: aquí se deja solo para lectores de pantalla (y para no saltar de h1 a h3) */
+  .ds-kcol-head { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 
 /* ── Conversación ──────────────────────────────────────────────────── */

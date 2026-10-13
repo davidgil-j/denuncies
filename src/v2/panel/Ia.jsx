@@ -10,7 +10,7 @@ import { usePanel } from './kit.jsx';
 // decir VITE_AI_ENABLED=1): apagada, la ficha no las pinta ni pide nada. Nunca envían nada solas:
 // el resumen se queda en la ficha y el borrador va a la caja de texto para que la persona lo edite.
 
-const spark = <Sparkles size={16} strokeWidth={2.2} aria-hidden="true" />;
+const spark = <Sparkles size={16} strokeWidth={1.8} aria-hidden="true" />;
 
 /** Resumen del caso en 3 frases y título propuesto. canEdit: puede generarlo y usar el título. onGenerated: avisa a la ficha. */
 export function AiSummary({ c, canEdit, onUseTitle, onGenerated }) {
@@ -42,10 +42,10 @@ export function AiSummary({ c, canEdit, onUseTitle, onGenerated }) {
   if (ai === null && !canEdit) return null;
 
   return (
-    <Card tone="bg" as="section" className="ai-card" aria-labelledby="ai-sum-t" aria-busy={busy || undefined}>
+    <Card as="section" className="ai-card" aria-labelledby="ai-sum-t" aria-busy={busy || undefined}>
       <div className="ai-head">
-        <h2 className="ds-card-title" id="ai-sum-t">{spark}{a.title}</h2>
-        {ai && canEdit && <Button variant="white" size="xs" onClick={generate} busy={busy} icon={<RefreshCw size={14} strokeWidth={2.4} aria-hidden="true" />}>{a.again}</Button>}
+        <h2 className="pn-sec-t" id="ai-sum-t">{spark}{a.title}</h2>
+        {ai && canEdit && <Button variant="soft" size="xs" onClick={generate} busy={busy} icon={<RefreshCw size={14} strokeWidth={1.8} aria-hidden="true" />}>{a.again}</Button>}
       </div>
       {ai === undefined || busy ? (
         <div role="status" aria-live="polite" className="ai-wait"><span className="ds-vh">{busy ? a.working : p.loading}</span><Skeleton width="92%" /><Skeleton width="100%" /><Skeleton width="64%" /></div>
@@ -63,10 +63,10 @@ export function AiSummary({ c, canEdit, onUseTitle, onGenerated }) {
       ) : (
         <>
           <p className="ai-text is-muted">{a.empty}</p>
-          <Button variant="ink" size="sm" className="ai-go" onClick={generate} icon={spark}>{a.make}</Button>
+          <Button variant="soft" size="sm" className="ai-go" onClick={generate} icon={spark}>{a.make}</Button>
         </>
       )}
-      {error && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={2.2} aria-hidden="true" />{a.error}</p>}
+      {error && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />{a.error}</p>}
     </Card>
   );
 }
@@ -95,15 +95,15 @@ export function AiDraft({ c, kinds, current, onApply, align }) {
   return (
     <>
       {kinds.length === 1 ? (
-        <Button variant="bg" size="xs" onClick={() => ask(kinds[0])} busy={busy} icon={spark}>{busy ? a.working : a.draft}</Button>
+        <Button variant="soft" size="xs" onClick={() => ask(kinds[0])} busy={busy} icon={spark}>{busy ? a.working : a.draft}</Button>
       ) : (
-        <Menu label={a.draft} align={align} trigger={props => <Button variant="bg" size="xs" busy={busy} icon={spark} {...props}>{busy ? a.working : a.draft}</Button>}>
+        <Menu label={a.draft} align={align} trigger={props => <Button variant="soft" size="xs" busy={busy} icon={spark} {...props}>{busy ? a.working : a.draft}</Button>}>
           {kinds.map(k => <MenuItem key={k} onClick={() => ask(k)}>{a.kinds[k]}</MenuItem>)}
         </Menu>
       )}
       <Dialog
         open={pending !== null} onClose={() => setPending(null)} title={a.replaceT}
-        actions={<><Button variant="soft" size="md" onClick={() => setPending(null)}>{a.keep}</Button><Button variant="ink" size="md" onClick={() => apply(pending)}>{a.replace}</Button></>}
+        actions={<><Button variant="soft" size="md" onClick={() => setPending(null)}>{a.keep}</Button><Button variant="report" size="md" onClick={() => apply(pending)}>{a.replace}</Button></>}
       >
         <p>{a.replaceText}</p>
       </Dialog>
