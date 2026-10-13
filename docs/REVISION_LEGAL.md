@@ -61,6 +61,14 @@ Ninguna ha cambiado ningún texto. Donde había que elegir, el producto hace aho
 25. **IP en los registros de los proveedores.** Ni la base de datos ni la denuncia guardan la IP de quien informa, pero los registros técnicos de Vercel y Supabase sí la guardan durante su periodo de retención (Reportia puede verlos; la empresa cliente no). ¿Hay que decirlo en la política de privacidad del canal y fijar un plazo?
 26. **Freno de intentos del portal de seguimiento.** Para que nadie pueda adivinar códigos, si hay muchos intentos con códigos falsos el portal se frena unos minutos para todos (sin guardar IPs). Alguien podría provocarlo a propósito y retrasar unos minutos que una persona consulte su caso. ¿Es aceptable frente a la garantía de confidencialidad?
 
+### Dudas nuevas de la fase 1 de «Vuelta» (13 de octubre de 2026, ver `docs/AUDITORIA_ESTETICA.md`)
+
+Ninguna ha cambiado ningún texto: son propuestas.
+
+27. **Entrada del canal sin las tres etiquetas.** Se propone quitar «Puedes ser anónimo», «Respuesta en 3 meses como máximo» y «Sin represalias, por ley» (lo pide dirección: son comerciales). La segunda, además, cierra la duda 6. La prohibición de represalias seguiría en el pie legal del canal, en «Enviada» y en la política de privacidad. ¿Basta con eso, o la entrada debe decirlo de forma expresa?
+28. **Frase corta sobre los archivos adjuntos (paso 2).** El párrafo actual pasaría a: «De las fotos se quitan la ubicación y los datos del dispositivo. Los demás archivos se envían tal cual: revísalos si quieres mantener el anonimato.», con el detalle (no se guarda el nombre del archivo en una denuncia anónima) en «Qué guardamos y qué no». ¿Es suficiente como información previa?
+29. **«Los datos se guardan cifrados en el servidor»** (portada, «Seguridad y privacidad»). Es una afirmación técnica sobre el proveedor: conviene confirmarla con él antes de mantenerla en una web pública.
+
 ## 4. Lo que no se ha revisado
 
 - La portada comercial, `/crear-compte` y `/privacitat` (fuera de este trabajo).
