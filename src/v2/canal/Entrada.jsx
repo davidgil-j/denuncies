@@ -4,20 +4,29 @@ import { ArrowRight, ArrowUpRight, MonitorSmartphone } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { AIPI_URL, BOE_URL, fmt } from '../V2Layout.jsx';
 import Ficha from '../Ficha.jsx';
-import { Button, Dialog } from '../ui/index.js';
+import { BrandLogo, Button, Dialog } from '../ui/index.js';
 import { LangPick, QuickExit, Tc, ic } from './shared.jsx';
+import { inFrame } from '../lib/frame.js';
+import { leaveCanal } from '../lib/domain.js';
+
+// Dentro de la web de una empresa (iframe), lo que sale del canal se abre en una ventana nueva: el panel y la web de
+// Reportia no se abren nunca dentro de otra web
+const outside = () => (inFrame() ? { target: '_blank', rel: 'noopener noreferrer' } : {});
 
 const arrow = ic(ArrowRight, 18);
 
-/** Cabecera de la entrada: la empresa sobre el color y, sobre el blanco, el idioma y «Salir rápido» */
+/** Cabecera de la entrada: la empresa (su logo, si lo tiene, y su nombre) sobre el color y, sobre el blanco, el idioma y «Salir rápido» */
 export function EntryTop({ lang, setLang, org }) {
   const t = translations[lang];
   useEffect(() => { document.title = `${t.canal.ethics} · ${org.name}`; }, [t, org]);
   return (
     <>
       <div className="entry-brand">
-        <b title={org.name}>{org.name}</b>
-        <Tc lang={lang} k="ethics" className="entry-brand-sub" />
+        <BrandLogo org={org} />
+        <span className="entry-brand-txt">
+          <b title={org.name}>{org.name}</b>
+          <Tc lang={lang} k="ethics" className="entry-brand-sub" />
+        </span>
       </div>
       <div className="entry-tools">
         <LangPick lang={lang} setLang={setLang} />
@@ -58,7 +67,7 @@ export function EntryManage({ lang, org, to, example, onGo }) {
       <Tc as="p" className="entry-lead" lang={lang} k="manageLead" vars={{ org: org.name }} />
       <div className="entry-acts">
         <div className="entry-act is-start">
-          <Button variant="line" size="xl" className="entry-go" to={to} onClick={onGo} iconEnd={arrow}><Tc lang={lang} k={k.cta} /></Button>
+          <Button variant="line" size="xl" className="entry-go" to={to} onClick={onGo} iconEnd={arrow} {...outside()}><Tc lang={lang} k={k.cta} /></Button>
           <Tc lang={lang} k={k.note} className="entry-help" />
         </div>
       </div>
@@ -95,7 +104,7 @@ export function EntryLinks({ lang, org, base, full = false }) {
         </button>
         <button type="button" className="entry-linkbtn" onClick={() => setPanel('kept')}>{t.footKept}</button>
         <a href={BOE_URL} target="_blank" rel="noopener noreferrer" className="ds-narrow">{t.law}</a>
-        <Link to={`/?lang=${lang}`}>{t.footBy}</Link>
+        <Link to={leaveCanal(`/?lang=${lang}`)} {...outside()}>{t.footBy}</Link>
       </span>
 
       <Dialog side open={panel === 'ext'} onClose={() => setPanel(null)} title={v.extTitle} closeLabel={t.close}>

@@ -1,14 +1,14 @@
-// Treu les dades ocultes d'una foto (EXIF: ubicació GPS, model del dispositiu, data i hora) abans d'enviar-la
-// en una denúncia anònima.
+// Quita los datos ocultos de una foto (EXIF: ubicación GPS, modelo del dispositivo, fecha y hora) antes de enviarla
+// en una denuncia anónima.
 //
-// 1. JPEG, PNG i WebP: es torna a dibuixar en un llenç (respecta l'orientació). Si el navegador no pot
-//    (una foto massa gran per al llenç, un arxiu estrany), se'n treuen els blocs de metadades byte a byte.
-// 2. Altres fotos (HEIC de l'iPhone, TIFF, GIF, BMP, AVIF): es converteixen a JPEG si el navegador les sap llegir.
-// 3. Si no hi ha manera de netejar-la, retorna null: la foto no s'envia i el formulari ho diu.
-// La resta d'arxius (PDF, vídeo, documents) es deixen igual: el formulari avisa que poden portar dades ocultes.
+// 1. JPEG, PNG y WebP: se vuelve a dibujar en un lienzo (respeta la orientación). Si el navegador no puede
+//    (una foto demasiado grande para el lienzo, un archivo extraño), se quitan los bloques de metadatos byte a byte.
+// 2. Otras fotos (HEIC del iPhone, TIFF, GIF, BMP, AVIF): se convierten a JPEG si el navegador las sabe leer.
+// 3. Si no hay manera de limpiarla, devuelve null: la foto no se envía y el formulario lo dice.
+// El resto de archivos (PDF, vídeo, documentos) se dejan igual: el formulario avisa de que pueden llevar datos ocultos.
 const REDRAW = ['image/jpeg', 'image/png', 'image/webp'];
 
-/** Foto neta per a una denúncia anònima, o null si no es pot netejar. Els arxius que no són fotos, tal com són. */
+/** Foto limpia para una denuncia anónima, o null si no se puede limpiar. Los archivos que no son fotos, tal como son. */
 export async function cleanForAnonymous(file) {
   if (!isImage(file)) return file;
   const type = REDRAW.includes(file.type) ? file.type : 'image/jpeg';
@@ -22,11 +22,6 @@ export async function cleanForAnonymous(file) {
   return null;
 }
 
-/** Abans es deia així: per a qui encara la importi, retorna l'arxiu original si no es pot netejar */
-export async function stripImageMetadata(file) {
-  return (await cleanForAnonymous(file)) ?? file;
-}
-
 const EXT_IMAGE = /\.(jpe?g|png|webp|heic|heif|tiff?|gif|bmp|avif)$/i;
 function isImage(file) { return (file.type || '').startsWith('image/') || EXT_IMAGE.test(file.name || ''); }
 function renameTo(name, ext) { return /\.[^.]+$/.test(name) ? name.replace(/\.[^.]+$/, `.${ext}`) : `${name}.${ext}`; }
@@ -34,7 +29,7 @@ function renameTo(name, ext) { return /\.[^.]+$/.test(name) ? name.replace(/\.[^
 async function redraw(file, type) {
   if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') return null;
   try {
-    // 'from-image' aplica l'orientació de l'EXIF abans de descartar-lo: la foto no surt girada
+    // 'from-image' aplica la orientación del EXIF antes de descartarlo: la foto no sale girada
     const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
     const canvas = document.createElement('canvas');
     canvas.width = bitmap.width;
@@ -47,10 +42,10 @@ async function redraw(file, type) {
   }
 }
 
-// ── Neteja byte a byte ───────────────────────────────────────────────
-// Cada funció retorna els bytes sense metadades, o null si l'arxiu no té l'estructura esperada.
+// ── Limpieza byte a byte ─────────────────────────────────────────────
+// Cada función devuelve los bytes sin metadatos, o null si el archivo no tiene la estructura esperada.
 
-/** JPEG: fora els segments APP1–APP15 (EXIF, XMP, IPTC, perfils) i els comentaris. Es manté APP0 (JFIF). */
+/** JPEG: fuera los segmentos APP1–APP15 (EXIF, XMP, IPTC, perfiles) y los comentarios. Se mantiene APP0 (JFIF). */
 export function stripJpeg(b) {
   if (b[0] !== 0xff || b[1] !== 0xd8) return null;
   const out = [b.subarray(0, 2)];
@@ -58,8 +53,8 @@ export function stripJpeg(b) {
   while (i + 4 <= b.length) {
     if (b[i] !== 0xff) return null;
     const marker = b[i + 1];
-    if (marker === 0xff) { i++; continue; } // farciment
-    if (marker === 0xda) { out.push(b.subarray(i)); return concat(out); } // a partir d'aquí, la imatge
+    if (marker === 0xff) { i++; continue; } // relleno
+    if (marker === 0xda) { out.push(b.subarray(i)); return concat(out); } // a partir de aquí, la imagen
     if (marker === 0xd9) { out.push(b.subarray(i, i + 2)); return concat(out); }
     if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) { out.push(b.subarray(i, i + 2)); i += 2; continue; }
     const len = (b[i + 2] << 8) | b[i + 3];
@@ -71,7 +66,7 @@ export function stripJpeg(b) {
   return null;
 }
 
-/** PNG: fora els blocs de text, EXIF i data (tEXt, iTXt, zTXt, eXIf, tIME) */
+/** PNG: fuera los bloques de texto, EXIF y fecha (tEXt, iTXt, zTXt, eXIf, tIME) */
 export function stripPng(b) {
   const SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
   if (!SIG.every((v, k) => b[k] === v)) return null;
@@ -90,7 +85,7 @@ export function stripPng(b) {
   return null;
 }
 
-/** WebP: fora els blocs EXIF i XMP, i les seves marques a la capçalera VP8X */
+/** WebP: fuera los bloques EXIF y XMP, y sus marcas en la cabecera VP8X */
 export function stripWebp(b) {
   const tag = (k) => String.fromCharCode(b[k], b[k + 1], b[k + 2], b[k + 3]);
   if (b.length < 12 || tag(0) !== 'RIFF' || tag(8) !== 'WEBP') return null;
@@ -103,7 +98,7 @@ export function stripWebp(b) {
     if (i + 8 + len > b.length) return null;
     if (type === 'VP8X') {
       const chunk = b.slice(i, Math.min(end, b.length));
-      chunk[8] &= ~0x0c; // sense «té EXIF» (0x08) ni «té XMP» (0x04)
+      chunk[8] &= ~0x0c; // sin «tiene EXIF» (0x08) ni «tiene XMP» (0x04)
       out.push(chunk);
     } else if (type !== 'EXIF' && type !== 'XMP ') out.push(b.subarray(i, Math.min(end, b.length)));
     i = end;

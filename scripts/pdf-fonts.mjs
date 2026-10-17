@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// Genera src/v2/lib/pdfFonts.js (la tipografia dels PDF) a partir de Manrope, tal com ja està instal·lada
-// amb @fontsource/manrope. Sense dependències noves: només zlib, que ve amb Node.
+// Genera src/v2/lib/pdfFonts.js (la tipografía de los PDF) a partir de Manrope, tal como ya está instalada
+// con @fontsource/manrope. Sin dependencias nuevas: solo zlib, que viene con Node.
 //
 //   node scripts/pdf-fonts.mjs
 //
-// Per què cal: jsPDF només accepta TrueType (.ttf), i @fontsource dona WOFF (TrueType comprimit amb zlib)
-// partit en subconjunts. L'script descomprimeix els subconjunts «latin» i «latin-ext» de cada pes i els uneix
-// en una sola font, sense instruccions de hinting ni taules de maquetació (jsPDF no les fa servir).
+// Por qué hace falta: jsPDF solo acepta TrueType (.ttf), y @fontsource da WOFF (TrueType comprimido con zlib)
+// partido en subconjuntos. El guion descomprime los subconjuntos «latin» y «latin-ext» de cada peso y los une
+// en una sola fuente, sin instrucciones de hinting ni tablas de maquetación (jsPDF no las usa).
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
@@ -17,7 +17,7 @@ const FILES = path.join(ROOT, 'node_modules', '@fontsource', 'manrope', 'files')
 const OUT = path.join(ROOT, 'src', 'v2', 'lib', 'pdfFonts.js');
 const WEIGHTS = { TEXT_400: 400, TEXT_700: 700, DISPLAY_800: 800 };
 
-// ── Llegir un WOFF ─────────────────────────────────────────────────────
+// ── Leer un WOFF ───────────────────────────────────────────────────────
 function readWoff(file) {
   const b = fs.readFileSync(file);
   if (b.toString('latin1', 0, 4) !== 'wOFF') throw new Error(`${file}: no és WOFF 1`);
@@ -47,7 +47,7 @@ function parse(t) {
   return { tables: t, glyphs, metrics, cmap: readCmap(t.cmap) };
 }
 
-/** codi Unicode → glif, de la subtaula de format 4 o 12 */
+/** código Unicode → glifo, de la subtabla de formato 4 o 12 */
 function readCmap(c) {
   const map = new Map();
   const n = c.readUInt16BE(2);
@@ -77,11 +77,11 @@ function readCmap(c) {
   return map;
 }
 
-// ── Glifs: components i instruccions ──────────────────────────────────
+// ── Glifos: componentes e instrucciones ───────────────────────────────
 const ARG_WORDS = 0x1, HAVE_SCALE = 0x8, MORE = 0x20, XY_SCALE = 0x40, TWO_BY_TWO = 0x80, HAVE_INSTR = 0x100;
 const componentSize = (flags) => 4 + (flags & ARG_WORDS ? 4 : 2) + (flags & HAVE_SCALE ? 2 : flags & XY_SCALE ? 4 : flags & TWO_BY_TWO ? 8 : 0);
 
-/** glifs que fa servir un glif compost */
+/** glifos que usa un glifo compuesto */
 function components(g) {
   if (g.length < 10 || g.readInt16BE(0) >= 0) return [];
   const out = [];
@@ -89,7 +89,7 @@ function components(g) {
   return out;
 }
 
-/** El glif sense instruccions de hinting i amb els components renumerats */
+/** El glifo sin instrucciones de hinting y con los componentes renumerados */
 function clean(g, remap = (x) => x) {
   if (g.length === 0) return Buffer.alloc(0);
   const contours = g.readInt16BE(0);
@@ -112,12 +112,12 @@ function clean(g, remap = (x) => x) {
 }
 const pad = (b) => (b.length % 4 ? Buffer.concat([b, Buffer.alloc(4 - (b.length % 4))]) : b);
 
-// ── Unir els subconjunts ───────────────────────────────────────────────
+// ── Unir los subconjuntos ──────────────────────────────────────────────
 function merge(base, extra) {
   const glyphs = base.glyphs.map((g) => clean(g));
   const metrics = [...base.metrics];
   const cmap = new Map(base.cmap);
-  const moved = new Map(); // glif de «extra» → glif nou
+  const moved = new Map(); // glifo de «extra» → glifo nuevo
   const bring = (gid) => {
     if (moved.has(gid)) return moved.get(gid);
     const id = glyphs.length;
@@ -170,8 +170,8 @@ function build(src, glyphs, metrics, cmap) {
   const hhea = Buffer.from(src.hhea); hhea.writeUInt16BE(n, 34);
   hhea.writeUInt16BE(Math.max(...metrics.map((m) => m[0])), 10);
   const maxp = Buffer.from(src.maxp); maxp.writeUInt16BE(n, 4);
-  if (maxp.length >= 32) { maxp.writeUInt16BE(0, 26); } // sense instruccions
-  const post = Buffer.from(src.post.subarray(0, 32)); post.writeUInt32BE(0x00030000, 0); // sense noms de glif
+  if (maxp.length >= 32) { maxp.writeUInt16BE(0, 26); } // sin instrucciones
+  const post = Buffer.from(src.post.subarray(0, 32)); post.writeUInt32BE(0x00030000, 0); // sin nombres de glifo
   const tables = { 'OS/2': src['OS/2'], cmap: cmapTable(cmap), glyf: Buffer.concat(glyphs), head, hhea, hmtx, loca, maxp, name: src.name, post };
   const tags = Object.keys(tables).sort();
   const num = tags.length;
@@ -197,27 +197,27 @@ function build(src, glyphs, metrics, cmap) {
   return font;
 }
 
-// ── Fer el fitxer ──────────────────────────────────────────────────────
+// ── Escribir el archivo ────────────────────────────────────────────────
 const parts = Object.entries(WEIGHTS).map(([name, w]) => {
   const latin = readWoff(path.join(FILES, `manrope-latin-${w}-normal.woff`));
   const ext = readWoff(path.join(FILES, `manrope-latin-ext-${w}-normal.woff`));
   const ttf = merge(latin, ext);
   const check = parse(Object.fromEntries((() => { const n = ttf.readUInt16BE(4); return Array.from({ length: n }, (_, i) => { const o = 12 + i * 16; return [ttf.toString('latin1', o, o + 4), ttf.subarray(ttf.readUInt32BE(o + 8), ttf.readUInt32BE(o + 8) + ttf.readUInt32BE(o + 12))]; }); })()));
-  console.log(`${name}: ${check.glyphs.length} glifs, ${check.cmap.size} caràcters, ${Math.round(ttf.length / 1024)} KB`);
+  console.log(`${name}: ${check.glyphs.length} glifos, ${check.cmap.size} caracteres, ${Math.round(ttf.length / 1024)} KB`);
   return `export const ${name} = '${ttf.toString('base64')}';`;
 });
-fs.writeFileSync(OUT, `// Tipografia dels PDF: Manrope 400, 700 i 800 (la mateixa del producte).
+fs.writeFileSync(OUT, `// Tipografía de los PDF: Manrope 400, 700 y 800 (la misma del producto).
 // Copyright 2018 The Manrope Project Authors (https://github.com/sharanda/manrope). SIL Open Font License 1.1.
-// Subconjunts «latin» i «latin-ext» de @fontsource/manrope units en un sol TrueType, sense hinting ni maquetació.
-// Només el carrega exportV2.js amb import() dinàmic en generar un PDF; no entra al bundle principal.
+// Subconjuntos «latin» y «latin-ext» de @fontsource/manrope unidos en un solo TrueType, sin hinting ni maquetación.
+// Solo lo carga exportV2.js con import() dinámico al generar un PDF; no entra en el bundle principal.
 // Regenerar: node scripts/pdf-fonts.mjs
 ${parts.join('\n')}
 `);
-console.log(`Escrit ${path.relative(ROOT, OUT)} (${Math.round(fs.statSync(OUT).size / 1024)} KB)`);
+console.log(`Escrito ${path.relative(ROOT, OUT)} (${Math.round(fs.statSync(OUT).size / 1024)} KB)`);
 
-// ── El justificant de qui denuncia: més lleuger ────────────────────────
-// Només el subconjunt «latin» (català, castellà i anglès hi caben sencers) i dos pesos: 400 i 800.
-// Es descarrega en prémer «Descarregar justificant», al canal, on cada KB compta.
+// ── El justificante de quien denuncia: más ligero ─────────────────────
+// Solo el subconjunto «latin» (catalán, castellano e inglés caben enteros) y dos pesos: 400 y 800.
+// Se descarga al pulsar «Descargar justificante», en el canal, donde cada KB cuenta.
 const OUT_RECEIPT = path.join(ROOT, 'src', 'v2', 'lib', 'receiptFonts.js');
 const none = { cmap: new Map(), glyphs: [], metrics: [] };
 const receipt = Object.entries({ RECEIPT_400: 400, RECEIPT_800: 800 }).map(([name, w]) => {
@@ -225,9 +225,9 @@ const receipt = Object.entries({ RECEIPT_400: 400, RECEIPT_800: 800 }).map(([nam
   console.log(`${name}: ${Math.round(ttf.length / 1024)} KB`);
   return `export const ${name} = '${ttf.toString('base64')}';`;
 });
-fs.writeFileSync(OUT_RECEIPT, `// Tipografia del justificant de qui denuncia: Manrope 400 i 800, només el subconjunt «latin».
+fs.writeFileSync(OUT_RECEIPT, `// Tipografía del justificante de quien denuncia: Manrope 400 y 800, solo el subconjunto «latin».
 // Copyright 2018 The Manrope Project Authors (https://github.com/sharanda/manrope). SIL Open Font License 1.1.
-// Només el carrega receipt.js amb import() dinàmic. Regenerar: node scripts/pdf-fonts.mjs
+// Solo lo carga receipt.js con import() dinámico. Regenerar: node scripts/pdf-fonts.mjs
 ${receipt.join('\n')}
 `);
-console.log(`Escrit ${path.relative(ROOT, OUT_RECEIPT)} (${Math.round(fs.statSync(OUT_RECEIPT).size / 1024)} KB)`);
+console.log(`Escrito ${path.relative(ROOT, OUT_RECEIPT)} (${Math.round(fs.statSync(OUT_RECEIPT).size / 1024)} KB)`);

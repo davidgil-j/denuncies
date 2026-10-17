@@ -122,10 +122,11 @@ export default function Tablero() {
   async function doExport(kind) {
     setExporting(true);
     // Las exportaciones llevan la referencia interna, nunca el código de quien informa
-    const list = shown.map(({ c }) => ({ ...c, tracking_code: c.reference, organization: org?.name ?? '' }));
+    // La empresa entera (nombre, paleta y logo): los documentos llevan su marca
+    const list = shown.map(({ c }) => ({ ...c, tracking_code: c.reference, organization: org ?? '' }));
     try {
       const { exportToExcel, exportSummaryToPDF } = await import('../lib/exportV2.js');
-      const filters = { view: '', status: f.st, category: f.cat, priority: f.pr, dateFrom: f.from, dateTo: f.to, q: '', organization: org?.name ?? '' };
+      const filters = { view: '', status: f.st, category: f.cat, priority: f.pr, dateFrom: f.from, dateTo: f.to, q: '', organization: org ?? '' };
       if (kind === 'xlsx') await exportToExcel(list, undefined, lang, filters);
       else await exportSummaryToPDF(list, filters, lang);
     } catch { notify(p.exportErr, 'err'); }

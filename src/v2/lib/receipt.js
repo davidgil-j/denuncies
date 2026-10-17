@@ -9,10 +9,11 @@ const BLUE = [47, 84, 235];
 const plain = (s) => String(s);
 
 /**
- * rows: [[etiqueta, valor]] · next: [[título, detalle]] · notes: [texto]
+ * rows: [[etiqueta, valor]] · next: [[título, detalle]] · notes: [texto] · color: el principal de la paleta de la
+ * empresa ([r, g, b]; por defecto, el azul). Ni el nombre ni el logo de la empresa: el justificante sigue siendo neutro.
  * El archivo se llama como el código: un nombre neutro, sin palabras como «denuncia».
  */
-export async function downloadReceipt({ code, title, rows, nextTitle, next, notes }) {
+export async function downloadReceipt({ code, title, rows, nextTitle, next, notes, color = BLUE }) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
   const fonts = await import('./receiptFonts.js');
   doc.addFileToVFS('Manrope-Regular.ttf', fonts.RECEIPT_400);
@@ -23,7 +24,7 @@ export async function downloadReceipt({ code, title, rows, nextTitle, next, note
   const W = 210 - 2 * M;
   let y = 30;
 
-  doc.setFillColor(...BLUE);
+  doc.setFillColor(...color);
   doc.roundedRect(M, y - 8, 10, 10, 2.5, 2.5, 'F');
   doc.setFont('Manrope', 'bold').setFontSize(20).setTextColor(...INK);
   doc.text(plain(title), M + 14, y);
@@ -52,7 +53,7 @@ export async function downloadReceipt({ code, title, rows, nextTitle, next, note
   doc.text(plain(nextTitle), M, y);
   y += 9;
   next.forEach(([head, detail], i) => {
-    doc.setFillColor(...BLUE);
+    doc.setFillColor(...color);
     doc.circle(M + 3, y - 1.4, 3, 'F');
     doc.setFont('Manrope', 'bold').setFontSize(9).setTextColor(255, 255, 255);
     doc.text(String(i + 1), M + 3, y - 0.3, { align: 'center' });

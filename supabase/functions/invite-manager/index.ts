@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { withCors } from '../_shared/cors.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,7 +8,7 @@ const corsHeaders = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-// Nivell de verificació del token (aal2 = ha passat la verificació en dos passos)
+// Nivel de verificación del token (aal2 = ha pasado la verificación en dos pasos)
 function aalOf(authHeader: string): string {
   try {
     const payload = authHeader.replace(/^Bearer\s+/i, '').split('.')[1];
@@ -15,7 +16,7 @@ function aalOf(authHeader: string): string {
   } catch { return ''; }
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withCors(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
@@ -24,7 +25,7 @@ Deno.serve(async (req) => {
 
     const supabaseUrl    = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    // Sense adreça del lloc configurada no es convida ningú (l'enllaç portaria a un domini equivocat)
+    // Sin la dirección del sitio configurada no se invita a nadie (el enlace llevaría a un dominio equivocado)
     const siteUrl = Deno.env.get('SITE_URL');
     if (!siteUrl) return json({ error: 'site-url-missing' }, 500);
 
@@ -44,15 +45,15 @@ Deno.serve(async (req) => {
     const cleanName = String(full_name ?? '').trim().slice(0, 120);
     if (!cleanEmail || !cleanName) return json({ error: 'invalid' }, 400);
 
-    // Com a molt 20 invitacions al dia per empresa: el correu d'invitació porta el nom que escriu qui convida
+    // Como mucho 20 invitaciones al día por empresa: el correo de invitación lleva el nombre que escribe quien invita
     const since = new Date(Date.now() - 86400000).toISOString();
     const { count: sent } = await adminClient.from('audit_logs').select('id', { count: 'exact', head: true })
       .eq('organization_id', profile.organization_id).eq('action', 'member_invited').gte('created_at', since);
     if ((sent ?? 0) >= 20) return json({ error: 'invite-limit' }, 429);
 
-    // Un correu que ja té compte només es pot tornar a convidar si és d'aquesta empresa i encara no hi ha entrat.
-    // Mai no s'adopta ni s'esborra un compte d'una altra empresa o sense empresa (migració 014: find_auth_user).
-    // Sense la 014, la funció no existeix i es continua com abans, però sense esborrar ningú.
+    // Un correo que ya tiene cuenta solo se puede volver a invitar si es de esta empresa y aún no ha entrado.
+    // Nunca se adopta ni se borra una cuenta de otra empresa o sin empresa (migración 014: find_auth_user).
+    // Sin la 014, la función no existe y se sigue como antes, pero sin borrar a nadie.
     const { data: found, error: findError } = await adminClient.rpc('find_auth_user', { p_email: cleanEmail });
     const existing = findError ? null : (found ?? [])[0] ?? null;
     if (existing && (existing.organization_id !== profile.organization_id || existing.last_sign_in_at)) {
@@ -63,20 +64,20 @@ Deno.serve(async (req) => {
       data: { full_name: cleanName },
       redirectTo: `${siteUrl}/admin/reset-password`,
     });
-    // Resposta genèrica: no es revela si el correu ja té compte (a Reportia o a una altra empresa)
+    // Respuesta genérica: no se revela si el correo ya tiene cuenta (en Reportia o en otra empresa)
     if (error || !data?.user) return json({ error: 'invite-failed' }, 400);
 
-    // Queda al registre de l'empresa (i compta per al límit diari)
+    // Queda en el registro de la empresa (y cuenta para el límite diario)
     await adminClient.from('audit_logs').insert({
       complaint_id: null, organization_id: profile.organization_id, action: 'member_invited', actor_id: user.id,
       details: { member_id: data.user.id, member_name: cleanName, invited_by: user.id },
     });
 
-    // Ja era una invitació pendent d'aquesta empresa: s'ha reenviat el correu i prou
+    // Ya era una invitación pendiente de esta empresa: se ha reenviado el correo y nada más
     if (existing) return json({ user: { id: data.user.id } });
 
-    // El trigger crea el perfil sense organització: l'invitat entra a la de qui convida.
-    // Només si encara no en té cap (un usuari d'una altra empresa no es mou mai).
+    // El trigger crea el perfil sin organización: el invitado entra en la de quien invita.
+    // Solo si aún no tiene ninguna (un usuario de otra empresa no se mueve nunca).
     const { data: updated, error: orgError } = await adminClient
       .from('profiles')
       .update({ organization_id: profile.organization_id, role: 'manager' })
@@ -84,8 +85,8 @@ Deno.serve(async (req) => {
       .is('organization_id', null)
       .select('id');
     if (orgError || !updated?.length) {
-      // Si no s'ha pogut assignar, no es deixa a mitges un compte creat ara mateix per aquesta invitació.
-      // Un compte que ja existia (o del qual no se sap, sense la 014) no s'esborra mai.
+      // Si no se ha podido asignar, no se deja a medias una cuenta creada ahora mismo por esta invitación.
+      // Una cuenta que ya existía (o de la que no se sabe, sin la 014) no se borra nunca.
       if (!findError && !existing) await adminClient.auth.admin.deleteUser(data.user.id);
       return json({ error: 'invite-failed' }, 400);
     }
@@ -94,4 +95,4 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: 'server-error' }, 500);
   }
-});
+}));

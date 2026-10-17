@@ -4,11 +4,11 @@
 
 Aplicació web (Reportia) per a empreses privades que necessiten un **canal intern de denúncies** conforme a la Llei 2/2023 (transposició de la Directiva europea de protecció de denunciants, "whistleblowing").
 
-Té el disseny **«dues meitats»**: dos costats que sempre es veuen junts.
-- **Denunciar** (blau): qualsevol persona (empleat, proveïdor, client) presenta una denúncia, anònima o identificada, en tres passos, i en fa el seguiment amb un codi secret («El meu cas»).
+Té el disseny **«dues meitats»**: l'entrada del canal ensenya els dos costats, meitat i meitat.
+- **Denunciar** (sobre el color de l'empresa): qualsevol persona (empleat, proveïdor, client) presenta una denúncia, anònima o identificada, en tres passos, i en fa el seguiment amb un codi secret («El meu cas»).
 - **Gestionar** (blanc): l'equip de l'empresa rep, investiga i respon les denúncies des d'un tauler de tres columnes.
 
-Quan s'és en un costat, l'altre queda plegat en una franja lateral fixa.
+En triar un costat, l'altre desapareix i el triat ocupa tota la pantalla (ja no hi ha franja lateral). Des del panell, «Veure el canal» és un enllaç de la capçalera.
 
 L'aplicació està **en producció** a Vercel (frontend) + Supabase (base de dades i autenticació).
 
@@ -24,8 +24,8 @@ L'aplicació està **en producció** a Vercel (frontend) + Supabase (base de dad
 | Autenticació | Supabase Auth (correu + MFA TOTP obligatòria) |
 | Storage (adjunts) | Supabase Storage (bucket privat) |
 | Funcions de servidor | Supabase Edge Functions (Deno) |
-| Exportació | ExcelJS (Excel) + jsPDF (PDF, amb Manrope) |
-| Tipografia | Manrope (`@fontsource/manrope`) al producte; Wix Madefor només a la portada |
+| Exportació | ExcelJS (Excel) + jsPDF (PDF, amb Manrope); es descarreguen només en exportar |
+| Tipografia | Manrope variable (`@fontsource-variable/manrope`) a tot arreu: producte, portada i PDF |
 | Icones | Lucide React |
 | Antispam | Cloudflare Turnstile (opcional) |
 | Monitoratge | Sentry (opcional, mai al canal de denúncies) |
@@ -37,63 +37,79 @@ L'aplicació està **en producció** a Vercel (frontend) + Supabase (base de dad
 
 ```
 src/
-├── main.jsx                 # Arrencada (Sentry opcional)
-├── App.jsx                  # Totes les rutes
-├── translations.js          # Tots els textos, en ca / es / en
+├── main.jsx                 # Arrencada (Sentry opcional, mai al canal). La comparteixen index.html i canal.html
+├── App.jsx                  # Totes les rutes (cada zona es descarrega quan cal)
+├── entries.js               # Els import() de cada zona, compartits per App.jsx i main.jsx
+├── translations.js          # Textos de la web, el canal i les peces comunes, en ca / es / en
+├── translations-panel.js    # Textos del panell i de les exportacions (només es descarreguen al panell)
 ├── lib/
 │   ├── supabase.js          # TOTES les crides a la base de dades i a les funcions
 │   ├── demoStore.js         # Dades del mode demo (sessionStorage); només es carrega en demo
+│   ├── deadlines.js         # Terminis legals en dies de calendari de Madrid (com la base de dades)
 │   ├── businessDays.js      # Dies hàbils (termini de l'AIPI)
+│   ├── format.js            # Formats comuns (mida d'un arxiu, locale de cada idioma)
 │   ├── whenFallback.js      # El «quan» en text quan la BD no té la columna
 │   └── cleanImage.js        # Treu les metadades de les fotos adjuntes
 └── v2/
-    ├── ds.css               # Sistema visual «B · Color»: tokens, peces i les dues meitats (tot sota .ds)
-    ├── ui/                  # Peces comunes: SplitShell, SideTab, Button, Card, Field, Dialog, Kanban,
-    │                        #   CaseCard, ChatThread, Menu, OtpInput, Offline… (index.js les exporta)
+    ├── ds.css               # Sistema visual: colors a :root (els de la paleta blava en clar), peces i les dues meitats (sota .ds)
+    ├── ui/                  # Peces comunes: SplitShell, Button, Card, Chip, Field, Dialog, Menu, Segmented,
+    │                        #   StepBar, PillNav, Kanban, CaseCard, DeadlineChip, ChatThread, OtpInput, Offline, BrandLogo (index.js les exporta)
     ├── canal/               # Costat Denunciar (/canal/:slug)
     │   ├── Canal.jsx        #   Les dues meitats, idioma i esborrany (només en memòria)
-    │   ├── Entrada.jsx      #   Entrada: Denunciar / Gestionar
+    │   ├── Entrada.jsx      #   Entrada: Denunciar / Gestionar, meitat i meitat
     │   ├── Denuncia.jsx     #   Els 3 passos
+    │   ├── Pruebas.jsx      #   Els adjunts del pas 2
     │   ├── Enviada.jsx      #   Codi secret i justificant PDF
     │   ├── Consulta.jsx     #   Escriure el codi i «El meu cas»
     │   ├── Privacidad.jsx   #   Política de privacitat dins del canal
-    │   └── Pruebas.jsx, shared.jsx, canal.css
+    │   └── shared.jsx, canal.css
     ├── panel/               # Costat Gestionar (/admin)
-    │   ├── Panel.jsx        #   Marc del panell: sessió, MFA, menú, cerca, avisos
+    │   ├── Panel.jsx        #   Marc del panell: sessió, MFA, capçalera, cerca, avisos
     │   ├── Acceso.jsx       #   Accés i verificació en dos passos
     │   ├── Contrasena.jsx   #   Recuperar i canviar la contrasenya (enllaços del correu)
-    │   ├── Tablero.jsx      #   Tauler de 3 columnes (Noves, En curs, Tancades)
-    │   ├── Caso.jsx         #   Fitxa del cas amb el «següent pas»
+    │   ├── Tablero.jsx      #   Tauler de 3 columnes (Noves, En curs, Tancades); al mòbil, llista amb pestanyes
+    │   ├── Caso.jsx         #   Fitxa del cas amb el «següent pas»; al mòbil, tres pestanyes
     │   ├── Registrar.jsx    #   Registrar un cas arribat per telèfon, en persona o per carta
     │   ├── Informe.jsx      #   Informe de l'any
-    │   ├── Compartir.jsx    #   Enllaç, cartell amb QR, botó per al web, text de l'art. 25 i «Primers passos»
-    │   ├── Ajustes.jsx      #   Equip i ajustos: Responsable, pla, empresa, la teva seguretat
+    │   ├── Compartir.jsx    #   Enllaç, cartell amb QR, botó per al web, text de l'art. 25 i la posada en marxa
+    │   ├── Ajustes.jsx      #   Equip i ajustos: Responsable, «La teva marca», pla, empresa, la teva seguretat (amb «Aparença»)
     │   ├── Equipo.jsx       #   Qui gestiona: invitar, permisos per tema, administradors, treure accés
     │   ├── Seguridad.jsx    #   Verificació en dos passos (/admin/mfa)
     │   ├── Ia.jsx           #   Ajudes d'IA (només amb VITE_AI_ENABLED=1)
-    │   └── kit.jsx, primeros.jsx, panel.css
-    ├── lib/                 # exportV2.js (Excel, PDF del cas, informe, cartell), pdfFonts.js (Manrope), receipt.js
-    ├── site/                # Web de Reportia: portada (/), /crear-compte, /privacitat, 404
-    ├── admin/adminKit.jsx   # Terminis legals, pla i textos del registre (compartit pel panell)
+    │   └── kit.jsx, primeros.jsx, PasswordField.jsx, texts.js, panel.css
+    ├── lib/                 # exportV2.js (Excel, PDF del cas, informe, cartell), receipt.js (justificant),
+    │                        #   pdfFonts.js i receiptFonts.js (Manrope; generats amb scripts/pdf-fonts.mjs),
+    │                        #   brand.js (les 8 paletes, clar i fosc: l'única font dels colors), logo.js (prepara el logotip),
+    │                        #   frame.js (el canal dins d'un iframe) i domain.js (adreça pròpia del canal)
+    ├── site/                # Web de Reportia: portada (/), /crear-compte, /privacitat, 404; plans.js (tarifes)
+    ├── admin/adminKit.jsx   # Dates, pla i textos del registre (compartit pel panell)
     ├── emails/              # Plantilles HTML dels correus de Supabase Auth (s'enganxen al dashboard)
     ├── dev/                 # /dev/ui: totes les peces del disseny (només en desenvolupament)
-    ├── V2Layout.jsx         # Stable/Swap (que res no es mogui en canviar d'idioma), idiomes, enllaços legals
+    ├── V2Layout.jsx         # Stable/Swap (que res no es mogui en canviar d'idioma), fmt, idiomes, enllaços legals
     ├── Ficha.jsx            # «Què guardem i què no»
-    └── v2.css               # Estils de la portada
+    └── v2.css               # Estils de la portada (i el reset comú)
 
 supabase/
-├── migrations/              # 001 … 013, totes additives i repetibles
-└── functions/               # invite-manager, delete-manager, notify, ai-assist (no desplegada)
+├── migrations/              # 001 … 017, totes additives i repetibles
+└── functions/               # invite-manager, delete-manager, notify, ai-assist (no desplegada); _shared/cors.ts (ALLOWED_ORIGINS)
 
 scripts/
 ├── migrate.js               # Executa migracions a Supabase (no fer-lo servir sense permís)
 ├── test-rls.mjs             # Proves de la base de dades en memòria (npm run db:test)
-├── pdf-fonts.mjs            # Regenera src/v2/lib/pdfFonts.js (Manrope per als PDF)
+├── test-logica.mjs          # Proves de la lògica: terminis, dies hàbils, neteja de fotos… (npm run test:logic)
+├── pdf-fonts.mjs            # Regenera src/v2/lib/pdfFonts.js i receiptFonts.js (Manrope per als PDF)
 ├── textos-sin-uso.mjs       # Llista (o treu amb --write) els textos que no fa servir cap pantalla
-└── landing-*.mjs            # Captures i fotos de la portada
+└── landing-*.mjs, og-image.mjs  # Captures i fotos de la portada, i la imatge en compartir l'enllaç
+
+e2e/                         # Proves de navegador (npm run e2e). Playwright va fora del repositori: e2e/README.md
 
 docs/
+├── PLAN_FASES.md            # El pla per fases de la «Vuelta», amb el que ja està fet
+├── TEXTOS_PROPUESTA.md      # Inventari de textos i la taula aprovada
+├── AUDITORIA.md             # Auditoria tècnica (seguretat, accessibilitat, rendiment)
+├── AUDITORIA_ESTETICA.md    # Auditoria d'estètica i to
 ├── IA.md                    # Què cal per encendre la IA
+├── INTEGRACION.md           # Posar el canal al web d'un client: enllaç, script, iframe i adreça pròpia (i què fa Reportia)
 ├── REVISION_LEGAL.md        # Dubtes pendents de l'advocat (no canviar aquests textos sense resposta)
 └── REVISION_UX.md           # Revisió de disseny i usabilitat
 ```
@@ -113,10 +129,12 @@ docs/
 | Ruta | Pàgina |
 |------|--------|
 | `/canal/:slug` | Entrada en dues meitats |
-| `/canal/:slug/denuncia` | Els 3 passos i la denúncia enviada |
+| `/canal/:slug/formulario` | Els 3 passos i la denúncia enviada (l'adreça d'abans, `/denuncia`, hi redirigeix) |
 | `/canal/:slug/consulta` | Escriure el codi i «El meu cas» |
 | `/canal/:slug/privacidad` | Política de privacitat dins del canal |
 | `/canal/demo` | Canal d'exemple (sempre en mode demo; «Gestionar» porta a `/crear-compte`) |
+
+A producció, `/canal/*` se serveix amb `canal.html` (vercel.json): la mateixa aplicació, però la pestanya i la vista prèvia en compartir l'enllaç diuen «Canal de denuncias», sense Reportia. Només `/canal/*` es pot posar dins d'un iframe d'una altra web (amb https); el panell i la web, mai (també ho impedeix la mateixa aplicació). A l'adreça pròpia d'una empresa (`canal.acme.es`, migració 017) l'arrel obre el seu canal i la resta va a l'adreça principal. Vegeu `docs/INTEGRACION.md`.
 
 ### Panell (costat Gestionar, requereix login + MFA)
 | Ruta | Pàgina |
@@ -136,15 +154,15 @@ docs/
 
 ## Base de dades (taules principals)
 
-- **organizations** — empresa: nom, slug, pla i prova, Responsable del Sistema (nom, càrrec, data de nomenament, data de comunicació a l'AIPI), autoritat autonòmica, facturació, `onboarding` (primers passos marcats a mà)
+- **organizations** — empresa: nom, slug, pla i prova, Responsable del Sistema (nom, càrrec, data de nomenament, data de comunicació a l'AIPI), autoritat autonòmica, facturació, `onboarding` (primers passos marcats a mà), `brand_palette` i `brand_logo` («La teva marca», 016), `custom_domain` (adreça pròpia del canal, 017; només la canvia Reportia)
 - **complaints** — denúncia: referència interna, hash del codi de seguiment, categoria, descripció, «quan» en text, estat, prioritat, idioma, anònima o identificada, via d'entrada, reunió demanada i feta, resultat, títol, qui la porta, resum i títol d'IA, dates legals
 - **attachments** — fitxers adjunts
 - **messages** — missatges entre qui informa i qui gestiona
 - **audit_logs** — registre de totes les accions sobre una denúncia
 - **manager_permissions** — permisos per gestor i tema (can_view, can_edit, can_reply, can_delete)
-- **profiles** — usuaris del panell (rol: superadmin o manager)
+- **profiles** — usuaris del panell (rol: superadmin o manager; `appearance`: clar, fosc o com el sistema, 016)
 
-Migracions: de la `001` a la `013`, totes executades a producció. Qualsevol canvi nou va en una `014` additiva i repetible, amb les seves proves a `scripts/test-rls.mjs`.
+Migracions: de la `001` a la `017`, totes additives i repetibles. Fins a la `013` consten com a executades a producció; de la `014` i la `015`, comprova-ho abans de donar-ho per fet; la `016` (marca blanca) i la `017` (adreça pròpia) encara no s'han executat. L'app funciona igual si encara no hi són. Qualsevol canvi nou va en una `018`, amb les seves proves a `scripts/test-rls.mjs`.
 
 ### Estats d'una denúncia
 `received` → `reviewing` → `investigating` → `waiting` → `resolved` → `closed` → `archived`
@@ -170,6 +188,7 @@ Al tauler: **Noves** (`received`), **En curs** (`reviewing`, `investigating`, `w
 - L'esborrany de la denúncia viu només a la memòria de React: res al navegador
 - Honeypot i Turnstile (opcional) al formulari públic
 - Storage privat per als adjunts
+- El logotip de «La teva marca» es desa a la base de dades ja preparat pel navegador (imatge petita PNG o JPEG en `data:`, mai SVG); la base de dades rebutja qualsevol altra cosa. El canal segueix el mode clar o fosc del sistema sense desar res al navegador
 - Conforme a RGPD i Llei 2/2023
 
 ---
@@ -192,6 +211,7 @@ Secrets de les funcions de servidor (a Supabase, mai al codi):
 invite-manager:  SITE_URL
 notify:          RESEND_API_KEY, MAIL_FROM, SITE_URL, WEBHOOK_SECRET
 ai-assist:       AI_PROVIDER_URL, AI_API_KEY, AI_MODEL, AI_PROVIDER_FORMAT   (no desplegada)
+invite-manager, delete-manager, ai-assist:  ALLOWED_ORIGINS   (opcional; webs que les poden cridar, separades per comes)
 ```
 
 Variables locals (no al repositori):
@@ -208,6 +228,8 @@ SUPABASE_PAT=
 npm run dev        # Servidor de desenvolupament (port 3000)
 npm run build      # Build per a producció
 npm run db:test    # Proves de seguretat de la base de dades, en memòria (PGlite): no toca res real
+npm run test:logic # Proves de la lògica (terminis, dies hàbils, neteja de fotos): sense navegador ni base de dades
+npm run e2e        # Proves de navegador en mode demo i contra una xarxa simulada (vegeu e2e/README.md)
 npm run db:migrate # Executa migracions a Supabase (només amb permís explícit)
 node scripts/pdf-fonts.mjs        # Regenera la tipografia dels PDF
 node scripts/textos-sin-uso.mjs   # Llista els textos sense ús (--write per treure'ls)
@@ -220,7 +242,8 @@ node scripts/textos-sin-uso.mjs   # Llista els textos sense ús (--write per tre
   Per entrar al panell: qualsevol correu i contrasenya i qualsevol codi de 6 xifres. Les dades viuen a `sessionStorage` (`reportia-demo-store-v4`) i es reinicien en tancar la pestanya.
   Amb `VITE_AI_ENABLED=1` es veuen les ajudes d'IA amb textos d'exemple.
 - **Base de dades:** `npm run db:test` aplica totes les migracions a un Postgres en memòria i comprova les polítiques.
-- **Sense una migració:** l'app continua funcionant si la base de dades no té les columnes de la 012 o la 013 (vegeu `withRedesign` a `supabase.js`).
+- **Sense una migració:** l'app continua funcionant si la base de dades no té les columnes de la 012, la 013, la 014 o la 016 (vegeu `withRedesign` a `supabase.js`; sense la 016, el canal i el panell surten en blau i «La teva marca» i «Aparença» no es mostren).
+- **Navegador:** `npm run e2e` recorre el canal i el panell a 1440 i 375 px, en els tres idiomes, sense sortir de l'ordinador.
 
 ---
 
@@ -243,6 +266,13 @@ Cap component crida Supabase directament.
 
 ### 6. Les peces del disseny, a `src/v2/ui`
 Les pantalles noves fan servir les peces comunes i els tokens de `ds.css`. Accessibilitat: botons i enllaços de veritat, focus visible, `aria-label` als botons d'icona, contrast mínim 4,5:1 (mesurat), diàlegs propis (mai `confirm()`).
+
+Regles de color: un sol tint (el suau de l'accent); vermell i ambre només en estats i terminis; com a màxim tres colors per pantalla. Al mòbil el panell va sobre blanc i sense caixes.
+
+Marca blanca: els colors es fan servir sempre amb les variables (`var(--report)`, `var(--surface)`, `var(--on-report)`…), mai amb un hexadecimal fix, perquè canvien amb la paleta de l'empresa i amb el mode fosc. Totes surten de `src/v2/lib/brand.js` (`useBrandTheme` les posa a `<html>`); `npm run test:logic` comprova el contrast de les 8 paletes en clar i en fosc i que `ds.css` en porta els valors per defecte. El canal no porta res de Reportia: `canal.html` (pestanya i vista prèvia en compartir) i el logotip de l'empresa; el peu «Amb Reportia» espera la decisió del cap (n.º 79).
+
+### 7. Comentaris del codi, en castellà
+Els comentaris de `src/`, `scripts/`, `e2e/` i les funcions de servidor s'escriuen en castellà (un sol idioma). Les migracions ja escrites es deixen com estan.
 
 ---
 

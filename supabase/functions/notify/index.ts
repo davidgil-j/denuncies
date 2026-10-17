@@ -1,18 +1,18 @@
-// Avisos per correu a qui gestiona el canal: denúncia nova i missatge nou de qui informa.
-// El correu NO porta cap dada de la denúncia: només la referència i l'enllaç al panell.
+// Avisos por correo a quien gestiona el canal: denuncia nueva y mensaje nuevo de quien informa.
+// El correo NO lleva ningún dato de la denuncia: solo la referencia y el enlace al panel.
 //
-// ESTAT: escrita i revisada, encara NO provada contra un projecte real (cal un proveïdor de correu).
+// ESTADO: escrita y revisada, todavía NO probada contra un proyecto real (hace falta un proveedor de correo).
 //
-// Com es connecta (Supabase > Database > Webhooks, dos webhooks de tipus "Supabase Edge Function"):
-//   1. Taula complaints, esdeveniment INSERT  → funció notify
-//   2. Taula messages,   esdeveniment INSERT  → funció notify
-//   A tots dos, capçalera HTTP:  x-webhook-secret: <el mateix valor que WEBHOOK_SECRET>
+// Cómo se conecta (Supabase > Database > Webhooks, dos webhooks de tipo "Supabase Edge Function"):
+//   1. Tabla complaints, evento INSERT  → función notify
+//   2. Tabla messages,   evento INSERT  → función notify
+//   En los dos, cabecera HTTP:  x-webhook-secret: <el mismo valor que WEBHOOK_SECRET>
 //
-// Secrets (Supabase > Edge Functions > Secrets):
-//   WEBHOOK_SECRET   una cadena llarga i aleatòria
-//   RESEND_API_KEY   clau de Resend (resend.com), amb el domini verificat (SPF i DKIM)
-//   MAIL_FROM        per exemple: Reportia <avisos@reportia.es>
-//   SITE_URL         adreça pública del lloc, sense barra final
+// Secretos (Supabase > Edge Functions > Secrets):
+//   WEBHOOK_SECRET   una cadena larga y aleatoria
+//   RESEND_API_KEY   clave de Resend (resend.com), con el dominio verificado (SPF y DKIM)
+//   MAIL_FROM        por ejemplo: Reportia <avisos@reportia.es>
+//   SITE_URL         dirección pública del sitio, sin barra final
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const json = (body: unknown, status = 200) =>
@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     if (!complaint?.organization_id) return json({ skipped: 'no-complaint' });
     const { data: org } = await admin.from('organizations').select('name').eq('id', complaint.organization_id).single();
 
-    // Destinataris: administradors de l'organització i gestors amb permís de veure la categoria
+    // Destinatarios: administradores de la organización y gestores con permiso de ver la categoría
     const { data: profiles } = await admin
       .from('profiles').select('id, role').eq('organization_id', complaint.organization_id);
     const { data: perms } = await admin
@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
     const url = `${siteUrl}/admin/complaints/${complaint.id}`;
     const t = TEXT[kind];
     let sent = 0;
-    // Un correu per persona: ningú veu les adreces de la resta
+    // Un correo por persona: nadie ve las direcciones de los demás
     for (const to of emails) {
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',

@@ -6,6 +6,7 @@ import { fmt, Swap } from '../V2Layout.jsx';
 import { Button, Dialog } from '../ui/index.js';
 import { uploadAttachments } from '../../lib/supabase.js';
 import { CanalHead, Tc, ic, ackDue, respDue, dayMonth, dateTime } from './shared.jsx';
+import { paletteOf, rgbOf } from '../lib/brand.js';
 
 // Subidas ya empezadas (una sola vez por envío, aunque la pantalla se vuelva a montar)
 const started = new WeakSet();
@@ -77,6 +78,7 @@ export default function Enviada() {
         nextTitle: t.nextT,
         next: [[t.n1, fmt(t.byDate, { date: dates.ack })], [t.n2, t.n2d], [t.n3, fmt(t.byDate, { date: dates.resp })]],
         notes: [t.rcKeep, t.noRetaliation],
+        color: rgbOf(paletteOf(org.brand_palette).light.accent),
       });
       secure();
     } catch (err) {

@@ -7,46 +7,67 @@
    · rojo y ámbar, solo en estados (barra, etiqueta pequeña o número), nunca como fondo de tarjeta;
    · tres colores por pantalla como máximo: neutros, acento y, si hace falta, rojo o ámbar de estado. */
 
-.ds {
-  --font: 'Manrope Variable', 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-
+/* Colores. Van en la raíz de la página y no en .ds: así el modo oscuro y la paleta de cada empresa («Tu marca»)
+   llegan a todo, también a los diálogos y avisos. Estos son los de la paleta azul en claro, para las páginas que no
+   aplican marca; el canal y el panel los sustituyen con los de src/v2/lib/brand.js (la única fuente: si se cambia
+   uno aquí, hay que cambiarlo allí, y test-logica lo comprueba). */
+:root {
   --bg: #F6F7F9;
   --surface: #FFFFFF;
   --ink: #0D1530;
   --muted: #4D5672;
   --line: #E3E6ED;
-  /* Contorno de los campos: 3:1 sobre blanco, el mínimo para que se distinga dónde se escribe */
+  /* Contorno de los campos: 3:1 sobre blanco, el mínimo para que se distinga dónde se escribe. Sobre gris, el fuerte */
   --field-line: #8A93AD;
+  --field-line-strong: #7E87A3;
+  --input-bg: #FFFFFF;
   --soft: #F1F3F7;
+  --soft-hover: #E7EAF0;
 
+  /* El acento de la paleta, el texto que va encima y su único tinte */
   --report: #2F54EB;
+  --on-report: #FFFFFF;
+  --report-hover: #294ACF;
   --report-soft: #E8EDFF;
+  --report-soft-hover: #DBE2FE;
   --report-soft-ink: #1F3FC4;
-  /* Sobre el color, el texto va siempre en blanco: así pasa el contraste con cualquier paleta */
-  --on-report-muted: #FFFFFF;
+  --report-link-hover: #183199;
+  /* La mitad de Denunciar en la entrada: el acento en claro, también en modo oscuro, siempre con texto blanco */
+  --solid: #2F54EB;
+  --on-solid: #FFFFFF;
 
   --warn-bg: #FFF3D6;
   --warn-ink: #8A5A00;
-  --warn-line: #EBD79B;
   --danger-bg: #FDECEA;
   --danger-ink: #B42318;
   --danger-line: #F3B5AE;
-  --ok-bg: #E2F4EB;
-  --ok-ink: #17694A;
   /* La nota interna: el único fondo que no es neutro ni del acento */
   --note-bg: #FFF8E5;
   --note-line: #EBD79B;
 
+  /* Lo que va sobre la tinta (avisos flotantes, el aviso del canal de ejemplo). En oscuro la tinta es clara */
+  --ink-hover: #1A2547;
+  --on-ink: #FFFFFF;
   --on-ink-muted: #C9D3F5;
-  --on-ink-accent: #7EA0FF;
   --on-ink-warn: #FFC46B;
-  --chart-soft: #A9BCFA;
-
-  /* Sobre el azul siempre se oscurece, nunca se aclara: el blanco translúcido baja el contraste del texto */
-  --shade-card: rgba(13, 21, 48, .18);
-  --shade-btn: rgba(13, 21, 48, .20);
-  --shade-chip: rgba(13, 21, 48, .22);
+  --on-ink-danger: #FFB4AB;
   --on-ink-glass: rgba(255, 255, 255, .14);
+
+  /* Gráficos del informe: dos grises (el acento marca la serie principal) */
+  --chart-1: #D7DCE6;
+  --chart-2: #A7AEC2;
+
+  /* La única sombra: la de lo que flota (menús, diálogos y avisos) */
+  --shadow-picked: 0 8px 24px rgba(13, 21, 48, .14);
+  --backdrop: rgba(13, 21, 48, .5);
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234D5672' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  /* Detrás del logo de la empresa: nada sobre blanco; una placa blanca sobre el color o en oscuro */
+  --logo-plate: transparent;
+  --logo-pad: 0px;
+}
+
+.ds {
+  --font: 'Manrope Variable', 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   --r-xl: 14px;
   --r-lg: 14px;
@@ -55,9 +76,6 @@
   --r-input-sm: 8px;
   /* Botones: esquinas de 10 px, no píldora (decisión del 13 oct 2026). Es el único valor que hay que tocar para cambiarlo */
   --r-pill: 10px;
-
-  /* La única sombra: la de lo que flota (menús, diálogos y avisos) */
-  --shadow-picked: 0 8px 24px rgba(13, 21, 48, .14);
 
   --t-split: 250ms;
   --ease: cubic-bezier(.23, 1, .32, 1);
@@ -78,18 +96,18 @@
 :where(.ds) :where(svg) { flex: none; display: block; }
 :where(.ds) :where(a) { color: var(--link); text-underline-offset: 3px; }
 :where(.ds) :where(a:hover) { color: var(--link-hover); }
-body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: #F6F7F9; }
+body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: var(--bg); }
 
 /* Qué hay debajo: cambia el color del foco y de los enlaces para que siempre se vean */
 /* Va con variables y no con selectores anidados: así una tarjeta blanca dentro del lado azul
    (o una azul dentro del blanco) toma siempre los colores del fondo que tiene justo debajo. */
 .ds, .ds-on-white, .ds-on-bg {
-  --focus: var(--report); --link: var(--report-soft-ink); --link-hover: #16309A; --lead: var(--muted);
-  --mark-bg: var(--ink); --mark-ink: #FFFFFF;
+  --focus: var(--report); --link: var(--report-soft-ink); --link-hover: var(--report-link-hover); --lead: var(--muted);
+  --mark-bg: var(--ink); --mark-ink: var(--on-ink);
 }
 .ds-on-white, .ds-on-bg { color: var(--ink); }
-.ds-on-report { --focus: #FFFFFF; --link: #FFFFFF; --link-hover: var(--on-report-muted); --lead: var(--on-report-muted); --mark-bg: #FFFFFF; --mark-ink: var(--ink); color: #FFFFFF; }
-.ds-on-ink { --focus: #FFFFFF; --link: #FFFFFF; --link-hover: var(--on-ink-muted); --lead: var(--on-ink-muted); --mark-bg: #FFFFFF; --mark-ink: var(--ink); color: #FFFFFF; }
+.ds-on-report { --focus: var(--on-solid); --link: var(--on-solid); --link-hover: var(--on-solid); --lead: var(--on-solid); --mark-bg: #FFFFFF; --mark-ink: #0D1530; --logo-plate: #FFFFFF; --logo-pad: 4px 7px; color: var(--on-solid); }
+.ds-on-ink { --focus: var(--on-ink); --link: var(--on-ink); --link-hover: var(--on-ink-muted); --lead: var(--on-ink-muted); --mark-bg: var(--on-ink); --mark-ink: var(--ink); color: var(--on-ink); }
 
 .ds :where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--focus);
@@ -103,8 +121,8 @@ body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: #
 @media (max-width: 640px) { .ds .ds-wide { display: none; } .ds .ds-narrow { display: inline-grid; } }
 .ds [tabindex="-1"]:focus { outline: none; }
 
-.ds-skip { position: absolute; left: 16px; top: -80px; z-index: 50; padding: 10px 14px; border-radius: 10px; background: var(--ink); color: #FFFFFF; font-weight: 700; text-decoration: none; }
-.ds .ds-skip:focus { top: 12px; color: #FFFFFF; }
+.ds-skip { position: absolute; left: 16px; top: -80px; z-index: 50; padding: 10px 14px; border-radius: 10px; background: var(--ink); color: var(--on-ink); font-weight: 700; text-decoration: none; }
+.ds .ds-skip:focus { top: 12px; color: var(--on-ink); }
 
 /* Títulos */
 .ds-h1 { font-size: 28px; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; text-wrap: balance; }
@@ -118,25 +136,23 @@ body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: #
    lado, el otro desaparece y el elegido cubre la página (en el canal ya no hay franja plegada). */
 .ds-split { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); }
 /* Aviso a todo el ancho, encima de todo (el canal de ejemplo) */
-.ds-split-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 16px; padding: 8px 16px; background: var(--ink); color: #FFFFFF; font-size: 13px; font-weight: 600; --focus: #FFFFFF; }
+.ds-split-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 16px; padding: 8px 16px; background: var(--ink); color: var(--on-ink); font-size: 13px; font-weight: 600; --focus: var(--on-ink); }
 .ds .ds-split-banner :where(a) { display: inline-flex; align-items: center; gap: 6px; color: var(--on-ink-muted); }
+/* En oscuro la tinta es clara: el aviso no se vuelve una franja blanca, va casi negro con su línea */
+:root[data-theme="dark"] .ds-split-banner { --ink: #05070D; --on-ink: #EEF1F7; --on-ink-muted: #A8B1C6; border-bottom: 1px solid var(--line); }
 .ds-split-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 32px; }
 .ds-split-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 24px; min-height: 44px; padding: 6px 32px; border-top: 1px solid var(--line); background: var(--surface); font-size: 13px; color: var(--muted); }
 .ds-split-bottom :where(a) { color: var(--muted); display: inline-block; padding: 4px 0; }
 .ds-split-panes { flex: 1; display: flex; gap: 0; padding: 0; min-height: 0; }
 
 .ds-pane { position: relative; display: flex; flex-direction: column; min-width: 0; flex: 1 1 0; }
-.ds-pane.is-report { background: var(--report); }
+.ds-pane.is-report { background: var(--solid); }
 .ds-pane.is-manage { background: var(--surface); }
-.ds-pane.is-tab { flex: 0 0 76px; }
 .ds-pane-body { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 /* Elegido Denunciar: el formulario va sobre blanco; el color queda para el botón principal y lo seleccionado */
 .ds-split.is-report .ds-pane.is-report { background: var(--surface); }
 .ds-split.is-report .ds-pane.is-report > .ds-pane-body { padding: 0; gap: 0; }
 .ds-split.is-manage .ds-pane.is-manage > .ds-pane-body { padding: 24px 32px 32px; gap: 24px; }
-/* El panel conserva su franja «Ver el canal» hasta el bloque B de la «Vuelta»: mientras exista, el marco es el de antes */
-.ds-split-panes:has(> .ds-pane.is-tab) { gap: 16px; padding: 16px; }
-.ds-split-panes:has(> .ds-pane.is-tab) > .ds-pane { border-radius: var(--r-xl); overflow: hidden; }
 
 /* La entrada. La cabecera (empresa a la izquierda; idioma y «Salir rápido» a la derecha) no ocupa alto propio: se
    pinta encima de las dos mitades, que le reservan su fila. Cada mitad es la misma rejilla de siete filas (cabecera,
@@ -146,12 +162,12 @@ body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: #
 .ds-split.is-entry > .ds-split-top { position: relative; z-index: 1; height: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-content: start; gap: 0; }
 .ds-split.is-entry > .ds-split-top > * { height: var(--entry-top); padding: var(--entry-pad); }
 /* Cada mitad de la cabecera lleva el fondo de la mitad que tiene debajo */
-.ds-split.is-entry > .ds-split-top > :first-child { background: var(--report); }
+.ds-split.is-entry > .ds-split-top > :first-child { background: var(--solid); }
 .ds-split.is-entry > .ds-split-top > :last-child { background: var(--surface); }
 .ds-split.is-entry .ds-pane { padding: var(--entry-pad); padding-top: var(--entry-top); }
 .ds-split.is-entry .ds-pane-body { justify-content: center; padding: 24px 0; }
 .ds-pane-foot { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 20px; min-height: 48px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
-.ds-pane.is-report > .ds-pane-foot { border-top-color: rgba(255, 255, 255, .28); color: #FFFFFF; }
+.ds-pane.is-report > .ds-pane-foot { border-top-color: rgba(255, 255, 255, .28); color: var(--on-solid); }
 .ds-pane.is-manage > .ds-pane-foot { justify-content: flex-end; }
 @supports (grid-template-rows: subgrid) {
   @media (min-width: 641px) {
@@ -170,29 +186,15 @@ body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: #
   @keyframes ds-pane-back { from { opacity: 0; } to { opacity: 1; } }
 }
 
-/* La franja plegada (solo el panel, hasta el bloque B) */
-.ds-tab {
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-  padding: 24px 0; text-decoration: none; border: 0; background: none; cursor: pointer; border-radius: inherit;
-}
-.ds-tab-label { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 15px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; }
-.ds-tab-dot { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
-.ds-tab.is-report { color: #FFFFFF; --focus: #FFFFFF; }
-.ds-tab.is-report .ds-tab-dot { background: #FFFFFF; color: var(--ink); }
-.ds-tab.is-manage { color: var(--ink); --focus: var(--report); }
-.ds-tab.is-manage .ds-tab-dot { background: var(--ink); color: #FFFFFF; }
-.ds .ds-tab:focus-visible { outline-offset: -5px; }
-.ds .ds-tab.is-report:hover { color: #FFFFFF; }
-.ds .ds-tab.is-manage:hover { color: var(--ink); }
 
 @media (max-width: 640px) {
   .ds-split-top { padding: 12px 16px 4px; }
   .ds-split-bottom { justify-content: center; padding: 6px 16px; gap: 2px 16px; font-size: 12px; }
   /* En el móvil, también mitad y mitad: Denunciar arriba (con la cabecera encima) y Gestionar abajo */
   .ds-split.is-entry { --entry-top: 56px; --entry-pad: 0 16px; }
-  .ds-split.is-entry > .ds-split-top { display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 0 16px; --focus: #FFFFFF; }
+  .ds-split.is-entry > .ds-split-top { display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 0 16px; --focus: var(--on-solid); }
   .ds-split.is-entry > .ds-split-top > * { padding: 0; }
-  .ds-split.is-entry > .ds-split-top > :last-child { background: var(--report); }
+  .ds-split.is-entry > .ds-split-top > :last-child { background: var(--solid); }
   .ds-split.is-entry .ds-split-panes { flex-direction: column; }
   .ds-split.is-entry .ds-pane { padding-top: 0; }
   .ds-split.is-entry .ds-pane-body { padding: 12px 0 20px; }
@@ -202,7 +204,6 @@ body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: #
   /* Con un lado elegido, ocupa la pantalla entera */
   .ds-split:not(.is-entry) .ds-split-panes { padding: 0; gap: 0; }
   .ds-split:not(.is-entry) .ds-split-panes > .ds-pane { border-radius: 0; }
-  .ds-split:not(.is-entry) .ds-pane.is-tab { display: none; }
   .ds-split.is-manage .ds-pane.is-manage > .ds-pane-body { padding: 16px 18px 18px; gap: 16px; }
 }
 
@@ -226,26 +227,27 @@ body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: #
 
 /* report: la acción principal · soft: secundaria (blanca con línea) · bg: terciaria (gris) · line: contorno oscuro
    · white y shade: sobre el color (la entrada) · ink y glass: sobre oscuro */
-.ds .ds-btn.is-white { background: #FFFFFF; color: var(--ink); border-color: var(--line); }
-.ds .ds-btn.is-ink { background: var(--ink); color: #FFFFFF; }
-.ds .ds-btn.is-report { background: var(--report); color: #FFFFFF; }
+/* white y shade van siempre sobre el color sólido de la entrada, igual en claro y en oscuro */
+.ds .ds-btn.is-white { background: #FFFFFF; color: #0D1530; border-color: #E3E6ED; }
+.ds .ds-btn.is-ink { background: var(--ink); color: var(--on-ink); }
+.ds .ds-btn.is-report { background: var(--report); color: var(--on-report); }
 .ds .ds-btn.is-soft { background: var(--surface); color: var(--ink); border-color: var(--line); }
 .ds .ds-btn.is-bg { background: var(--soft); color: var(--ink); }
 .ds .ds-btn.is-ghost { background: transparent; color: var(--ink); }
 .ds .ds-btn.is-tint { background: var(--report-soft); color: var(--report-soft-ink); }
 .ds .ds-btn.is-line { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
-.ds .ds-btn.is-shade { background: transparent; color: #FFFFFF; border-color: rgba(255, 255, 255, .7); }
-.ds .ds-btn.is-glass { background: var(--on-ink-glass); color: #FFFFFF; }
+.ds .ds-btn.is-shade { background: transparent; color: var(--on-solid); border-color: rgba(255, 255, 255, .7); }
+.ds .ds-btn.is-glass { background: var(--on-ink-glass); color: var(--on-ink); }
 .ds .ds-btn.is-danger { background: var(--surface); color: var(--danger-ink); border-color: var(--danger-line); }
 /* Al pasar el ratón el botón se oscurece un poco; no se mueve ni crece */
 @media (hover: hover) {
   .ds .ds-btn.is-white:hover { background: #EEF1F7; }
-  .ds .ds-btn.is-ink:hover { background: #1A2547; }
-  .ds .ds-btn.is-report:hover { background: #2647D0; }
+  .ds .ds-btn.is-ink:hover { background: var(--ink-hover); }
+  .ds .ds-btn.is-report:hover { background: var(--report-hover); }
   .ds .ds-btn.is-soft:hover, .ds .ds-btn.is-line:hover { background: var(--soft); }
-  .ds .ds-btn.is-bg:hover { background: #E7EAF0; }
+  .ds .ds-btn.is-bg:hover { background: var(--soft-hover); }
   .ds .ds-btn.is-ghost:hover { background: var(--soft); }
-  .ds .ds-btn.is-tint:hover { background: #DCE4FF; }
+  .ds .ds-btn.is-tint:hover { background: var(--report-soft-hover); }
   .ds .ds-btn.is-shade:hover { background: rgba(255, 255, 255, .12); }
   .ds .ds-btn.is-glass:hover { background: rgba(255, 255, 255, .22); }
   .ds .ds-btn.is-danger:hover { background: var(--danger-bg); }
@@ -269,9 +271,9 @@ body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: #
 .ds-chip.is-warn { background: var(--warn-bg); color: var(--warn-ink); box-shadow: none; }
 .ds-chip.is-danger { background: var(--danger-bg); color: var(--danger-ink); box-shadow: none; }
 .ds-chip.is-ok { color: var(--muted); }
-.ds-chip.is-ink { background: var(--ink); color: #FFFFFF; box-shadow: none; }
-.ds-chip.is-white { background: #FFFFFF; color: var(--ink); }
-.ds-chip.is-shade { color: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .6); }
+.ds-chip.is-ink { background: var(--ink); color: var(--on-ink); box-shadow: none; }
+.ds-chip.is-white { background: #FFFFFF; color: #0D1530; }
+.ds-chip.is-shade { color: var(--on-solid); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .6); }
 .ds-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .ds-chips.is-lg { gap: 8px; }
 
@@ -279,8 +281,8 @@ body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: #
 /* Blanca, con línea de 1 px y sin sombra. Como máximo dos niveles: la página y sus tarjetas. */
 .ds-card { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 20px; border-radius: var(--r-lg); background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
 .ds-card.is-bg { background: var(--soft); box-shadow: none; }
-.ds-card.is-ink { background: var(--ink); color: #FFFFFF; box-shadow: none; }
-.ds-card.is-report { background: var(--report); color: #FFFFFF; box-shadow: none; }
+.ds-card.is-ink { background: var(--ink); color: var(--on-ink); box-shadow: none; }
+.ds-card.is-report { background: var(--solid); color: var(--on-solid); box-shadow: none; }
 .ds-card.is-shade { background: var(--soft); box-shadow: none; }
 .ds-card.is-outline { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
 .ds-card.is-dashed { background: transparent; box-shadow: none; border: 1px dashed var(--field-line); }
@@ -289,7 +291,14 @@ body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: #
 .ds-card.r-md { border-radius: var(--r-md); padding: 16px; }
 .ds-card-title { font-size: 17px; font-weight: 700; line-height: 1.3; }
 
-/* Marca de la empresa (iniciales, solo en el panel hasta la marca blanca) y avatar de la persona, en gris neutro */
+/* La marca de la empresa: su logo, si lo tiene, y su nombre (sin logo, solo el nombre). El logo se hizo para un fondo
+   claro: sobre el color de la entrada o en modo oscuro va en una placa blanca (--logo-plate) */
+.ds-brand { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.ds-brand-logo { flex: none; display: inline-flex; align-items: center; height: var(--logo-h, 32px); padding: var(--logo-pad, 0); border-radius: 6px; background: var(--logo-plate); }
+.ds-brand-logo img { display: block; height: 100%; width: auto; max-width: var(--logo-w, 140px); object-fit: contain; }
+.ds-brand-name { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+
+/* Iniciales (solo en la página de piezas del diseño) y avatar de la persona, en gris neutro */
 .ds-mark { width: 32px; height: 32px; flex: none; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: var(--mark-bg); color: var(--mark-ink); }
 .ds-avatar { width: 32px; height: 32px; flex: none; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: var(--soft); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
 .ds-avatar.is-sm { width: 28px; height: 28px; font-size: 12px; }
@@ -306,27 +315,27 @@ body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: #
 .ds-field-label { font-size: 13px; line-height: 20px; font-weight: 600; color: var(--ink); }
 .ds-field.is-sm .ds-field-label { font-size: 13px; color: var(--muted); }
 /* Campo puesto directamente sobre el color */
-.ds-field.is-on-report .ds-field-label { color: #FFFFFF; font-weight: 700; }
+.ds-field.is-on-report .ds-field-label { color: var(--on-solid); font-weight: 700; }
 .ds-field-tag { font-weight: 500; color: var(--muted); }
 .ds-input {
   width: 100%; min-width: 0; height: 40px; padding: 0 12px;
-  border: 1px solid var(--field-line); border-radius: var(--r-input); background: #FFFFFF;
+  border: 1px solid var(--field-line); border-radius: var(--r-input); background: var(--input-bg);
   font-family: inherit; font-size: 15px; color: var(--ink);
 }
 textarea.ds-input { height: auto; padding: 10px 12px; line-height: 1.55; resize: none; }
 select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 36px; font-weight: 500;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234D5672' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-image: var(--select-chevron);
   background-repeat: no-repeat; background-position: right 12px center; }
 .ds-field.is-sm .ds-input { height: 36px; padding: 0 10px; border-radius: var(--r-input-sm); font-size: 14px; }
 .ds-field.is-sm select.ds-input { padding-right: 32px; }
 .ds-field.is-sm textarea.ds-input { height: auto; padding: 8px 10px; }
 /* Sobre una tarjeta gris la línea del campo es algo más oscura: así sigue llegando a 3:1 */
-.ds-field.is-plain .ds-input { border-color: #7E87A3; font-weight: 500; }
+.ds-field.is-plain .ds-input { border-color: var(--field-line-strong); font-weight: 500; }
 .ds-field.is-warn .ds-input { border-color: var(--warn-ink); }
 /* El código de seguimiento: letra grande y espaciada, en un campo del mismo alto que su botón */
 .ds-field.is-code .ds-input { height: 48px; padding: 0 14px; font-size: 22px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
 .ds-input::placeholder { color: var(--muted); opacity: 1; font-weight: 400; }
-.ds-field.is-code .ds-input::placeholder { color: #8A93AD; font-weight: 700; }
+.ds-field.is-code .ds-input::placeholder { color: var(--field-line); font-weight: 700; }
 .ds .ds-input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-color: var(--report); }
 .ds-input[aria-invalid="true"] { border-color: var(--danger-ink); }
 .ds-input:disabled { background: var(--soft); color: var(--muted); }
@@ -390,8 +399,8 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 36p
 .ds-steps.is-line .ds-steps-seg[aria-current="step"] .ds-steps-name { font-weight: 700; }
 .ds-steps.is-ink .ds-steps-bar { gap: 6px; }
 .ds-steps.is-ink .ds-steps-seg::before { height: 4px; background: rgba(255, 255, 255, .2); }
-.ds-steps.is-ink .ds-steps-seg.is-done::before { background: var(--on-ink-accent); }
-.ds-steps.is-ink .ds-steps-seg[aria-current="step"] .ds-steps-name { color: #FFFFFF; }
+.ds-steps.is-ink .ds-steps-seg.is-done::before { background: var(--on-ink); }
+.ds-steps.is-ink .ds-steps-seg[aria-current="step"] .ds-steps-name { color: var(--on-ink); }
 @media (max-width: 640px) { .ds-steps.is-compact .ds-steps-count { display: none; } .ds-steps-name { overflow-wrap: anywhere; } }
 /* En el móvil los nombres van a 12 px y cada paso ocupa, como mínimo, lo que mide su palabra más larga: en una
    pantalla de 320 px «Investigando» no se monta sobre el paso siguiente */
@@ -415,7 +424,7 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 36p
   /* En el móvil: barra fija abajo con las 4 opciones, discreta. Icono y nombre; la pantalla actual, en el color de acento */
   .ds-nav {
     position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
-    gap: 0; height: calc(60px + env(safe-area-inset-bottom)); padding: 0 0 env(safe-area-inset-bottom); background: #FFFFFF; border-top: 1px solid var(--line);
+    gap: 0; height: calc(60px + env(safe-area-inset-bottom)); padding: 0 0 env(safe-area-inset-bottom); background: var(--surface); border-top: 1px solid var(--line);
   }
   .ds-nav-item { flex-direction: column; justify-content: center; gap: 3px; padding: 0; border: 0; font-size: 12px; font-weight: 500; }
   .ds .ds-nav-item[aria-current="page"] { color: var(--report); font-weight: 700; }
@@ -518,7 +527,7 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 36p
 
 /* ── Menú desplegable («···», avatar) ──────────────────────────────── */
 .ds-menu { position: relative; display: inline-flex; }
-.ds-menu-panel { position: absolute; z-index: 30; top: calc(100% + 8px); right: 0; min-width: 240px; max-width: min(320px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 2px; padding: 6px; border-radius: 12px; background: #FFFFFF; box-shadow: var(--shadow-picked), 0 0 0 1px var(--soft); }
+.ds-menu-panel { position: absolute; z-index: 30; top: calc(100% + 8px); right: 0; min-width: 240px; max-width: min(320px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 2px; padding: 6px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-picked), 0 0 0 1px var(--soft); }
 .ds-menu-panel.is-start { right: auto; left: 0; }
 .ds-menu-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 0 10px; border: 0; border-radius: 8px; background: none; font-family: inherit; font-size: 14px; font-weight: 600; text-align: left; text-decoration: none; cursor: pointer; }
 .ds .ds-menu-item { color: var(--ink); }
@@ -530,14 +539,14 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 36p
 
 /* ── Código de 6 cifras ────────────────────────────────────────────── */
 .ds-otp { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
-.ds-otp-box { width: 100%; height: 48px; padding: 0; text-align: center; border: 1px solid var(--field-line); border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 20px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ds-otp-box { width: 100%; height: 48px; padding: 0; text-align: center; border: 1px solid var(--field-line); border-radius: 8px; background: var(--input-bg); font-family: inherit; font-size: 20px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
 .ds .ds-otp-box:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-color: var(--report); }
 .ds-otp-box[aria-invalid="true"] { border-color: var(--danger-ink); }
 @media (max-width: 640px) { .ds-otp { gap: 6px; } }
 
 /* ── Diálogo propio (confirmaciones y paneles) ─────────────────────── */
-.ds-dialog { margin: auto; padding: 0; border: 0; border-radius: 14px; width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); background: #FFFFFF; color: var(--ink); overflow: auto; }
-.ds-dialog::backdrop { background: rgba(13, 21, 48, .5); }
+.ds-dialog { margin: auto; padding: 0; border: 0; border-radius: 14px; width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); background: var(--surface); color: var(--ink); overflow: auto; }
+.ds-dialog::backdrop { background: var(--backdrop, rgba(13, 21, 48, .5)); }
 /* Un panel largo se puede recorrer con las flechas: cuando el foco está en él, se ve */
 .ds.ds-dialog:focus-visible { outline: 2px solid var(--report); outline-offset: -2px; }
 .ds-dialog.is-side { margin: 16px 16px 16px auto; width: min(480px, calc(100vw - 32px)); height: calc(100dvh - 32px); }
@@ -555,7 +564,7 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 36p
   /* En el móvil los botones del diálogo se quedan pegados abajo: siempre a la vista, también con el teclado abierto */
   /* …y lo que recibe el foco o se trae a la vista queda por encima de esa barra, nunca debajo */
   .ds-dialog { scroll-padding-bottom: 104px; }
-  .ds-dialog-actions { position: sticky; bottom: 0; z-index: 1; margin: auto -18px calc(-18px - env(safe-area-inset-bottom)); padding: 10px 18px calc(18px + env(safe-area-inset-bottom)); background: #FFFFFF; }
+  .ds-dialog-actions { position: sticky; bottom: 0; z-index: 1; margin: auto -18px calc(-18px - env(safe-area-inset-bottom)); padding: 10px 18px calc(18px + env(safe-area-inset-bottom)); background: var(--surface); }
 }
 
 /* Sin animación si la persona lo ha pedido al sistema */
@@ -568,20 +577,22 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 36p
 /* Con icono delante, el texto va pegado a él */
 .ds-chip:has(> svg) > .v2-stable > .v2-stable-v { text-align: left; }
 
-/* ── La franja lateral, fija ───────────────────────────────────────────
-   Con un lado elegido, la franja del otro se queda en su sitio (del alto de la ventana, con su margen y sus
-   esquinas redondas) y solo el contenido hace scroll a su lado. Así la flecha está siempre a la misma
-   altura, centrada en lo que se ve. El aviso del canal de ejemplo también se queda arriba. */
+/* ── El aviso de arriba, fijo ──────────────────────────────────────────
+   El aviso del canal de ejemplo se queda arriba al bajar por la página. */
 @media (min-width: 641px) {
   .ds-split { --banner-h: 0px; }
   .ds-split.has-banner { --banner-h: 41px; }
   .ds-split-banner { position: sticky; top: 0; z-index: 20; min-height: 41px; }
-  .ds-split:not(.is-entry) .ds-pane.is-tab { position: sticky; top: calc(16px + var(--banner-h)); align-self: flex-start; height: calc(100vh - 32px - var(--banner-h)); height: calc(100dvh - 32px - var(--banner-h)); }
 }
+
+/* El panel o la web dentro de un recuadro de otra web: solo un aviso con el enlace para abrirlo en su ventana */
+.ds-framed { min-height: 100vh; min-height: 100dvh; display: flex; padding: 16px; background: var(--bg); }
+.ds-framed-card { margin: auto; width: 100%; max-width: 440px; padding: 28px; gap: 10px; }
+.ds-framed-card > div { margin-top: 10px; }
 
 /* Aviso de «sin conexión», arriba y centrado, por encima de todo */
 .ds-offline-zone { position: fixed; z-index: 70; top: 12px; left: 0; right: 0; display: flex; justify-content: center; padding: 0 16px; pointer-events: none; }
-.ds-offline { display: flex; align-items: center; gap: 10px; max-width: 560px; padding: 10px 14px; border-radius: 10px; background: var(--ink); color: #FFFFFF; font-size: 14px; font-weight: 600; line-height: 1.4; box-shadow: var(--shadow-picked); }
+.ds-offline { display: flex; align-items: center; gap: 10px; max-width: 560px; padding: 10px 14px; border-radius: 10px; background: var(--ink); color: var(--on-ink); font-size: 14px; font-weight: 600; line-height: 1.4; box-shadow: var(--shadow-picked); }
 .ds-offline svg { flex: none; color: var(--on-ink-warn); }
 /* Párrafos de entrada sin una palabra suelta en la última línea */
 .ds-lead { text-wrap: pretty; }

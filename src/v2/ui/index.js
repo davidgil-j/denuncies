@@ -5,7 +5,6 @@ import '../ds.css';
 
 export { cx, Txt } from './text.jsx';
 export { default as SplitShell } from './SplitShell.jsx';
-export { default as SideTab } from './SideTab.jsx';
 export { default as PillNav } from './PillNav.jsx';
 export { Button, IconButton } from './Button.jsx';
 export { Chip, Chips } from './Chip.jsx';
@@ -21,3 +20,4 @@ export { default as Dialog } from './Dialog.jsx';
 export { default as Menu, MenuItem } from './Menu.jsx';
 export { default as OtpInput } from './OtpInput.jsx';
 export { default as Offline } from './Offline.jsx';
+export { default as BrandLogo } from './BrandLogo.jsx';

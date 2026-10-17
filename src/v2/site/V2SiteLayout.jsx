@@ -7,22 +7,22 @@ import { CONTACT_EMAIL } from './plans.js';
 import './site.css';
 
 const DEMO_PATH = '/canal/demo';
-// L'idioma triat a la web es recorda i el panell el fa servir (mateixa clau)
+// El idioma elegido en la web se recuerda y el panel lo usa (la misma clave)
 const LANG_KEY = 'reportia-panel-lang';
-// Per sota d'aquesta amplada la navegació va al menú (a sobre cap en una línia, amb seccions i botó)
+// Por debajo de este ancho la navegación va al menú (por encima cabe en una línea, con secciones y botón)
 const DESKTOP = 1200;
-// Seccions de la portada accessibles des de la navegació
+// Secciones de la portada accesibles desde la navegación
 const SECTIONS = [['funciona', 'navHow'], ['ley', 'navLaw'], ['precios', 'navPricing'], ['preguntas', 'navFaq']];
 
 /**
- * Marc comú del web públic de Reportia: capçalera fina amb navegació i peu. A la portada, mentre
- * es veu la foto de l'inici, la capçalera és transparent i va a sobre de la foto.
- * L'idioma viu aquí i es passa a les pàgines amb <Outlet context>. Respecta ?lang= (ca|es|en).
+ * Marco común de la web pública de Reportia: cabecera fina con navegación y pie. En la portada, mientras
+ * se ve la foto del inicio, la cabecera es transparente y va encima de la foto.
+ * El idioma vive aquí y se pasa a las páginas con <Outlet context>. Respeta ?lang= (ca|es|en).
  */
 export default function V2SiteLayout() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryLang = searchParams.get('lang');
-  // Idioma: el de l'adreça, si no el que es va triar (es recorda també per al panell), si no el del navegador
+  // Idioma: el de la dirección; si no, el que se eligió (se recuerda también para el panel); si no, el del navegador
   const [lang, setLangState] = useState(() => {
     if (LANGS.includes(queryLang)) return queryLang;
     try { const saved = localStorage.getItem(LANG_KEY); if (LANGS.includes(saved)) return saved; } catch { /* res */ }
@@ -30,7 +30,7 @@ export default function V2SiteLayout() {
   });
   const [menuOpen, setMenuOpen] = useState(false);
   const { pathname, hash } = useLocation();
-  // A la portada la capçalera va a sobre de la foto de l'inici fins que la foto queda enrere
+  // En la portada la cabecera va encima de la foto del inicio hasta que la foto queda atrás
   const isHome = pathname === '/';
   const [over, setOver] = useState(isHome);
   const headerRef = useRef(null);
@@ -38,7 +38,7 @@ export default function V2SiteLayout() {
   const t = translations[lang].v2site;
   const tv = translations[lang].v2;
 
-  // Si l'URL porta ?lang=, mana
+  // Si la URL lleva ?lang=, manda
   useEffect(() => {
     if (LANGS.includes(queryLang)) setLangState(queryLang);
   }, [queryLang]);
@@ -47,8 +47,8 @@ export default function V2SiteLayout() {
   function setLang(l) {
     holdScroll();
     setLangState(l);
-    try { localStorage.setItem(LANG_KEY, l); } catch { /* sense emmagatzematge */ }
-    // Si la pàgina es va obrir amb ?lang=, el mantenim al dia perquè recarregar no canviï l'idioma
+    try { localStorage.setItem(LANG_KEY, l); } catch { /* sin almacenamiento */ }
+    // Si la página se abrió con ?lang=, se mantiene al día para que recargar no cambie el idioma
     if (searchParams.has('lang')) setSearchParams({ lang: l }, { replace: true });
   }
 
@@ -72,13 +72,13 @@ export default function V2SiteLayout() {
     return () => { window.removeEventListener('scroll', check); window.removeEventListener('resize', check); };
   }, [isHome]);
 
-  // Cada pàgina comença a dalt (excepte si l'enllaç apunta a una secció)
+  // Cada página empieza arriba (salvo si el enlace apunta a una sección)
   useEffect(() => {
     setMenuOpen(false);
     if (!hash) window.scrollTo(0, 0);
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Menú mòbil: es tanca amb Escape, en tocar fora o en passar a escriptori
+  // Menú del móvil: se cierra con Escape, al tocar fuera o al pasar a escritorio
   useEffect(() => {
     if (!menuOpen) return undefined;
     function onKey(e) {
@@ -99,7 +99,7 @@ export default function V2SiteLayout() {
     };
   }, [menuOpen]);
 
-  // Enllaços a una secció (/#precios): s'hi desplaça quan la pàgina ja és a lloc
+  // Enlaces a una sección (/#precios): se desplaza hasta ella cuando la página ya está en su sitio
   const scrollToHash = (h) => {
     const el = document.getElementById(decodeURIComponent(h.slice(1)));
     if (!el) return;
@@ -111,23 +111,23 @@ export default function V2SiteLayout() {
     const id = requestAnimationFrame(() => scrollToHash(hash));
     return () => cancelAnimationFrame(id);
   }, [pathname, hash]);
-  // Tornar a prémer la secció on ja s'és (l'adreça no canvia) també hi baixa
+  // Volver a pulsar la sección en la que ya se está (la dirección no cambia) también baja hasta ella
   const sectionClick = (id) => () => {
     setMenuOpen(false);
     if (pathname === '/' && hash === `#${id}`) scrollToHash(`#${id}`);
   };
 
-  // En canviar de pàgina, el focus va al contingut (els lectors de pantalla ho anuncien)
+  // Al cambiar de página, el foco va al contenido (los lectores de pantalla lo anuncian)
   const firstPath = useRef(true);
   useEffect(() => {
     if (firstPath.current) { firstPath.current = false; return; }
     if (!hash) document.getElementById('v2-main')?.focus({ preventScroll: true });
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Etiquetes de la capçalera amb l'amplada de l'idioma més llarg: el menú no es desplaça
+  // Etiquetas de la cabecera con el ancho del idioma más largo: el menú no se desplaza
   const st = (key) => <Stable lang={lang} pick={T => T.v2site[key]} />;
   const navClass = ({ isActive }) => `v2-site-navlink${isActive ? ' is-current' : ''}`;
-  // El selector d'idioma surt dues vegades: a la capçalera (ordinador) i dins del menú (mòbil)
+  // El selector de idioma sale dos veces: en la cabecera (ordenador) y dentro del menú (móvil)
   const langGroup = (cls) => (
     <div className={`v2-lang ${cls}`} role="group" aria-label={tv.langGroup}>
       {LANGS.map(l => (
@@ -153,13 +153,13 @@ export default function V2SiteLayout() {
               <Link className="v2-site-navlink is-section" key={id} to={{ pathname: '/', hash: `#${id}` }} onClick={sectionClick(id)}>{st(key)}</Link>
             ))}
             <NavLink className={navClass} to={`${DEMO_PATH}?lang=${lang}`}>{st('navDemoShort')}</NavLink>
-            {/* A l'alta, «Accedir» ja és el botó principal */}
+            {/* En el alta, «Acceder» ya es el botón principal */}
             {pathname !== '/crear-compte' && <><span className="v2-site-sep" aria-hidden="true" />
             <NavLink className={navClass} to="/admin/login" end>{st('navLogin')}</NavLink></>}
           </nav>
 
-          {/* L'acció principal és sempre a la capçalera, també a la portada i en mòbil */}
-          {/* A l'alta, el botó porta a l'accés: «Crear compte» portaria a la mateixa pàgina (G-4) */}
+          {/* La acción principal está siempre en la cabecera, también en la portada y en el móvil */}
+          {/* En el alta, el botón lleva al acceso: «Crear cuenta» llevaría a la misma página (G-4) */}
           {pathname === '/crear-compte'
             ? <Link className="v2-btn v2-btn-primary v2-site-cta" to="/admin/login">{st('navLogin')}</Link>
             : <Link className="v2-btn v2-btn-primary v2-site-cta" to="/crear-compte">{st('navSignup')}</Link>}
@@ -179,7 +179,7 @@ export default function V2SiteLayout() {
         </div>
 
         <div className="v2-site-menu" id="v2-site-menu" data-open={menuOpen}>
-          {/* En mòbil l'idioma es tria aquí dins, a dalt de tot */}
+          {/* En el móvil el idioma se elige aquí dentro, arriba del todo */}
           {langGroup('v2-site-menu-lang')}
           <nav aria-label={t.navLabel}>
             {SECTIONS.map(([id, key]) => (

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// Proves de seguretat de la base de dades. Usage: npm run db:test
+// Pruebas de seguridad de la base de datos. Uso: npm run db:test
 //
-// Aplica totes les migracions de supabase/migrations/ a un Postgres real en memòria (PGlite),
-// amb un esquelet mínim dels esquemes auth i storage de Supabase, i comprova les polítiques
-// RLS amb els rols anon i authenticated: aïllament entre empreses, permisos per categoria,
-// missatges, adjunts, registre d'auditoria i compte de l'organització.
-// No toca cap base de dades real. Amb un número (node scripts/test-rls.mjs 7) aplica només
-// fins a aquella migració, per veure què fallava abans.
+// Aplica todas las migraciones de supabase/migrations/ a un Postgres real en memoria (PGlite),
+// con un esqueleto mínimo de los esquemas auth y storage de Supabase, y comprueba las políticas
+// RLS con los roles anon y authenticated: aislamiento entre empresas, permisos por categoría,
+// mensajes, adjuntos, registro de auditoría y cuenta de la organización.
+// No toca ninguna base de datos real. Con un número (node scripts/test-rls.mjs 7) aplica solo
+// hasta esa migración, para ver qué fallaba antes.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -548,6 +548,77 @@ if (upTo >= 15) {
   const [{ allowed_mime_types: types }] = await svc(`select allowed_mime_types from storage.buckets where id = 'attachments'`);
   ok('el almacén ya no acepta «cualquier imagen», SVG ni «cualquier arxiu»', !types.some(t => t.endsWith('/*') || t === 'application/octet-stream' || t.includes('svg')), types.join(' '));
   ok('…y sigue aceptando PDF, fotos, vídeo, audio, Office y correos', ['application/pdf', 'image/jpeg', 'image/heic', 'video/mp4', 'audio/mpeg', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'message/rfc822'].every(t => types.includes(t)));
+}
+
+// ── Marca blanca (016) ──────────────────────────────────────────────────
+if (upTo >= 16) {
+  console.log('\nMarca blanca (016)');
+  const MIG16 = path.join(MIG, '016_marca.sql');
+  if (fs.existsSync(MIG16)) { await db.exec(fs.readFileSync(MIG16, 'utf8')); ok('la 016 se puede ejecutar dos veces', true); }
+  else ok('existe la migración 016', false);
+  const err = (r) => String(r.error ?? '');
+  // Un PNG de 1 × 1 píxel, como lo deja el navegador al preparar el logo
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  const slugA = (await svc(`select slug from organizations where id = $1`, [orgA]))[0].slug;
+
+  // La paleta y el logo de la empresa
+  ok('las empresas empiezan con la paleta azul y sin logo', (await svc(`select brand_palette p, brand_logo l from organizations where id = $1`, [orgA]))
+    .every(r => r.p === 'azul' && r.l === null));
+  ok('el administrador cambia la paleta', !(await user(adminA, `update organizations set brand_palette = 'petroleo' where id = $1`, [orgA])).error
+    && (await svc(`select brand_palette from organizations where id = $1`, [orgA]))[0].brand_palette === 'petroleo');
+  ok('una paleta que no es de las ocho se rechaza', !!(await user(adminA, `update organizations set brand_palette = 'fucsia' where id = $1`, [orgA])).error);
+  ok('el administrador sube un logo PNG', !(await user(adminA, `update organizations set brand_logo = $2 where id = $1`, [orgA, PNG])).error);
+  ok('un logo SVG se rechaza (puede llevar código)', !!(await user(adminA, `update organizations set brand_logo = 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' where id = $1`, [orgA])).error);
+  ok('un enlace a otro sitio se rechaza', !!(await user(adminA, `update organizations set brand_logo = 'https://otro.sitio/logo.png' where id = $1`, [orgA])).error);
+  ok('un «data:» con algo más que la imagen se rechaza', !!(await user(adminA, `update organizations set brand_logo = $2 where id = $1`, [orgA, `${PNG}"><script>alert(1)</script>`])).error);
+  ok('un logo demasiado grande se rechaza', !!(await user(adminA, `update organizations set brand_logo = $2 where id = $1`, [orgA, `data:image/png;base64,${'A'.repeat(120001)}`])).error);
+  ok('con solo contraseña no se cambia la marca', (await user1(adminA, `update organizations set brand_palette = 'teja' where id = $1 returning id`, [orgA])).rows.length === 0
+    && (await svc(`select brand_palette from organizations where id = $1`, [orgA]))[0].brand_palette === 'petroleo');
+  ok('un gestor no cambia la marca', (await user(mgrA, `update organizations set brand_palette = 'teja' where id = $1 returning id`, [orgA])).rows.length === 0);
+  ok('otra empresa no cambia la marca', (await user(adminB, `update organizations set brand_logo = null where id = $1 returning id`, [orgA])).rows.length === 0
+    && (await svc(`select brand_logo from organizations where id = $1`, [orgA]))[0].brand_logo === PNG);
+  ok('quitar el logo', !(await user(adminA, `update organizations set brand_logo = null where id = $1`, [orgA])).error);
+  await user(adminA, `update organizations set brand_logo = $2 where id = $1`, [orgA, PNG]);
+
+  // El canal (sin sesión) ve la marca, y nada más
+  const pubOrg = await anon(`select * from get_organization_by_slug($1)`, [slugA]);
+  const pr = pubOrg.rows[0] ?? {};
+  ok('el canal lee la paleta y el logo', pr.brand_palette === 'petroleo' && pr.brand_logo === PNG, JSON.stringify(pubOrg.error ?? Object.keys(pr)));
+  ok('…y no el plan, la facturación ni la persona responsable', !['plan', 'billing_name', 'billing_tax_id', 'responsible_name', 'trial_ends_at'].some(k => k in pr), Object.keys(pr).join(' '));
+  ok('sin sesión no se lee la tabla de empresas', (await anon(`select brand_logo from organizations`)).rows.length === 0);
+
+  // La apariencia de cada persona
+  ok('los perfiles empiezan «como el sistema»', (await svc(`select appearance from profiles where id in ($1, $2)`, [adminA, mgrA])).every(r => r.appearance === 'system'));
+  ok('un gestor elige el modo oscuro', !(await user(mgrA, `update profiles set appearance = 'dark' where id = $1`, [mgrA])).error
+    && (await svc(`select appearance from profiles where id = $1`, [mgrA]))[0].appearance === 'dark');
+  ok('un valor que no es claro, oscuro ni sistema se rechaza', !!(await user(mgrA, `update profiles set appearance = 'sepia' where id = $1`, [mgrA])).error);
+  ok('un gestor no cambia la apariencia de otra persona', (await user(mgrA, `update profiles set appearance = 'light' where id = $1 returning id`, [adminA])).rows.length === 0
+    && (await svc(`select appearance from profiles where id = $1`, [adminA]))[0].appearance === 'system');
+  ok('nadie de otra empresa la cambia', (await user(adminB, `update profiles set appearance = 'light' where id = $1 returning id`, [mgrA])).rows.length === 0);
+  ok('cambiar la apariencia no deja cambiar el rol', !!(await user(mgrA, `update profiles set appearance = 'light', role = 'superadmin' where id = $1`, [mgrA])).error
+    && (await svc(`select role from profiles where id = $1`, [mgrA]))[0].role === 'manager');
+}
+
+// ── Dirección propia (017) ──────────────────────────────────────────────
+if (upTo >= 17) {
+  console.log('\nDirección propia (017)');
+  const MIG17 = path.join(MIG, '017_dominio_propio.sql');
+  if (fs.existsSync(MIG17)) { await db.exec(fs.readFileSync(MIG17, 'utf8')); ok('la 017 se puede ejecutar dos veces', true); }
+  else ok('existe la migración 017', false);
+  const slugA = (await svc(`select slug from organizations where id = $1`, [orgA]))[0].slug;
+
+  ok('el administrador no se pone una dirección propia desde el panel', !!(await user(adminA, `update organizations set custom_domain = 'canal.a.es' where id = $1`, [orgA])).error);
+  ok('Reportia sí (con la clave de servicio)', (await svc(`update organizations set custom_domain = 'canal.a.es' where id = $1 returning id`, [orgA])).length === 1);
+  ok('con la dirección puesta, el administrador sigue cambiando lo suyo', !(await user(adminA, `update organizations set responsible_name = 'Ana' where id = $1`, [orgA])).error);
+  ok('…pero no la dirección', !!(await user(adminA, `update organizations set custom_domain = null where id = $1`, [orgA])).error);
+  let dup = null; try { await svc(`update organizations set custom_domain = 'canal.a.es' where id = $1`, [orgB]); } catch (e) { dup = e; }
+  ok('una dirección es de una sola empresa', !!dup);
+  let bad = null; try { await svc(`update organizations set custom_domain = 'https://Canal.B.es/' where id = $1`, [orgB]); } catch (e) { bad = e; }
+  ok('solo el nombre del dominio, en minúsculas (sin https ni barras)', !!bad);
+  const found = await anon(`select get_organization_slug_by_domain('Canal.A.es ') as slug`);
+  ok('sin sesión, una dirección propia lleva al canal de su empresa', found.rows[0]?.slug === slugA, JSON.stringify(found));
+  ok('una dirección que no es de nadie no lleva a ningún canal', (await anon(`select get_organization_slug_by_domain('otra.web.es') as slug`)).rows[0]?.slug === null);
+  ok('la dirección no se lee de la tabla sin sesión', (await anon(`select custom_domain from organizations`)).rows.length === 0);
 }
 
 console.log(`\n${pass} correctas, ${fail} fallidas`);

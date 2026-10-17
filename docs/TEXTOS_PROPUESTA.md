@@ -2,6 +2,10 @@
 
 Fecha: 13 de octubre de 2026. Fase 1 del encargo «Vuelta». **No se ha cambiado ningún texto del producto**: esto es la propuesta para que David y su jefe decidan.
 
+> **Estado (fase 2 terminada, 13 de octubre de 2026).** La tabla de la sección 1 está aplicada en catalán, castellano e inglés: lo del canal y el panel, en los bloques A a C; lo de la web comercial y los mensajes de la demo, en el bloque D. Quedan sin tocar los dos textos que decide el jefe («Con Reportia») y los legales. De los 9 textos nuevos, dos no se usan («Canal de denuncias de {org}» y «Acceso para el equipo»): la entrada elegida (A+) no los necesita.
+>
+> **Sobre los «sin uso aparente» de la sección 2:** al comprobarlos uno a uno (bloque E) resultó que muchos sí se usan (los del historial, los avisos de «caso no encontrado», los de ampliar el plazo…). Se han borrado los que de verdad no lee ninguna pantalla: 275 textos por idioma. Esta lista se conserva como inventario del 13 de octubre; ya no coincide clave a clave con los archivos.
+
 ## Cómo leerlo
 
 - Están **todos los textos** de `src/translations.js` y `src/translations-panel.js`: 1678 claves, cada una en catalán, castellano e inglés. Los correos (que no viven en esos archivos) están en `docs/AUDITORIA_ESTETICA.md`.

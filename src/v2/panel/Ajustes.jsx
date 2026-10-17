@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, Check, Circle, CircleAlert, LogOut, Mail } from 'lucide-react';
+import { ArrowUpRight, Check, Circle, CircleAlert, ImageUp, LogOut, Mail } from 'lucide-react';
 import { updatePassword } from '../../lib/supabase.js';
 import { AIPI_URL, ANTIFRAU_URL, LANGS, fmt } from '../V2Layout.jsx';
 import { translations } from '../../translations.js';
@@ -8,7 +8,9 @@ import { planInfo, fLong } from '../admin/adminKit.jsx';
 import { PLANS, CONTACT_EMAIL, formatPrice } from '../site/plans.js';
 import { EMAIL_RE, authErrorKey } from '../site/fields.jsx';
 import { isoDay } from '../../lib/businessDays.js';
-import { Button, Card, Dialog, Field, Segmented, cx } from '../ui/index.js';
+import { Button, Card, Dialog, Field, Segmented, Skeleton, cx } from '../ui/index.js';
+import { PALETTE_IDS, DEFAULT_PALETTE, paletteOf, themeVars, validPalette, BASE } from '../lib/brand.js';
+import { LOGO_ACCEPT, prepareLogo } from '../lib/logo.js';
 import { usePanel, Tp } from './kit.jsx';
 import { aipiInfo, hasOnboarding } from './primeros.jsx';
 import Equipo from './Equipo.jsx';
@@ -30,8 +32,8 @@ function useUnsavedGuard(dirty) {
 }
 
 /**
- * Equipo y ajustes, en una sola página: a la izquierda el Responsable del Sistema y el plan; a la derecha
- * quién gestiona, tu seguridad y los datos de la empresa. Quien no administra solo ve «Tu seguridad».
+ * Equipo y ajustes, en una sola página: a la izquierda el Responsable del Sistema, «Tu marca» y el plan; a la derecha
+ * quién gestiona, tu seguridad (con la apariencia) y los datos de la empresa. Quien no administra solo ve «Tu seguridad».
  */
 export default function Ajustes() {
   const { lang, t, p, org, isSuperadmin, channelPath, logout, leaving } = usePanel();
@@ -41,7 +43,7 @@ export default function Ajustes() {
       <Tp as="h1" className="ds-h1 is-sm" lang={lang} pick={x => x.set.title} />
       {isSuperadmin ? (
         <div className="st-grid">
-          <div className="st-col is-wide"><Responsable />{org?.plan && <Plan />}</div>
+          <div className="st-col is-wide"><Responsable />{hasBrand(org) && <TuMarca />}{org?.plan && <Plan />}</div>
           <div className="st-col"><Equipo /><TuSeguridad /><Empresa /></div>
         </div>
       ) : (
@@ -169,11 +171,146 @@ function Responsable() {
   );
 }
 
+// ── Tu marca ─────────────────────────────────────────────────────────────
+// Sin la migración 016 la empresa no tiene estas columnas: «Tu marca» no se enseña y el nombre se cambia en «La empresa»
+const hasBrand = (org) => !!org && 'brand_palette' in org;
+const brandForm = (org) => ({ name: org?.name ?? '', palette: validPalette(org?.brand_palette), logo: org?.brand_logo ?? null });
+
+/** Cómo se verá el canal con esta marca, en claro o en oscuro: la cabecera, la palabra y los dos botones */
+function MiniCanal({ form, mode, word }) {
+  return (
+    <div className={cx('st-mini', mode === 'dark' && 'is-dark')} style={themeVars(form.palette, mode)} aria-hidden="true">
+      <span className="st-mini-brand">
+        {form.logo && <span className="ds-brand-logo"><img src={form.logo} alt="" /></span>}
+        <b>{form.name}</b>
+      </span>
+      <b className="st-mini-word">{word}</b>
+      <span className="st-mini-acts"><i /><i /></span>
+    </div>
+  );
+}
+
+function TuMarca() {
+  const { tr, p, org, saveOrg, notify } = usePanel();
+  const s = p.set;
+  const saved = useMemo(() => brandForm(org), [org]);
+  const [form, setForm] = useState(saved);
+  const [nameErr, setNameErr] = useState('');
+  const [logoErr, setLogoErr] = useState('');
+  const [preparing, setPreparing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef(null);
+  useEffect(() => { setForm(saved); }, [saved]);
+  const dirty = form.name.trim() !== saved.name.trim() || form.palette !== saved.palette || form.logo !== saved.logo;
+  useUnsavedGuard(dirty);
+
+  // El logo se prepara aquí mismo (más pequeño, sin bordes transparentes y nunca como SVG) antes de guardarlo
+  async function pickLogo(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setLogoErr('');
+    setPreparing(true);
+    try {
+      const { dataUrl } = await prepareLogo(file);
+      setForm(f => ({ ...f, logo: dataUrl }));
+    } catch (err) {
+      setLogoErr(err?.code === 'logo-big' ? s.logoBig : s.logoErr);
+    }
+    setPreparing(false);
+  }
+
+  async function save(e) {
+    e.preventDefault();
+    if (busy || preparing) return;
+    if (!form.name.trim()) { setNameErr(s.errOrgName); document.getElementById('st-brand-name')?.focus(); return; }
+    setBusy(true);
+    const { error } = await saveOrg({ name: form.name, brand_palette: form.palette, brand_logo: form.logo });
+    setBusy(false);
+    if (error) { notify(s.saveErr, 'err'); return; }
+    notify(s.brandSaved);
+  }
+
+  const shown = { ...form, name: form.name.trim() || saved.name };
+  return (
+    <Card as="form" className="st-card st-brand" aria-labelledby="st-brand-t" onSubmit={save} noValidate>
+      <h2 className="st-h" id="st-brand-t">{s.brandT}</h2>
+      <p className="st-p">{s.brandLead}</p>
+      <div className="st-brand-top">
+        <div className="st-logo">
+          <span className="st-label" id="st-logo-l">{s.logo}</span>
+          <div className="st-logo-row">
+            <span className={cx('st-logo-box', !form.logo && 'is-empty')}>
+              {preparing ? <Skeleton width="70%" height={20} /> : form.logo ? <img src={form.logo} alt={s.logo} /> : <span className="st-logo-none">{s.logoNone}</span>}
+            </span>
+            <span className="st-logo-acts">
+              <input ref={fileRef} id="st-logo-file" type="file" accept={LOGO_ACCEPT} className="ds-vh" tabIndex={-1} aria-label={s.logo} onChange={pickLogo} />
+              <Button variant="soft" size="xs" busy={preparing} aria-describedby="st-logo-help" onClick={() => fileRef.current?.click()} icon={<ImageUp size={16} strokeWidth={1.8} aria-hidden="true" />}>
+                {preparing ? s.logoBusy : form.logo ? s.logoChange : s.logoPick}
+              </Button>
+              {form.logo && !preparing && <button type="button" className="st-link" onClick={() => { setForm(f => ({ ...f, logo: null })); setLogoErr(''); }}>{s.logoRemove}<span className="ds-vh">: {s.logo}</span></button>}
+            </span>
+          </div>
+          <p className="st-small" id="st-logo-help">{s.logoHelp}</p>
+          {logoErr && <p className="ds-field-error" role="alert">{alertIcon}{logoErr}</p>}
+        </div>
+        <Field
+          id="st-brand-name" size="sm" label={s.brandName} value={form.name} error={nameErr} help={s.orgNameHelp} autoComplete="organization" maxLength={120}
+          onChange={e => { const { value } = e.target; setForm(f => ({ ...f, name: value })); setNameErr(''); }}
+        />
+      </div>
+
+      <fieldset className="st-pals">
+        <legend className="st-label">{s.palette}</legend>
+        <p className="st-small">{s.paletteHint}</p>
+        <div className="st-pal-grid">
+          {PALETTE_IDS.map(id => {
+            const pal = paletteOf(id);
+            const on = form.palette === id;
+            return (
+              <label key={id} className={cx('st-pal', on && 'is-on')}>
+                <input type="radio" name="st-palette" value={id} checked={on} className="ds-vh" onChange={() => setForm(f => ({ ...f, palette: id }))} />
+                <span className="st-swatch" aria-hidden="true">
+                  {[pal.light.accent, pal.light.soft, BASE.dark.surface, pal.dark.accent].map((c, i) => <i key={i} style={{ background: c }} />)}
+                </span>
+                <span className="st-pal-txt">
+                  <b>{s.palettes[id]}</b>
+                  {id === DEFAULT_PALETTE && <small>{s.paletteDefault}</small>}
+                </span>
+                {on && <Check className="st-pal-check" size={16} strokeWidth={2.4} aria-hidden="true" />}
+              </label>
+            );
+          })}
+        </div>
+        <p className="st-small">{s.paletteNote}</p>
+      </fieldset>
+
+      <div className="st-preview">
+        <span className="st-label">{s.previewT}</span>
+        <div className="st-prev-row">
+          {[['light', s.previewLight], ['dark', s.previewDark]].map(([mode, label]) => (
+            <figure key={mode} className="st-prev">
+              <figcaption className="st-small">{label}</figcaption>
+              <MiniCanal form={shown} mode={mode} word={tr.canal.report} />
+            </figure>
+          ))}
+        </div>
+        <p className="st-small">{s.previewNote}</p>
+      </div>
+
+      <div className="st-foot is-end">
+        <Button variant="soft" size="sm" disabled={!dirty || busy} onClick={() => { setForm(saved); setNameErr(''); setLogoErr(''); }}>{s.brandDiscard}</Button>
+        <Button type="submit" variant="report" size="sm" busy={busy} disabled={!dirty || preparing}>{busy ? p.saving : p.save}</Button>
+      </div>
+    </Card>
+  );
+}
+
 // ── Plan ─────────────────────────────────────────────────────────────────
 const billForm = (org) => ({ billing_name: org?.billing_name ?? '', billing_tax_id: org?.billing_tax_id ?? '', billing_email: org?.billing_email ?? '' });
 
 function Plan() {
-  const { lang, t, tr, p, org, saveOrg, notify, channelPath } = usePanel();
+  const { lang, t, tr, p, org, saveOrg, notify, channelUrl } = usePanel();
   const s = p.set;
   const [pricing, setPricing] = useState(false);
   const [billing, setBilling] = useState(false);
@@ -197,7 +334,7 @@ function Plan() {
     };
 
   const orgName = org?.name ?? '';
-  const url = `${import.meta.env.VITE_PUBLIC_ORIGIN || window.location.origin}${channelPath}`;
+  const url = channelUrl;
   const contractHref = mailto(fmt(t.aMailSubject, { org: orgName }), fmt(t.aMailBody, { org: orgName, url }));
   const dpaHref = mailto(fmt(s.dpaSubject, { org: orgName }), fmt(s.dpaBody, { org: orgName }));
 
@@ -280,13 +417,13 @@ function Plan() {
 
 // ── La empresa ───────────────────────────────────────────────────────────
 function Empresa() {
-  const { p, org, saveOrg, notify, channelPath } = usePanel();
+  const { p, org, saveOrg, notify, channelUrl } = usePanel();
   const s = p.set;
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const address = `${import.meta.env.VITE_PUBLIC_ORIGIN || window.location.origin}${channelPath}`.replace(/^https?:\/\//, '');
+  const address = channelUrl.replace(/^https?:\/\//, '');
 
   async function save(e) {
     e.preventDefault();
@@ -303,10 +440,13 @@ function Empresa() {
   return (
     <Card as="section" className="st-card" aria-labelledby="st-org-t">
       <h2 className="st-h" id="st-org-t">{s.orgT}</h2>
-      <div className="st-tile">
-        <span className="st-tile-txt"><span>{s.orgName}</span><b>{org?.name}</b></span>
-        <button type="button" className="st-link" onClick={() => { setName(org?.name ?? ''); setError(''); setEditing(true); }}>{s.change}<span className="ds-vh">: {s.orgName}</span></button>
-      </div>
+      {/* Con «Tu marca», el nombre se cambia allí (es el «nombre visible»); sin la migración 016, aquí */}
+      {!hasBrand(org) && (
+        <div className="st-tile">
+          <span className="st-tile-txt"><span>{s.orgName}</span><b>{org?.name}</b></span>
+          <button type="button" className="st-link" onClick={() => { setName(org?.name ?? ''); setError(''); setEditing(true); }}>{s.change}<span className="ds-vh">: {s.orgName}</span></button>
+        </div>
+      )}
       <div className="st-tile">
         <span className="st-tile-txt"><span>{s.orgAddress}</span><b className="st-address">{address}</b><small>{s.orgAddressHelp}</small></span>
       </div>
@@ -326,7 +466,7 @@ function Empresa() {
 
 // ── Tu seguridad ─────────────────────────────────────────────────────────
 function TuSeguridad() {
-  const { lang, setLang, p, mfaSetup, notify } = usePanel();
+  const { lang, setLang, p, profile, mfaSetup, notify, saveAppearance } = usePanel();
   const s = p.set;
   const w = p.pw;
   const [changing, setChanging] = useState(false);
@@ -372,6 +512,18 @@ function TuSeguridad() {
         <span className="st-tile-row"><b>{s.pwd}</b></span>
         <button type="button" className="st-link" onClick={open}>{s.change}<span className="ds-vh">: {s.pwd}</span></button>
       </div>
+      {/* Apariencia: la de cada persona, guardada en su perfil (sin la migración 016, no se enseña) */}
+      {profile && 'appearance' in profile && (
+        <div className="st-tile is-stack">
+          <span className="st-tile-row"><b id="st-app-l">{s.appearance}</b></span>
+          <Segmented
+            mode="radio" label={s.appearance} value={profile.appearance} className="st-app"
+            onChange={async (v) => { if (v === profile.appearance) return; const { error } = await saveAppearance(v); if (error) notify(s.appearanceErr, 'err'); }}
+            options={[['light', s.appLight], ['dark', s.appDark], ['system', s.appSystem]].map(([value, label]) => ({ value, label }))}
+          />
+          <p className="st-small">{s.appearanceHelp}</p>
+        </div>
+      )}
       <div className="st-tile">
         <span className="st-tile-row"><b>{p.language}</b></span>
         <Segmented tone="plain" label={p.language} value={lang} onChange={setLang} options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: translations[l].langName, lang: l }))} />

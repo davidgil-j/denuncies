@@ -7,7 +7,8 @@ import './texts.js'; // textos del panel (lado Gestionar)
 import { signInAdmin, getAdminSession, getMfaState, verifyLoginCode, signOutAdmin, getOrganizationBySlug, IS_DEMO } from '../../lib/supabase.js';
 import { LANGS, detectLang, fmt } from '../V2Layout.jsx';
 import { EMAIL_RE, authErrorKey } from '../site/fields.jsx';
-import { SplitShell, Button, Card, Field, OrgMark, OtpInput, Segmented } from '../ui/index.js';
+import { SplitShell, BrandLogo, Button, Card, Field, OrgMark, OtpInput, Segmented } from '../ui/index.js';
+import { useBrandTheme } from '../lib/brand.js';
 import PasswordField from './PasswordField.jsx';
 import { Tp } from './kit.jsx';
 import './panel.css';
@@ -36,6 +37,8 @@ export function AccessLayout() {
   const [org, setOrg] = useState(null);
   const p = translations[lang].panel;
   const setLang = setLangState;
+  // Desde el canal de una empresa, el acceso lleva su paleta; el modo, el del sistema (aún no se sabe quién entra)
+  useBrandTheme(org?.brand_palette, 'system');
 
   // El idioma del acceso (el del canal desde el que se llega, o el elegido aquí) es el del panel al entrar
   useEffect(() => {
@@ -56,7 +59,7 @@ export function AccessLayout() {
       manage={(
         <>
           <header className="ac-head">
-            <div className="pn-brand">{org ? <b title={org.name}>{org.name}</b> : <><OrgMark name="Reportia" /><b>Reportia</b></>}</div>
+            <div className="pn-brand">{org ? <span className="ds-brand"><BrandLogo org={org} /><b title={org.name}>{org.name}</b></span> : <><OrgMark name="Reportia" /><b>Reportia</b></>}</div>
             <Segmented
               tone="plain" label={p.language} value={lang} onChange={setLang}
               options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: `${l.toUpperCase()} · ${translations[l].langName}`, lang: l }))}

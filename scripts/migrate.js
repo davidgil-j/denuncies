@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Usage: npm run db:migrate
-// Applies all pending SQL files from supabase/migrations/ in order.
+// Uso: npm run db:migrate
+// Aplica en orden todos los archivos SQL pendientes de supabase/migrations/.
 
 import fs from 'fs';
 import path from 'path';
@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Load .env + .env.local (local overrides, not committed to git)
+// Carga .env y .env.local (los valores locales mandan y no se suben a git)
 function parseEnv(filePath) {
   try {
     return Object.fromEntries(
@@ -42,7 +42,7 @@ async function runSQL(sql, label) {
   });
   const data = await res.json();
   if (data.message) {
-    // Ignore "already exists" errors
+    // Se ignoran los errores de «ya existe»
     if (data.message.includes('already exists')) {
       console.log(`  ⚠️  ${label} — ja existia, saltat`);
     } else {
@@ -55,7 +55,7 @@ async function runSQL(sql, label) {
   return true;
 }
 
-// Ensure migrations tracking table exists
+// Comprueba que existe la tabla que lleva la cuenta de las migraciones
 await runSQL(`
   create table if not exists _migrations (
     id         serial primary key,
@@ -74,7 +74,7 @@ if (files.length === 0) {
   process.exit(0);
 }
 
-// Fetch already applied migrations
+// Migraciones ya aplicadas
 const res = await fetch(API, {
   method: 'POST',
   headers: { 'Authorization': `Bearer ${PAT}`, 'Content-Type': 'application/json' },

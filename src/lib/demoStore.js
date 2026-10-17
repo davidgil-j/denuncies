@@ -1,9 +1,9 @@
-// Dades de demostració del panell de gestió.
-// Només es carrega en mode demo (sense credencials de Supabase), amb import() dinàmic des de
-// supabase.js: en producció aquest fitxer no es descarrega mai.
-// Les dates són relatives al moment de la primera càrrega perquè els plaços legals sempre
-// tinguin sentit. L'estat es guarda a sessionStorage perquè els canvis de la demo sobrevisquin
-// a una recàrrega dins la mateixa pestanya.
+// Datos de demostración del panel de gestión.
+// Solo se carga en modo demo (sin credenciales de Supabase), con import() dinámico desde
+// supabase.js: en producción este archivo no se descarga nunca.
+// Las fechas son relativas al momento de la primera carga para que los plazos legales siempre
+// tengan sentido. El estado se guarda en sessionStorage para que los cambios de la demo sobrevivan
+// a una recarga dentro de la misma pestaña.
 
 import { addBusinessDays, isoDay } from './businessDays.js';
 import { madridDay, addMonthsDay } from './deadlines.js';
@@ -17,12 +17,12 @@ const DAY = 86400000;
 const OPEN = ['received', 'reviewing', 'investigating', 'waiting'];
 const DONE = ['resolved', 'closed'];
 
-// QR d'exemple (otpauth de demostració). Escanejar-lo no dona accés a res.
+// QR de ejemplo (otpauth de demostración). Escanearlo no da acceso a nada.
 const DEMO_QR = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" shape-rendering="crispEdges"><path fill="#FFFFFF" d="M0 0h41v41H0z"/><path stroke="#0D1530" d="M0 0.5h7m2 0h1m3 0h1m1 0h1m3 0h1m1 0h1m1 0h4m1 0h4m2 0h7M0 1.5h1m5 0h1m2 0h5m2 0h1m1 0h1m1 0h1m1 0h1m1 0h1m3 0h1m1 0h1m1 0h1m1 0h1m5 0h1M0 2.5h1m1 0h3m1 0h1m1 0h3m4 0h2m2 0h1m2 0h3m1 0h1m1 0h1m3 0h1m1 0h1m1 0h3m1 0h1M0 3.5h1m1 0h3m1 0h1m1 0h1m1 0h1m1 0h3m3 0h1m2 0h1m2 0h1m2 0h1m1 0h3m2 0h1m1 0h3m1 0h1M0 4.5h1m1 0h3m1 0h1m1 0h6m1 0h2m2 0h2m2 0h1m2 0h1m1 0h2m1 0h2m1 0h1m1 0h3m1 0h1M0 5.5h1m5 0h1m1 0h1m1 0h3m1 0h3m3 0h1m1 0h1m4 0h3m2 0h1m1 0h1m5 0h1M0 6.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M8 7.5h1m3 0h1m2 0h2m3 0h5m2 0h2M0 8.5h1m1 0h5m2 0h1m5 0h5m2 0h1m1 0h2m1 0h5m2 0h5M0 9.5h3m2 0h1m1 0h2m2 0h1m2 0h1m1 0h2m1 0h1m1 0h3m1 0h1m2 0h4m2 0h5m1 0h1M0 10.5h2m1 0h1m1 0h5m3 0h5m2 0h2m2 0h1m1 0h2m1 0h1m3 0h3m1 0h4M2 11.5h1m2 0h1m3 0h1m3 0h2m6 0h2m1 0h1m1 0h3m1 0h2m4 0h2m1 0h2M0 12.5h1m4 0h3m3 0h1m1 0h1m1 0h4m6 0h9m3 0h4M0 13.5h1m1 0h2m1 0h1m2 0h2m1 0h1m1 0h2m1 0h1m1 0h1m1 0h1m2 0h2m1 0h2m2 0h2m2 0h4m2 0h1M0 14.5h4m1 0h4m1 0h3m1 0h3m2 0h1m1 0h1m1 0h2m1 0h1m3 0h3m4 0h1m1 0h1M1 15.5h2m4 0h2m1 0h2m2 0h1m1 0h6m1 0h1m2 0h1m2 0h4m4 0h1m2 0h1M0 16.5h1m1 0h1m1 0h3m2 0h3m2 0h2m1 0h4m4 0h1m1 0h2m1 0h1m1 0h1m2 0h1m2 0h2M5 17.5h1m3 0h2m1 0h3m1 0h2m3 0h1m1 0h1m1 0h3m1 0h3m2 0h7M0 18.5h1m1 0h1m1 0h1m1 0h3m2 0h1m1 0h1m2 0h2m1 0h3m1 0h2m3 0h3m2 0h1m1 0h4M0 19.5h1m1 0h1m4 0h1m4 0h1m1 0h6m1 0h1m2 0h1m2 0h1m2 0h1m1 0h1m3 0h2m1 0h1M1 20.5h9m1 0h1m1 0h1m2 0h1m2 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h2m6 0h2M0 21.5h1m1 0h1m1 0h2m2 0h2m1 0h1m6 0h4m1 0h1m1 0h2m1 0h2m1 0h4m4 0h2M4 22.5h3m2 0h1m3 0h2m1 0h3m1 0h1m4 0h3m1 0h1m2 0h2m4 0h1M2 23.5h3m2 0h8m3 0h1m1 0h2m4 0h2m4 0h4m2 0h3M0 24.5h1m1 0h2m2 0h1m1 0h1m2 0h1m1 0h1m1 0h4m3 0h1m3 0h4m1 0h2m4 0h2m1 0h1M2 25.5h1m1 0h2m5 0h3m3 0h1m1 0h2m1 0h2m2 0h1m1 0h1m2 0h1m1 0h5m2 0h1M1 26.5h3m2 0h1m5 0h3m1 0h2m2 0h3m4 0h2m4 0h1m1 0h2m2 0h2M0 27.5h1m1 0h4m2 0h1m3 0h1m1 0h1m1 0h1m1 0h1m2 0h2m5 0h1m4 0h5M4 28.5h1m1 0h1m1 0h1m3 0h6m1 0h2m1 0h1m2 0h2m1 0h8m1 0h4M0 29.5h2m1 0h1m1 0h1m2 0h1m2 0h1m1 0h1m3 0h2m4 0h2m1 0h2m3 0h1m2 0h1m1 0h3m1 0h1M0 30.5h1m2 0h1m1 0h5m2 0h1m2 0h1m2 0h1m1 0h1m1 0h3m4 0h2m4 0h1m1 0h1M0 31.5h1m1 0h2m1 0h1m2 0h2m1 0h2m2 0h1m1 0h1m3 0h4m1 0h2m5 0h1m1 0h1m1 0h1M0 32.5h1m1 0h1m3 0h2m1 0h2m6 0h2m6 0h1m1 0h1m1 0h1m1 0h6m1 0h1M8 33.5h1m1 0h7m5 0h2m6 0h3m3 0h1m2 0h2M0 34.5h7m3 0h1m1 0h1m3 0h1m1 0h1m3 0h1m1 0h2m5 0h2m1 0h1m1 0h3M0 35.5h1m5 0h1m1 0h1m1 0h2m2 0h1m1 0h1m2 0h1m4 0h1m4 0h4m3 0h2m1 0h1M0 36.5h1m1 0h3m1 0h1m1 0h2m1 0h1m1 0h2m3 0h1m2 0h5m1 0h4m1 0h5m1 0h2M0 37.5h1m1 0h3m1 0h1m1 0h1m1 0h4m1 0h1m3 0h3m1 0h1m2 0h1m4 0h1m6 0h1m1 0h1M0 38.5h1m1 0h3m1 0h1m1 0h1m1 0h1m1 0h3m1 0h2m3 0h2m1 0h2m1 0h1m3 0h1m1 0h5m1 0h1M0 39.5h1m5 0h1m3 0h1m1 0h1m2 0h1m1 0h2m1 0h2m1 0h2m2 0h2m1 0h1m1 0h1m3 0h1m2 0h1M0 40.5h7m1 0h2m2 0h1m1 0h1m1 0h3m3 0h1m1 0h4m1 0h1m1 0h1m1 0h1m2 0h2"/></svg>`);
 const DEMO_SECRET = 'JBSW Y3DP EHPK 3PXP';
 
 const PEOPLE = {
-  // Qui entra a la demo és la Laura Puig, administradora i Responsable del Sistema (com a les maquetes)
+  // Quien entra en la demo es Laura Puig, administradora y Responsable del Sistema (como en las maquetas)
   admin:  { id: 'demo-user', full_name: 'Laura Puig Ferrer', email: 'l.puig@empresa-demo.es' },
   daniel: { id: 'mgr-daniel', full_name: 'Daniel Ortega Ruiz', email: 'd.ortega@empresa-demo.es' },
   nuria:  { id: 'mgr-nuria', full_name: 'Núria Soler Vidal', email: 'n.soler@empresa-demo.es' },
@@ -33,7 +33,7 @@ const PEOPLE = {
 
 function seed() {
   const now = Date.now();
-  // Data relativa: fa `days` dies a les hh:mm (o fa uns minuts si cau al futur)
+  // Fecha relativa: hace `days` días a las hh:mm (o hace unos minutos si cae en el futuro)
   const at = (days, h = 10, m = 0) => {
     const d = new Date(now - days * DAY);
     d.setHours(h, m, 0, 0);
@@ -49,7 +49,7 @@ function seed() {
   const log = (complaint_id, created_at, action, details = {}) =>
     audit.push({ id: `a${++n}`, complaint_id, action, details, created_at });
 
-  // c: dades de la denúncia · thread: missatges · events: registre d'activitat
+  // c: datos de la denuncia · thread: mensajes · events: registro de actividad
   function add(c, thread = [], events = []) {
     const created = c.created_at;
     complaints.push({
@@ -57,13 +57,13 @@ function seed() {
       department: null, incident_date: null, involved_people: null,
       language: 'es', organization_id: 'demo-org', attachments: [],
       extended_until: null, extension_reason: null, anonymized_at: null,
-      // Columnes de les migracions 011 i 012
+      // Columnas de las migraciones 011 y 012
       channel: 'web', meeting_requested: false, meeting_requested_at: null, meeting_held_at: null, outcome: null,
       investigation_started_at: null, fiscal_referral_at: null, title: null, assigned_to: null, incident_when: null,
       ...c,
-      // Referència interna del panell: el codi de seguiment només el coneix qui denuncia
+      // Referencia interna del panel: el código de seguimiento solo lo conoce quien denuncia
       reference: `REF-${c.tracking_code.replace('-', '').slice(2)}`,
-      // En una denúncia anònima no es desa el nom original dels arxius
+      // En una denuncia anónima no se guarda el nombre original de los archivos
       attachments: (c.attachments ?? []).map((f, i) => (c.is_anonymous === false ? f : { ...f, filename: neutralName(f.filename, i) })),
       updated_at: c.updated_at ?? created,
     });
@@ -77,7 +77,7 @@ function seed() {
   const { daniel, nuria, admin } = PEOPLE;
   const laura = admin;
 
-  // Registrada a mà: va arribar per telèfon
+  // Registrada a mano: llegó por teléfono
   add({
     id: 'c-d7tn4vka', tracking_code: 'D7TN-4VKA', category: 'safety', status: 'received', priority: 'normal', channel: 'phone',
     is_anonymous: true, created_at: at(0, 10, 40), department: 'Muelle de carga', incident_when: 'Desde marzo',
@@ -324,7 +324,7 @@ function seed() {
     ms(at(100, 12, 5), admin),
   ]);
 
-  // Fil per a les consultes del canal públic que no són d'aquesta llista
+  // Hilo para las consultas del canal público que no son de esta lista
   messages['demo-complaint'] = [];
 
   const profiles = [
@@ -344,45 +344,45 @@ function seed() {
     P('mgr-nuria', 'environmental', true, true, true, false),
   ];
 
-  // Dates legals com les desa la base de dades (migració 010): primer acusament i primera resposta
+  // Fechas legales como las guarda la base de datos (migración 010): primer acuse y primera respuesta
   for (const c of complaints) {
     const mine = audit.filter(a => a.complaint_id === c.id && a.action === 'status_changed').sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     const ack = mine.find(a => a.details.from === 'received');
     const ans = mine.find(a => DONE.includes(a.details.to) || a.details.to === 'archived');
     c.acknowledged_at = ack?.created_at ?? (c.status !== 'received' ? c.updated_at : null);
     c.answered_at = ans?.created_at ?? ([...DONE, 'archived'].includes(c.status) ? c.updated_at : null);
-    // Com a les migracions 011 i 012: inici de la investigació, data de la petició de reunió i resultat
+    // Como en las migraciones 011 y 012: inicio de la investigación, fecha de la petición de reunión y resultado
     const inv = mine.find(a => ['investigating', 'waiting'].includes(a.details.to));
     c.investigation_started_at = inv?.created_at ?? (['investigating', 'waiting'].includes(c.status) ? c.updated_at : null);
     if (c.meeting_requested && !c.meeting_requested_at) c.meeting_requested_at = c.created_at;
     if (DONE.includes(c.status) && !c.outcome) c.outcome = 'founded';
     if (c.status === 'archived' && !c.outcome) c.outcome = 'unfounded';
   }
-  // Alguns casos ja tenen qui els porta
+  // Algunos casos ya tienen quien los lleva
   const own = { 'c-vk7p2mqa': laura.id, 'c-w2lc9pxa': laura.id, 'c-m9tf6bzq': daniel.id, 'c-j6yb3kmv': daniel.id, 'c-q4ns7hje': nuria.id, 'c-n7aw4dsk': admin.id, 'c-p3ve8nqc': admin.id };
   for (const c of complaints) if (own[c.id]) c.assigned_to = own[c.id];
-  // Un missatge de l'informant encara sense llegir, perquè es vegi l'avís al llistat
+  // Un mensaje de quien informa todavía sin leer, para que se vea el aviso en el listado
   const w = messages['c-w2lc9pxa'];
   if (w) w.filter(m => m.sender === 'reporter').forEach(m => { m.is_read = false; });
 
-  // L'administrador de la demo ja té la verificació en dos passos activada: l'accés demana el codi
+  // El administrador de la demo ya tiene la verificación en dos pasos activada: el acceso pide el código
   const mfa = [{ id: 'factor-demo', status: 'verified', factor_type: 'totp', created_at: at(30, 9, 0) }];
   return { v: 4, complaints, messages, audit, profiles, permissions, mfa, seq: n };
 }
 
-// ── Persistència ────────────────────────────────────────────────────────
+// ── Persistencia ────────────────────────────────────────────────────────
 let store = null;
 function db() {
   if (store) return store;
   try {
     const raw = sessionStorage.getItem(KEY);
     if (raw) store = JSON.parse(raw);
-  } catch { /* sense emmagatzematge: es treballa en memòria */ }
+  } catch { /* sin almacenamiento: se trabaja en memoria */ }
   if (!store) { store = seed(); save(); }
   return store;
 }
 function save() {
-  try { sessionStorage.setItem(KEY, JSON.stringify(store)); } catch { /* en memòria */ }
+  try { sessionStorage.setItem(KEY, JSON.stringify(store)); } catch { /* en memoria */ }
 }
 const wait = (ms = 220) => new Promise(r => setTimeout(r, ms));
 const uid = (p) => `${p}-${Math.random().toString(36).slice(2, 10)}`;
@@ -392,7 +392,7 @@ const LIST_FIELDS = ['id', 'reference', 'category', 'status', 'priority', 'is_an
 const pick = (c) => Object.fromEntries(LIST_FIELDS.map(k => [k, c[k] ?? null]));
 const byDateDesc = (a, b) => new Date(b.created_at) - new Date(a.created_at);
 
-// ── Denúncies ───────────────────────────────────────────────────────────
+// ── Denuncias ───────────────────────────────────────────────────────────
 export async function listComplaints({ categories = null } = {}) {
   await wait(380);
   const s = db();
@@ -407,7 +407,7 @@ export async function getComplaintById(id) {
   await wait(300);
   const c = db().complaints.find(x => x.id === id);
   if (!c) return { complaint: null, error: { message: 'not-found' } };
-  // Com al servidor: la identitat no viatja amb la denúncia, es demana a part (getReporterIdentity)
+  // Como en el servidor: la identidad no viaja con la denuncia, se pide aparte (getReporterIdentity)
   const { reporter_name, reporter_email, reporter_phone, ...rest } = clone(c);
   return { complaint: rest, error: null };
 }
@@ -431,7 +431,7 @@ export async function getAuditLogs(complaintId) {
   return { logs: clone(logs), error: null };
 }
 
-// ── Missatges ───────────────────────────────────────────────────────────
+// ── Mensajes ────────────────────────────────────────────────────────────
 export async function getMessages(complaintId) {
   await wait(150);
   return { messages: clone(db().messages[complaintId] ?? []), error: null };
@@ -449,7 +449,7 @@ export async function sendMessage(complaintId, content, sender = 'reporter', act
   return { error: null };
 }
 
-// ── Com els triggers de la base de dades (migració 010) ─────────────────
+// ── Como los triggers de la base de datos (migración 010) ───────────────
 function push(s, complaintId, action, details = {}) {
   s.audit.push({ id: `a${++s.seq}`, complaint_id: complaintId, action, details, created_at: new Date().toISOString() });
 }
@@ -490,7 +490,7 @@ export async function updateComplaint(id, patch, actorName = '') {
   return { complaint: { id, status, priority, outcome, acknowledged_at, answered_at, updated_at }, error: null };
 }
 
-// ── Accions de la fitxa (migracions 011 i 012) ──────────────────────────
+// ── Acciones de la ficha (migraciones 011 y 012) ────────────────────────
 export async function markMeetingHeld(id, actorName = '') {
   await wait(220);
   const s = db();
@@ -602,7 +602,7 @@ export async function retentionDue() {
   return { items: clone(items), error: null };
 }
 
-// ── Portal de seguiment per codi ────────────────────────────────────────
+// ── Portal de seguimiento por código ────────────────────────────────────
 const byCode = (code) => {
   const norm = String(code).toUpperCase().replace(/[^A-Z0-9]/g, '');
   return db().complaints.find(x => !x.anonymized_at && x.tracking_code.replace('-', '') === norm);
@@ -620,7 +620,7 @@ export async function sendReporterMessage(code, content) {
   return sendMessage(c.id, content, 'reporter');
 }
 
-// ── Verificació en dos passos a l'accés ─────────────────────────────────
+// ── Verificación en dos pasos en el acceso ──────────────────────────────
 const AAL_KEY = 'reportia-demo-aal';
 export async function mfaState() {
   const s = db();
@@ -639,8 +639,8 @@ export function resetAal() {
   try { sessionStorage.removeItem(AAL_KEY); } catch { /* res */ }
 }
 
-// ── Canal públic enllaçat amb el panell (només demo) ────────────────────
-// Una denúncia enviada des del canal v2 apareix al panell; amb el seu codi es pot consultar.
+// ── Canal público enlazado con el panel (solo demo) ─────────────────────
+// Una denuncia enviada desde el canal v2 aparece en el panel; con su código se puede consultar.
 export function addComplaint({ id, trackingCode, formData, files = [] }) {
   const s = db();
   const now = new Date().toISOString();
@@ -678,7 +678,7 @@ export function findByCode(code) {
   };
 }
 
-/** Qui informa demana una reunió presencial des de «El meu cas» */
+/** Quien informa pide una reunión presencial desde «Mi caso» */
 export async function requestMeetingByCode(code) {
   await wait(200);
   const c = byCode(code);
@@ -695,8 +695,8 @@ export async function requestMeetingByCode(code) {
   return { error: null };
 }
 
-// ── IA simulada (només es veu amb VITE_AI_ENABLED=1) ────────────────────
-// Textos fixos d'exemple per poder ensenyar com quedaria encesa. No es crida cap servei.
+// ── IA simulada (solo se ve con VITE_AI_ENABLED=1) ──────────────────────
+// Textos fijos de ejemplo para poder enseñar cómo quedaría encendida. No se llama a ningún servicio.
 const AI_SAMPLE = {
   harassment: ['Comentarios y trato humillante hacia varias compañeras', 'La persona informante describe comentarios de contenido sexual y un trato humillante repetido hacia varias compañeras. Sitúa los hechos en un turno y un lugar concretos y dice que hay más personas que lo han presenciado. No aporta documentos, pero indica que puede dar más detalles.'],
   fraud: ['Posibles pagos por servicios que no se prestaron', 'Se describen facturas o cobros que no se corresponden con servicios realmente prestados. La persona informante señala el departamento afectado y un periodo aproximado. Convendría contrastar las facturas con los registros internos de ese periodo.'],
@@ -709,9 +709,9 @@ const AI_SAMPLE = {
   other: ['Comunicación sobre una posible irregularidad interna', 'La persona informante describe un hecho que considera irregular y que no encaja en los demás temas. Indica dónde ocurre y desde cuándo. Hace falta concretar con ella los detalles antes de valorarlo.'],
 };
 const AI_DRAFT = {
-  ack: 'Hemos recibido su comunicación y le agradecemos que la haya presentado.\n\nLa trataremos de forma confidencial y solo tendrán acceso a ella las personas encargadas de gestionarla. Recibirá una respuesta dentro del plazo legal, que es de tres meses como máximo.\n\nSi quiere añadir algo, puede escribirnos por este mismo canal con su código.',
-  question: 'Gracias por su comunicación. Para poder investigarla necesitamos concretar algunos datos:\n\n1. ¿En qué fechas aproximadas ocurrieron los hechos?\n2. ¿En qué lugar o área de la empresa?\n3. ¿Dispone de algún documento, mensaje o imagen que pueda aportar?\n\nNo es necesario que nos diga quién es. Puede responder por este mismo canal.',
-  answer: 'Le agradecemos de nuevo su comunicación. La investigación ha concluido.\n\n[Indique aquí qué se ha comprobado.]\n\n[Indique aquí las medidas adoptadas, si las hay.]\n\nLe recordamos que la ley prohíbe cualquier represalia por haber informado y que también puede acudir a los canales externos de las autoridades.',
+  ack: 'Hemos recibido tu comunicación y te agradecemos que la hayas presentado.\n\nLa trataremos de forma confidencial y solo tendrán acceso a ella las personas encargadas de gestionarla. Recibirás una respuesta dentro del plazo legal, que es de tres meses como máximo.\n\nSi quieres añadir algo, puedes escribirnos por este mismo canal con tu código.',
+  question: 'Gracias por tu comunicación. Para poder investigarla necesitamos concretar algunos datos:\n\n1. ¿En qué fechas aproximadas ocurrieron los hechos?\n2. ¿En qué lugar o área de la empresa?\n3. ¿Dispones de algún documento, mensaje o imagen que puedas aportar?\n\nNo es necesario que nos digas quién eres. Puedes responder por este mismo canal.',
+  answer: 'Te agradecemos de nuevo tu comunicación. La investigación ha concluido.\n\n[Indica aquí qué se ha comprobado.]\n\n[Indica aquí las medidas adoptadas, si las hay.]\n\nTe recordamos que la ley prohíbe cualquier represalia por haber informado y que también puedes acudir a los canales externos de las autoridades.',
 };
 const aiOf = (c) => (c?.ai_summary ? { summary: c.ai_summary, title: c.ai_title ?? '', generatedAt: c.ai_generated_at } : null);
 
@@ -738,8 +738,8 @@ export async function requestAiDraft(complaintId, kind) {
   return { draft: AI_DRAFT[kind], error: null };
 }
 
-// ── Organització (compte, pla i dades de l'empresa) ─────────────────────
-// Es crea en el primer accés perquè les sessions de demo ja obertes també la tinguin.
+// ── Organización (cuenta, plan y datos de la empresa) ───────────────────
+// Se crea en el primer acceso para que las sesiones de demo ya abiertas también la tengan.
 export function getOrganization() {
   const s = db();
   if (!s.org) {
@@ -748,15 +748,17 @@ export function getOrganization() {
       plan: 'trial', trial_ends_at: new Date(Date.now() + 21 * DAY).toISOString(), paid_until: null,
       responsible_name: 'Laura Puig Ferrer', responsible_role: 'Directora de Cumplimiento',
       billing_name: 'Empresa Demo, S.L.', billing_tax_id: '', billing_email: '',
-      // Responsable nomenada fa 4 dies hàbils: en queden 6 per comunicar-ho a l'AIPI (data buida)
+      // Responsable nombrada hace 4 días hábiles: quedan 6 para comunicarlo a la AIPI (fecha vacía)
       responsible_appointed_at: isoDay(addBusinessDays(addBusinessDays(new Date(), 6), -10)), aipi_notified_at: null,
-      // Primers passos a 3 de 5: responsable, canal al web (marcat a mà) i més d'una persona a l'equip
+      // Primeros pasos a 3 de 5: responsable, canal en la web (marcado a mano) y más de una persona en el equipo
       onboarding: { web: true },
       regional_authority_name: 'Oficina Antifrau de Catalunya', regional_authority_url: 'https://www.antifrau.cat',
       created_at: new Date(Date.now() - 9 * DAY).toISOString(),
     };
     save();
   }
+  // «Tu marca» (migración 016): la paleta azul y sin logo, también en las sesiones de demo que ya estaban abiertas
+  if (!('brand_palette' in s.org)) { Object.assign(s.org, { brand_palette: 'azul', brand_logo: null }); save(); }
   return clone(s.org);
 }
 
@@ -770,7 +772,15 @@ export async function updateOrganization(updates) {
   return { organization: clone(s.org), error: null };
 }
 
-// ── Usuaris i permisos ──────────────────────────────────────────────────
+// ── Usuarios y permisos ─────────────────────────────────────────────────
+/** El perfil de quien entra en la demo, con su apariencia (claro, oscuro o como el sistema; migración 016) */
+export async function getProfile(id) {
+  const p = db().profiles.find(x => x.id === id);
+  if (!p) return { profile: null, error: null };
+  const { email, invited, ...profile } = p; // eslint-disable-line no-unused-vars
+  return { profile: clone({ appearance: 'system', ...profile }), error: null };
+}
+
 export async function getAllProfiles() {
   await wait(260);
   const rows = [...db().profiles].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
@@ -820,7 +830,7 @@ export async function deleteManager(userId) {
   return { error: null };
 }
 
-// ── Verificació en dos passos (simulada de forma evident) ───────────────
+// ── Verificación en dos pasos (simulada de forma evidente) ──────────────
 export async function listMfaFactors() {
   await wait(200);
   return { factors: clone(db().mfa), error: null };

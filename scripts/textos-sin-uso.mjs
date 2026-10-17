@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-// Textos de src/translations.js que ja no fa servir cap pantalla (la portada inclosa).
+// Textos de src/translations.js que ya no usa ninguna pantalla (la portada incluida).
 //
-//   node scripts/textos-sin-uso.mjs           → només ho llista
-//   node scripts/textos-sin-uso.mjs --write   → els treu
+//   node scripts/textos-sin-uso.mjs           → solo los lista
+//   node scripts/textos-sin-uso.mjs --write   → los quita
 //
-// Criteri, prudent: una clau (del primer nivell de cada apartat, o de l'arrel de cada idioma) es dona per
-// morta només si el seu nom no apareix com a paraula en cap fitxer de codi (src, scripts, index.html), ni
-// encaixa amb cap clau construïda al vol (`ref${n}t`, `${p}Today`, 'ack' + 'One'…). Un nom comú com «title»
-// es queda sempre, encara que potser ja no es faci servir: val més un text de sobres que una pantalla trencada.
-// Abans d'escriure es comprova que el resultat és exactament l'original menys les claus tretes.
+// Criterio, prudente: una clave (del primer nivel de cada apartado, o de la raíz de cada idioma) se da por
+// muerta solo si su nombre no aparece como palabra en ningún archivo de código (src, scripts, index.html), ni
+// encaja con ninguna clave construida al vuelo (`ref${n}t`, `${p}Today`, 'ack' + 'One'…). Un nombre común como «title»
+// se queda siempre, aunque quizá ya no se use: vale más un texto de sobra que una pantalla rota.
+// Antes de escribir se comprueba que el resultado es exactamente el original menos las claves quitadas.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -17,12 +17,12 @@ import { isDeepStrictEqual } from 'node:util';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FILE = path.join(ROOT, 'src', 'translations.js');
-// Els textos del panell viuen a part (es descarreguen només en entrar al panell)
+// Los textos del panel viven aparte (solo se descargan al entrar en el panel)
 const PANEL_FILE = path.join(ROOT, 'src', 'translations-panel.js');
 const SELF = fileURLToPath(import.meta.url);
 const WRITE = process.argv.includes('--write');
 
-// ── 1. Totes les paraules del codi ─────────────────────────────────────
+// ── 1. Todas las palabras del código ───────────────────────────────────
 const code = [];
 const read = (p) => { if (p !== FILE && p !== PANEL_FILE && p !== SELF) code.push(fs.readFileSync(p, 'utf8')); };
 (function walk(dir) {
@@ -37,15 +37,15 @@ read(path.join(ROOT, 'index.html'));
 const all = code.join('\n');
 const words = new Set(all.match(/[A-Za-z_$][A-Za-z0-9_$]*/g));
 const escape = (x) => x.replace(/[.*+?^()|[\]\\{}$]/g, (m) => `\\${m}`);
-// Claus fetes amb una plantilla que té text fix: `ref${n}t` → /^ref.+t$/, `${p}Today` → /^.+Today$/
+// Claves hechas con una plantilla que tiene texto fijo: `ref${n}t` → /^ref.+t$/, `${p}Today` → /^.+Today$/
 const PLACE = /\$\{[^}]*\}/g;
 const dynamic = [...all.matchAll(/`([^`\n]*)`/g)]
   .map((m) => m[1])
   // Con al menos 3 letras fijas: `a${++n}` (una sola letra) no dice qué clave es y daba por usadas todas las que empiezan por «a»
   .filter((t) => /^[A-Za-z_]*(\$\{[^}]*\}[A-Za-z_]*)+$/.test(t) && t.replace(PLACE, '').length >= 3)
   .map((t) => new RegExp(`^${t.split(PLACE).map(escape).join('.+')}$`));
-// Claus enganxades només de trossos (`${p}${many}` amb p = 'ack' i many = 'One'): es manté la clau si es pot
-// partir en dos o més trossos que apareixen tots com a cadenes al codi ('ack' + 'One' → «ackOne»)
+// Claves pegadas solo de trozos (`${p}${many}` con p = 'ack' y many = 'One'): se mantiene la clave si se puede
+// partir en dos o más trozos que aparecen todos como cadenas en el código ('ack' + 'One' → «ackOne»)
 const literals = new Set([...all.matchAll(/'([A-Za-z_]{2,40})'|"([A-Za-z_]{2,40})"/g)].map((m) => m[1] ?? m[2]));
 function pieces(key) {
   const ok = [true];
@@ -57,19 +57,19 @@ function pieces(key) {
 }
 const used = (key) => words.has(key) || dynamic.some((re) => re.test(key)) || pieces(key);
 
-// ── 2. Què es treu ─────────────────────────────────────────────────────
+// ── 2. Qué se quita ────────────────────────────────────────────────────
 const { translations: base } = await import(`${pathToFileURL(FILE).href}?t=${Date.now()}`);
 const { panelTexts } = await import(`${pathToFileURL(PANEL_FILE).href}?t=${Date.now()}`);
-// Tots els textos junts, com els veu l'aplicació quan el panell és carregat
+// Todos los textos juntos, como los ve la aplicación cuando el panel está cargado
 const translations = Object.fromEntries(Object.keys(base).map(l => [l, { ...base[l], ...panelTexts[l] }]));
 const LANGS = Object.keys(translations);
-const dead = new Map(); // apartat → [claus]
+const dead = new Map(); // apartado → [claves]
 for (const [key, value] of Object.entries(translations.es)) {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
-    if (!used(key)) { dead.set('(apartat sencer)', [...(dead.get('(apartat sencer)') ?? []), key]); continue; }
+    if (!used(key)) { dead.set('(apartado entero)', [...(dead.get('(apartado entero)') ?? []), key]); continue; }
     const gone = Object.keys(value).filter((k) => !used(k));
     if (gone.length) dead.set(key, gone);
-  } else if (!used(key)) dead.set('(arrel)', [...(dead.get('(arrel)') ?? []), key]);
+  } else if (!used(key)) dead.set('(raíz)', [...(dead.get('(raíz)') ?? []), key]);
 }
 const paths = [];
 for (const [section, keys] of dead) for (const k of keys) paths.push(section.startsWith('(') ? [k] : [section, k]);
@@ -82,12 +82,12 @@ for (const [section, keys] of dead) {
 console.log(`\n${total} claves sin uso (en cada uno de los ${LANGS.length} idiomas)`);
 if (!WRITE || !total) process.exit(0);
 
-// ── 3. Treure-les del text, respectant cometes, comentaris i claudàtors ──
-/** Rang [inici de la línia, fi de la propietat amb la coma i el salt de línia] de cada propietat, pel seu camí */
+// ── 3. Quitarlas del texto, respetando comillas, comentarios y corchetes ──
+/** Rango [inicio de la línea, fin de la propiedad con la coma y el salto de línea] de cada propiedad, por su ruta */
 function locate(text, anchor) {
   const spans = new Map();
-  const props = []; // propietats obertes: { key, start }
-  const stack = []; // '{', '[', '(' o 'v' (dins del valor d'una propietat)
+  const props = []; // propiedades abiertas: { key, start }
+  const stack = []; // '{', '[', '(' o 'v' (dentro del valor de una propiedad)
   let i = text.indexOf('{', text.indexOf(anchor)) + 1;
   stack.push('{');
   const close = (end) => {
@@ -116,7 +116,7 @@ function locate(text, anchor) {
   return spans;
 }
 
-/** Treu de file les claus de paths que hi són; comprova que el resultat és l'original menys aquestes claus */
+/** Quita de file las claves de paths que están en él; comprueba que el resultado es el original menos esas claves */
 async function cut(file, anchor, exportName, object) {
   const src = fs.readFileSync(file, 'utf8');
   const spans = locate(src, anchor);
@@ -125,10 +125,10 @@ async function cut(file, anchor, exportName, object) {
   const cuts = [];
   for (const lang of LANGS) for (const p of mine) {
     const span = spans.get([lang, ...p].join('.'));
-    if (!span) throw new Error(`No trobo ${lang}.${p.join('.')} a ${path.basename(file)}`);
+    if (!span) throw new Error(`No encuentro ${lang}.${p.join('.')} en ${path.basename(file)}`);
     cuts.push(span);
   }
-  // S'uneixen els talls seguits; si un grup sencer desapareix, també el comentari que el titulava
+  // Se unen los cortes seguidos; si un grupo entero desaparece, también el comentario que lo titulaba
   cuts.sort((a, b) => a[0] - b[0]);
   const runs = [];
   for (const c of cuts) { const last = runs[runs.length - 1]; if (last && c[0] <= last[1]) last[1] = Math.max(last[1], c[1]); else runs.push([...c]); }
@@ -139,15 +139,15 @@ async function cut(file, anchor, exportName, object) {
   }
   let out = src;
   for (const [a, b] of [...runs].reverse()) out = out.slice(0, a) + out.slice(b);
-  // ── 4. Comprovar: el resultat ha de ser l'original menys el que s'ha tret ──
+  // ── 4. Comprobar: el resultado tiene que ser el original menos lo que se ha quitado ──
   const tmp = path.join(os.tmpdir(), `textos-check-${process.pid}-${path.basename(file)}.mjs`);
   fs.writeFileSync(tmp, out);
   const after = (await import(pathToFileURL(tmp).href))[exportName];
   const expected = structuredClone(object);
   for (const lang of LANGS) for (const p of mine) { let o = expected[lang]; for (const k of p.slice(0, -1)) o = o[k]; delete o[p[p.length - 1]]; }
-  if (!isDeepStrictEqual(after, expected)) throw new Error(`${path.basename(file)}: el resultat no coincideix amb l’original menys les claus tretes: no s’ha escrit res`);
+  if (!isDeepStrictEqual(after, expected)) throw new Error(`${path.basename(file)}: el resultado no coincide con el original menos las claves quitadas: no se ha escrito nada`);
   fs.writeFileSync(file, out);
-  console.log(`Escrit ${path.relative(ROOT, file)}: ${src.split('\n').length} → ${out.split('\n').length} línies. Comprovat: la resta de textos són idèntics.`);
+  console.log(`Escrito ${path.relative(ROOT, file)}: ${src.split('\n').length} → ${out.split('\n').length} líneas. Comprobado: el resto de textos son idénticos.`);
   return mine.length;
 }
 await cut(FILE, 'translations', 'translations', base);

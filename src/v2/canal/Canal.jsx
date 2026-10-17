@@ -7,6 +7,9 @@ import { detectLang, savedLang, LANGS, Stable } from '../V2Layout.jsx';
 import { SplitShell, Button, Card, Dialog, Skeleton, Offline } from '../ui/index.js';
 import { EntryTop, EntryReport, EntryManage, EntryLegal, EntryLinks } from './Entrada.jsx';
 import { EMPTY_DRAFT, isDirty, Tc } from './shared.jsx';
+import { useBrandTheme } from '../lib/brand.js';
+import { inFrame } from '../lib/frame.js';
+import { leaveCanal } from '../lib/domain.js';
 import './canal.css';
 
 /**
@@ -31,10 +34,13 @@ export default function Canal() {
   const [sent, setSent] = useState(null); // { code, failed, createdAt, secured, asked }
   const [leaving, setLeaving] = useState(false); // se ha pulsado «Acceder» con una denuncia a medias
   const t = translations[lang].canal;
+  // La marca de la empresa (su paleta) y el modo claro u oscuro del sistema de quien entra: no se guarda nada
+  useBrandTheme(org?.brand_palette, 'system');
   const base = `/canal/${slug}`;
   const sub = pathname.slice(base.length).replace(/^\/+|\/+$/g, '');
-  // En el canal de ejemplo «Gestionar» no lleva al acceso real: no hay cuenta detrás, se invita a crear una
-  const loginTo = org?.is_example ? `/crear-compte?lang=${lang}` : `/admin/login?from=${encodeURIComponent(slug)}&lang=${lang}`;
+  // En el canal de ejemplo «Gestionar» no lleva al acceso real: no hay cuenta detrás, se invita a crear una. En la
+  // dirección propia de una empresa (canal.acme.es), el acceso está en la dirección principal
+  const loginTo = leaveCanal(org?.is_example ? `/crear-compte?lang=${lang}` : `/admin/login?from=${encodeURIComponent(slug)}&lang=${lang}`);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,7 +73,7 @@ export default function Canal() {
 
   const banner = org?.is_example && status === 'ready' && (
     <>
-      <Link to={`/?lang=${lang}`}><ArrowLeft size={15} strokeWidth={2.2} aria-hidden="true" /><Stable lang={lang} pick={T => T.v2.exampleBack} /></Link>
+      <Link to={leaveCanal(`/?lang=${lang}`)} {...(inFrame() ? { target: '_blank', rel: 'noopener noreferrer' } : {})}><ArrowLeft size={15} strokeWidth={2.2} aria-hidden="true" /><Stable lang={lang} pick={T => T.v2.exampleBack} /></Link>
       <Tc lang={lang} k="exampleNote" />
     </>
   );
@@ -112,9 +118,10 @@ export default function Canal() {
   if (sub === 'privacidad') return <Outlet context={ctx} />;
 
   const isEntry = sub === '';
-  // «Acceder» con una denuncia a medias: salir del canal la borra de la memoria, así que se pregunta antes
+  // «Acceder» con una denuncia a medias: salir del canal la borra de la memoria, así que se pregunta antes. Dentro de
+  // la web de una empresa (iframe) el acceso se abre en una ventana nueva y la denuncia a medias sigue aquí
   function onManage(e) {
-    if (!sent && isDirty(draft)) { e.preventDefault(); setLeaving(true); }
+    if (!sent && isDirty(draft) && !inFrame()) { e.preventDefault(); setLeaving(true); }
   }
 
   return (

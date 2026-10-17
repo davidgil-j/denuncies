@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Eye, EyeOff, CircleAlert } from 'lucide-react';
 import { ICON } from '../V2Layout.jsx';
 
-// Correu: sense espais ni caràcters de llista o d'etiqueta, domini amb parts no buides i extensió de 2 lletres o més
+// Correo: sin espacios ni caracteres de lista o de etiqueta, dominio con partes no vacías y extensión de 2 letras o más
 export const EMAIL_RE = /^[^\s@,;:<>()[\]\\"]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i;
 
 export function FieldError({ id, children }) {
@@ -10,7 +10,7 @@ export function FieldError({ id, children }) {
   return <p className="v2-err" id={id}><CircleAlert {...ICON} />{children}</p>;
 }
 
-/** Camp de contrasenya amb botó de mostrar/amagar (el botó és focusable i anuncia el seu estat). */
+/** Campo de contraseña con botón de mostrar u ocultar (el botón recibe el foco y anuncia su estado). */
 export function PwInput({ id, value, onChange, autoComplete, invalid, describedBy, labels, inputRef }) {
   const [show, setShow] = useState(false);
   return (
@@ -44,8 +44,8 @@ export function PwInput({ id, value, onChange, autoComplete, invalid, describedB
 }
 
 /**
- * Tradueix els errors de Supabase Auth a una clau dels textos v2site.
- * Mai es mostra el missatge original (en anglès) a la persona usuària.
+ * Traduce los errores de Supabase Auth a una clave de los textos (v2site.signup y panel).
+ * Nunca se muestra el mensaje original (en inglés) a la persona usuaria.
  */
 export function authErrorKey(err) {
   const msg = (err?.message || '').toLowerCase();

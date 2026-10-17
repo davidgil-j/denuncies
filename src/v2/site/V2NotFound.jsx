@@ -4,10 +4,10 @@ import { ArrowRight, Compass } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { ICON, stableOf } from '../V2Layout.jsx';
 
-// Text que reserva l'espai de l'idioma més llarg: en canviar d'idioma, la pantalla no es mou
+// Texto que reserva el espacio del idioma más largo: al cambiar de idioma, la pantalla no se mueve
 const S = stableOf(T => T.v2site.notFound);
 
-/** Adreça inexistent a la web de Reportia: s'explica i s'ofereixen els camins habituals */
+/** Dirección inexistente en la web de Reportia: se explica y se ofrecen los caminos habituales */
 export default function V2NotFound() {
   const { lang } = useOutletContext();
   const t = translations[lang].v2site.notFound;

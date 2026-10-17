@@ -114,7 +114,7 @@ const skeleton = (page) => page.evaluate(() => [...document.querySelectorAll('.c
   if (mobile) await p2.getByRole('tab', { name: 'Resumen', exact: true }).click();
   await p2.getByRole('button', { name: 'Enviar el acuse de recibo' }).first().click();
   await p2.locator('dialog[open]').getByRole('button', { name: 'Redactar con IA' }).click();
-  await p2.waitForFunction(() => document.querySelector('dialog[open] textarea')?.value.startsWith('Hemos recibido su comunicación'), null, { timeout: 8000 });
+  await p2.waitForFunction(() => document.querySelector('dialog[open] textarea')?.value.startsWith('Hemos recibido tu comunicación'), null, { timeout: 8000 });
   ok('acuse: el borrador sustituye la plantilla sin preguntar y espera a que pulses enviar', (await p2.evaluate(() => JSON.parse(sessionStorage.getItem('reportia-demo-store-v4')).complaints.find(x => x.id === 'c-vk7p2mqa').status)) === 'received');
   await p2.locator('.pn-toast').waitFor({ state: 'detached', timeout: 8000 }).catch(() => {});
   await shot(p2, 'IA-encendida-acuse-con-borrador', { view: true });

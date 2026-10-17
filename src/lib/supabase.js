@@ -8,9 +8,9 @@ if (!SUPABASE_URL || !SUPABASE_ANON || SUPABASE_ANON === 'PENDING_REPLACE_WITH_A
   console.warn('[Supabase] ⚠️  Missing credentials — running in offline/demo mode.');
 }
 
-// Enllaç d'un correu (recuperar la contrasenya o invitació). Es llegeix ARA, abans de crear el client:
-// Supabase processa el permís de l'adreça en arrencar, n'esborra el rastre i avisa (PASSWORD_RECOVERY)
-// molt abans que la pantalla «Contrasenya nova» s'hagi descarregat i pugui escoltar-ho.
+// Enlace de un correo (recuperar la contraseña o invitación). Se lee AHORA, antes de crear el cliente:
+// Supabase procesa el permiso de la dirección al arrancar, borra su rastro y avisa (PASSWORD_RECOVERY)
+// mucho antes de que la pantalla «Contraseña nueva» se haya descargado y pueda escucharlo.
 const LINK_KEY = 'reportia-auth-link';
 function readAuthLink() {
   const none = { type: '', error: '', code: '', tokenHash: '' };
@@ -20,15 +20,15 @@ function readAuthLink() {
     const query = new URLSearchParams(window.location.search);
     const error = hash.get('error_code') || hash.get('error') || query.get('error_code') || query.get('error') || '';
     const kind = hash.get('type') || query.get('type') || '';
-    // Tres formats: #access_token=…&type=recovery|invite (implícit), ?code=… (PKCE) i
-    // ?token_hash=…&type=… (plantilla de correu pròpia, que funciona encara que s'obri en un altre navegador)
+    // Tres formatos: #access_token=…&type=recovery|invite (implícito), ?code=… (PKCE) y
+    // ?token_hash=…&type=… (plantilla de correo propia, que funciona aunque se abra en otro navegador)
     const code = query.get('code') || '';
     const tokenHash = query.get('token_hash') || '';
     const arrived = hash.has('access_token') || !!code || !!tokenHash;
     if (error) { window.sessionStorage.removeItem(LINK_KEY); return { ...none, error }; }
     if (arrived) {
       const type = kind === 'invite' ? 'invite' : 'recovery';
-      window.sessionStorage.setItem(LINK_KEY, type); // sobreviu a una recàrrega de la pàgina dins la mateixa pestanya
+      window.sessionStorage.setItem(LINK_KEY, type); // sobrevive a una recarga de la página dentro de la misma pestaña
       return { type, error: '', code, tokenHash };
     }
     return { ...none, type: window.sessionStorage.getItem(LINK_KEY) || '' };
@@ -36,8 +36,8 @@ function readAuthLink() {
 }
 const authLink = readAuthLink();
 
-// createClient llança error si la URL és buida; amb un placeholder la UI carrega
-// i les crides a la BD simplement fallen (mode offline/demo).
+// createClient lanza un error si la URL está vacía; con un valor de relleno la interfaz carga
+// y las llamadas a la base de datos simplemente fallan (modo sin conexión o demo).
 export const supabase = createClient(SUPABASE_URL || 'http://localhost:54321', SUPABASE_ANON || 'offline-demo-key', {
   auth: {
     storage:          typeof window !== 'undefined' ? window.sessionStorage : undefined,
@@ -48,41 +48,41 @@ export const supabase = createClient(SUPABASE_URL || 'http://localhost:54321', S
 
 export { SUPABASE_URL };
 
-// Si l'avís de recuperació arriba abans que ningú l'escolti, queda apuntat aquí
+// Si el aviso de recuperación llega antes de que nadie lo escuche, queda apuntado aquí
 let recoveryEventSeen = false;
 supabase.auth.onAuthStateChange((event) => { if (event === 'PASSWORD_RECOVERY') recoveryEventSeen = true; });
 
-// Mode demo: només si no hi ha credencials (mai en producció). Permet treballar la UI sense BD.
-// Mode demo: sense credencials, i només en desenvolupament o si es demana explícitament
-// (VITE_DEMO=1, per ensenyar la web). Un build de producció mal configurat no accepta denúncies falses.
+// Modo demo: solo si no hay credenciales (nunca en producción). Permite trabajar la interfaz sin base de datos.
+// Modo demo: sin credenciales, y solo en desarrollo o si se pide explícitamente
+// (VITE_DEMO=1, para enseñar la web). Un build de producción mal configurado no acepta denuncias falsas.
 const NO_CREDENTIALS = !SUPABASE_URL || !SUPABASE_ANON || SUPABASE_ANON === 'PENDING_REPLACE_WITH_ANON_KEY';
 const DEMO_MODE = NO_CREDENTIALS && (import.meta.env.DEV || import.meta.env.VITE_DEMO === '1');
 const DEMO_ORG  = { id: 'demo-org', name: 'Empresa Demo', slug: 'demo' };
-// Dades de demostració del panell (denúncies, missatges, registre, usuaris). Import dinàmic:
-// només es descarrega en mode demo, mai en producció.
+// Datos de demostración del panel (denuncias, mensajes, registro, usuarios). Import dinámico:
+// solo se descarga en modo demo, nunca en producción.
 const demo = () => import('./demoStore.js');
 const DEMO_SESSION_KEY = 'reportia-demo-session';
 const DEMO_USER = { id: 'demo-user', email: 'l.puig@empresa-demo.es' };
 const DEMO_SESSION = { user: DEMO_USER, access_token: 'demo' };
 export const IS_DEMO = DEMO_MODE;
-// Ajudes d'IA per a qui gestiona (resum i esborranys): APAGADES si no hi ha VITE_AI_ENABLED=1.
-// Apagades, el panell no en mostra res ni demana res de més. Vegeu docs/IA.md.
+// Ayudas de IA para quien gestiona (resumen y borradores): APAGADAS si no hay VITE_AI_ENABLED=1.
+// Apagadas, el panel no enseña nada de ellas ni pide nada de más. Ver docs/IA.md.
 export const AI_ENABLED = import.meta.env.VITE_AI_ENABLED === '1';
 
-// El canal d'exemple (/canal/demo) funciona sempre, també a la web publicada: viu en dades de mostra
-// dins del navegador (demoStore) i mai no arriba a la base de dades real. Només afecta les funcions
-// públiques del canal (enviar, consultar i missatges de qui informa); el panell no hi entra.
+// El canal de ejemplo (/canal/demo) funciona siempre, también en la web publicada: vive en datos de muestra
+// dentro del navegador (demoStore) y nunca llega a la base de datos real. Solo afecta a las funciones
+// públicas del canal (enviar, consultar y mensajes de quien informa); el panel no entra.
 let exampleChannel = false;
 const channelDemo = () => DEMO_MODE || exampleChannel;
 
-// ── Complaints ─────────────────────────────────────────────────────────
+// ── Denuncias ──────────────────────────────────────────────────────────
 
 /**
- * Desa una denúncia nova (només la fila; els adjunts es pugen després amb uploadAttachments, perquè
- * qui informa vegi el seu codi encara que la pujada s'interrompi).
- * attempt: { id, trackingCode } d'un intent anterior del mateix enviament. Si la xarxa cau després de
- * desar, en tornar-ho a provar es fa servir el mateix codi i la base de dades no en crea una altra.
- * Returns { trackingCode, complaintId, attempt, error }
+ * Guarda una denuncia nueva (solo la fila; los adjuntos se suben después con uploadAttachments, para que
+ * quien informa vea su código aunque la subida se interrumpa).
+ * attempt: { id, trackingCode } de un intento anterior del mismo envío. Si la red cae después de
+ * guardar, al volver a intentarlo se usa el mismo código y la base de datos no crea otra.
+ * Devuelve { trackingCode, complaintId, attempt, error }
  */
 export async function saveComplaint({ formData, files, organizationId, attempt }) {
   const id           = attempt?.id ?? crypto.randomUUID();
@@ -90,13 +90,13 @@ export async function saveComplaint({ formData, files, organizationId, attempt }
   const next = { id, trackingCode };
 
   if (channelDemo()) {
-    // En la demo, la denúncia enviada apareix al panell i es pot consultar amb el seu codi
+    // En la demo, la denuncia enviada aparece en el panel y se puede consultar con su código
     (await demo()).addComplaint({ id, trackingCode, formData, files: files ?? [] });
     return { trackingCode, complaintId: id, attempt: next, error: null };
   }
 
   const anon = formData.isAnonymous;
-  // 1. Amb la migració 014: una sola crida, que també escriu l'entrada «created» del registre
+  // 1. Con la migración 014: una sola llamada, que también escribe la entrada «created» del registro
   const viaFunction = await supabase.rpc('submit_complaint', {
     p_org: organizationId, p_hash: await codeHash(trackingCode), p_category: formData.category,
     p_description: formData.description.trim(), p_is_anonymous: anon,
@@ -106,14 +106,14 @@ export async function saveComplaint({ formData, files, organizationId, attempt }
     p_meeting: !!formData.meetingRequested, p_when: clean(formData.when),
   });
   if (!viaFunction.error) return { trackingCode, complaintId: viaFunction.data, attempt: next, error: null };
-  // El codi ja és d'una altra denúncia (gairebé impossible): un de nou, una sola vegada
+  // El código ya es de otra denuncia (casi imposible): uno nuevo, una sola vez
   if (/code-conflict/.test(viaFunction.error.message ?? '') && !attempt?.retried) {
     return saveComplaint({ formData, files, organizationId, attempt: { id: crypto.randomUUID(), trackingCode: generateTrackingCode(), retried: true } });
   }
   if (!isMissingSchema(viaFunction.error)) return { trackingCode: null, complaintId: null, attempt: next, error: viaFunction.error };
 
-  // 2. Sense la migració 014: inserció directa, amb l'id i el codi generats aquí.
-  // El codi de seguiment no surt mai del navegador: només se n'envia el hash (migració 010).
+  // 2. Sin la migración 014: inserción directa, con el id y el código generados aquí.
+  // El código de seguimiento no sale nunca del navegador: solo se envía su hash (migración 010).
   const row = {
       id,
       tracking_hash:   await codeHash(trackingCode),
@@ -128,7 +128,7 @@ export async function saveComplaint({ formData, files, organizationId, attempt }
       incident_date:   formData.incidentDate || null,
       involved_people: clean(formData.involvedPeople),
       language:        formData.language ?? 'ca',
-      // Petició de reunió presencial (art. 7.2). La columna existeix des de la migració 011
+      // Petición de reunión presencial (art. 7.2). La columna existe desde la migración 011
       meeting_requested: !!formData.meetingRequested,
       status:          'received',
       priority:        'normal',
@@ -139,7 +139,7 @@ export async function saveComplaint({ formData, files, organizationId, attempt }
     async (r) => ({ error: (await supabase.from('complaints').insert(r)).error }),
     row, formData.when, formData.whenLabel ?? 'Cuándo',
   );
-  // L'id ja existeix: és aquest mateix enviament, que es va desar però la resposta no va arribar
+  // El id ya existe: es este mismo envío, que se guardó pero la respuesta no llegó
   const savedBefore = dbError?.code === '23505' && /complaints_pkey/.test(dbError.message ?? '');
   if (dbError && !savedBefore) return { trackingCode: null, complaintId: null, attempt: next, error: dbError };
 
@@ -154,8 +154,8 @@ export async function saveComplaint({ formData, files, organizationId, attempt }
   return { trackingCode, complaintId: id, attempt: next, error: null };
 }
 
-// Tipus de cada arxiu segons l'extensió: són els que accepta el magatzem (migració 015). No es fa servir
-// el tipus que diu el navegador perquè sovint ve buit (HEIC a Windows, .msg) o és genèric.
+// Tipo de cada archivo según la extensión: son los que acepta el almacén (migración 015). No se usa
+// el tipo que dice el navegador porque a menudo viene vacío (HEIC en Windows, .msg) o es genérico.
 const MIME = {
   pdf: 'application/pdf', txt: 'text/plain', csv: 'text/csv', rtf: 'application/rtf',
   doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -171,10 +171,10 @@ const MIME = {
 export const mimeOf = (name, fallback = '') => MIME[(String(name).split('.').pop() || '').toLowerCase()] ?? (fallback || 'application/octet-stream');
 
 /**
- * Puja els adjunts d'una denúncia acabada de desar. La ruta del bucket no porta el nom original: Storage
- * rebutja accents i caràcters especials, i el nom pot identificar qui denuncia. En una denúncia anònima
- * tampoc no viatja el nom original (ni a la taula ni a la pujada), i les fotos ja arriben netes
- * (cleanForAnonymous, abans d'enviar). onProgress(n): n arxius acabats. Returns { failedFiles }
+ * Sube los adjuntos de una denuncia recién guardada. La ruta del bucket no lleva el nombre original: Storage
+ * rechaza acentos y caracteres especiales, y el nombre puede identificar a quien denuncia. En una denuncia anónima
+ * tampoco viaja el nombre original (ni a la tabla ni a la subida), y las fotos ya llegan limpias
+ * (cleanForAnonymous, antes de enviar). onProgress(n): n archivos terminados. Devuelve { failedFiles }
  */
 export async function uploadAttachments({ complaintId, files, isAnonymous, onProgress }) {
   const failedFiles = [];
@@ -202,7 +202,7 @@ export async function uploadAttachments({ complaintId, files, isAnonymous, onPro
     });
     if (rowError) {
       failedFiles.push(file.name);
-      // Sense la seva fila, ningú el veuria ni l'esborraria: es treu del bucket
+      // Sin su fila, nadie lo vería ni lo borraría: se quita del bucket
       await supabase.storage.from('attachments').remove([path]);
     }
     onProgress?.(i + 1);
@@ -212,13 +212,13 @@ export async function uploadAttachments({ complaintId, files, isAnonymous, onPro
 
 const clean = (v) => (typeof v === 'string' ? v.trim() || null : v ?? null);
 
-/** Nom neutre per a un adjunt d'una denúncia anònima: "document-1.pdf" */
+/** Nombre neutro para un adjunto de una denuncia anónima: "document-1.pdf" */
 export function neutralName(name, i) {
   const ext = (name.includes('.') ? name.split('.').pop() : '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
   return `document-${i + 1}${ext ? `.${ext}` : ''}`;
 }
 
-/** Hash del codi de seguiment, igual que code_hash() de la base de dades (SHA-256 en hexadecimal) */
+/** Hash del código de seguimiento, igual que code_hash() de la base de datos (SHA-256 en hexadecimal) */
 async function codeHash(code) {
   const norm = String(code).toUpperCase().replace(/[^A-Z0-9]/g, '');
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(norm));
@@ -226,15 +226,15 @@ async function codeHash(code) {
 }
 
 /**
- * Fetch complaint status by tracking code.
- * Returns { complaint, error }
+ * Estado de una denuncia a partir del código de seguimiento.
+ * Devuelve { complaint, error }
  */
 export async function getComplaintByCode(trackingCode) {
   if (channelDemo()) {
-    // Un codi que no existeix es tracta igual que en producció: no hi ha cap denúncia
+    // Un código que no existe se trata igual que en producción: no hay ninguna denuncia
     return { complaint: (await demo()).findByCode(trackingCode) ?? null, error: null };
   }
-  // La funció retorna estat, categoria i dates; mai l'id intern ni l'organització
+  // La función devuelve estado, categoría y fechas; nunca el id interno ni la organización
   const { data, error } = await supabase.rpc('get_complaint_by_tracking_code', {
     p_code: trackingCode.toUpperCase(),
   });
@@ -242,34 +242,44 @@ export async function getComplaintByCode(trackingCode) {
 }
 
 /**
- * Portal de seguiment: qui informa demana una reunió presencial amb el seu codi (art. 7.2).
- * La funció de la base de dades arriba amb la migració 012; fins llavors, el portal no ofereix
- * el botó (get_complaint_by_tracking_code encara no retorna meeting_requested). Returns { error }
+ * Portal de seguimiento: quien informa pide una reunión presencial con su código (art. 7.2).
+ * La función de la base de datos llega con la migración 012; hasta entonces, el portal no ofrece
+ * el botón (get_complaint_by_tracking_code aún no devuelve meeting_requested). Devuelve { error }
  */
 export async function requestMeetingByCode(trackingCode) {
   if (channelDemo()) return (await demo()).requestMeetingByCode(trackingCode);
   const { data, error } = await supabase.rpc('request_meeting_by_code', { p_code: trackingCode });
-  // Amb la migració 014, un codi que no existeix no dona error: retorna buit (vegeu 014_endurecimiento.sql)
+  // Con la migración 014, un código que no existe no da error: devuelve vacío (ver 014_endurecimiento.sql)
   if (!error && data == null) return { error: new Error('complaint-not-found') };
   return { error };
 }
 
 export async function getOrganizationBySlug(slug) {
-  // A la demo només existeix el canal "demo": qualsevol altra adreça es comporta com en producció
+  // En la demo solo existe el canal "demo": cualquier otra dirección se comporta como en producción
   exampleChannel = slug === DEMO_ORG.slug;
   if (channelDemo()) {
     if (!exampleChannel) return { organization: null, error: null };
-    // El canal d'exemple ensenya el nom i l'autoritat autonòmica que es posin a «Equip i ajustos» de la demo
-    const { name, regional_authority_name = null, regional_authority_url = null } = (await demo()).getOrganization();
-    return { organization: { ...DEMO_ORG, name, regional_authority_name, regional_authority_url, is_example: true }, error: null };
+    // El canal de ejemplo enseña el nombre, la autoridad autonómica y la marca que se pongan en «Equipo y ajustes» de la demo
+    const { name, regional_authority_name = null, regional_authority_url = null, brand_palette = 'azul', brand_logo = null } = (await demo()).getOrganization();
+    return { organization: { ...DEMO_ORG, name, regional_authority_name, regional_authority_url, brand_palette, brand_logo, is_example: true }, error: null };
   }
   const { data, error } = await supabase.rpc('get_organization_by_slug', { p_slug: slug });
   return { organization: data?.[0] ?? null, error };
 }
 
 /**
- * Organització de l'usuari autenticat. Amb la migració 009 inclou el pla (plan, trial_ends_at,
- * paid_until), la persona responsable del sistema i les dades de facturació.
+ * Qué canal abrir en la dirección propia de una empresa (canal.acme.es; migración 017). Devuelve la dirección del
+ * canal (slug) o null si la dirección no es de ninguna empresa, no hay conexión o la base de datos aún no tiene la 017.
+ */
+export async function getSlugByDomain(host) {
+  if (DEMO_MODE) return null;
+  const { data, error } = await supabase.rpc('get_organization_slug_by_domain', { p_host: host });
+  return error || typeof data !== 'string' ? null : data;
+}
+
+/**
+ * Organización del usuario autenticado. Con la migración 009 incluye el plan (plan, trial_ends_at,
+ * paid_until), la persona responsable del sistema y los datos de facturación.
  */
 export async function getMyOrganization() {
   if (DEMO_MODE) return { organization: (await demo()).getOrganization(), error: null };
@@ -280,17 +290,19 @@ export async function getMyOrganization() {
   return { organization: data ?? null, error };
 }
 
-// Camps que l'administrador pot editar des del panell. El pla, les dates i l'adreça del canal
-// només els canvia Reportia (i la base de dades ho impedeix: migració 009).
+// Campos que el administrador puede editar desde el panel. El plan, las fechas y la dirección del canal
+// solo los cambia Reportia (y la base de datos lo impide: migración 009).
 const ORG_EDITABLE = [
   'name', 'responsible_name', 'responsible_role', 'billing_name', 'billing_tax_id', 'billing_email',
-  // Autoritat autonòmica que es mostra al canal (migració 011)
+  // Autoridad autonómica que se muestra en el canal (migración 011)
   'regional_authority_name', 'regional_authority_url',
-  // Dates del Responsable i passos de «Primers passos» marcats a mà (migració 012)
+  // Fechas del Responsable y pasos de «Primeros pasos» marcados a mano (migración 012)
   'responsible_appointed_at', 'aipi_notified_at', 'onboarding',
+  // «Tu marca»: la paleta y el logo (migración 016)
+  'brand_palette', 'brand_logo',
 ];
 
-/** Desa les dades de l'organització pròpia. Returns { organization, error } */
+/** Guarda los datos de la organización propia. Devuelve { organization, error } */
 export async function updateMyOrganization(organizationId, updates) {
   const clean = Object.fromEntries(
     Object.entries(updates)
@@ -304,8 +316,8 @@ export async function updateMyOrganization(organizationId, updates) {
   return { organization: data[0], error: null };
 }
 
-// Columnes de la denúncia que el panell pot llegir (migració 011). No hi ha la identitat de qui
-// informa: només es consulta amb getReporterIdentity, i cada consulta queda al registre d'activitat
+// Columnas de la denuncia que el panel puede leer (migración 011). No está la identidad de quien
+// informa: solo se consulta con getReporterIdentity, y cada consulta queda en el registro de actividad
 const COMPLAINT_COLUMNS = [
   'id', 'reference', 'organization_id', 'is_anonymous', 'category', 'department', 'description', 'incident_date',
   'involved_people', 'status', 'priority', 'language', 'created_at', 'updated_at',
@@ -313,18 +325,18 @@ const COMPLAINT_COLUMNS = [
   'channel', 'meeting_requested', 'meeting_held_at', 'outcome', 'investigation_started_at', 'fiscal_referral_at',
 ].join(', ');
 
-// Columnes de la migració 012 (redisseny). El panell funciona igual si encara no s'ha executat:
-// es demanen i, si la base de dades les rebutja, es torna a demanar sense elles i el panell amaga
-// el que en depèn (títol editable, «qui ho porta», «només els meus»).
+// Columnas de la migración 012 (rediseño). El panel funciona igual si aún no se ha ejecutado:
+// se piden y, si la base de datos las rechaza, se vuelve a pedir sin ellas y el panel esconde
+// lo que depende de ellas (título editable, «quién lo lleva», «solo los míos»).
 const REDESIGN_COLUMNS = ['title', 'assigned_to', 'incident_when', 'meeting_requested_at'];
-let redesign = null; // null: encara no se sap · true/false
-/** false si la base de dades encara no té les columnes de la migració 012 */
+let redesign = null; // null: aún no se sabe · true/false
+/** false si la base de datos aún no tiene las columnas de la migración 012 */
 export const hasRedesign = () => (DEMO_MODE ? true : redesign !== false);
 async function withRedesign(run) {
   if (redesign !== false) {
     const first = await run(REDESIGN_COLUMNS);
     if (!first.error) { redesign = true; return first; }
-    // Un corte de red o un error del servidor no vol dir que falti la 012: es retorna l'error i no es decideix res
+    // Un corte de red o un error del servidor no quiere decir que falte la 012: se devuelve el error y no se decide nada
     if (redesign === true || !isMissingSchema(first.error)) return first;
   }
   const base = await run([]);
@@ -333,8 +345,8 @@ async function withRedesign(run) {
 }
 
 /**
- * Fetch messages for a complaint (both reporter and manager messages).
- * Returns { messages, error }
+ * Mensajes de una denuncia (los de quien informa y los de quien gestiona).
+ * Devuelve { messages, error }
  */
 export async function getMessages(complaintId) {
   if (DEMO_MODE) return (await demo()).getMessages(complaintId);
@@ -348,8 +360,8 @@ export async function getMessages(complaintId) {
 }
 
 /**
- * Send a message. sender = 'reporter' | 'manager'
- * Returns { error }
+ * Envía un mensaje. sender = 'reporter' | 'manager'
+ * Devuelve { error }
  */
 export async function sendMessage(complaintId, content, sender = 'reporter', actorName = '') {
   if (DEMO_MODE) return (await demo()).sendMessage(complaintId, content, sender, actorName);
@@ -361,9 +373,9 @@ export async function sendMessage(complaintId, content, sender = 'reporter', act
 }
 
 /**
- * Portal de seguiment: missatges d'una denúncia a partir del codi (sense sessió).
- * Passa per una funció de la base de dades; la taula de missatges no és llegible sense sessió.
- * Returns { messages, error }
+ * Portal de seguimiento: mensajes de una denuncia a partir del código (sin sesión).
+ * Pasa por una función de la base de datos; la tabla de mensajes no se puede leer sin sesión.
+ * Devuelve { messages, error }
  */
 export async function getReporterMessages(trackingCode) {
   if (channelDemo()) return (await demo()).getMessagesByCode(trackingCode);
@@ -371,7 +383,7 @@ export async function getReporterMessages(trackingCode) {
   return { messages: data ?? [], error };
 }
 
-/** Portal de seguiment: qui denuncia envia un missatge amb el seu codi. Returns { error } */
+/** Portal de seguimiento: quien denuncia envía un mensaje con su código. Devuelve { error } */
 export async function sendReporterMessage(trackingCode, content) {
   if (channelDemo()) return (await demo()).sendReporterMessage(trackingCode, content);
   const { data, error } = await supabase.rpc('send_reporter_message', { p_code: trackingCode, p_content: content });
@@ -379,12 +391,12 @@ export async function sendReporterMessage(trackingCode, content) {
   return { error };
 }
 
-// ── Gestió d'una denúncia (migració 010) ──────────────────────────────
-// El registre d'activitat dels canvis d'estat, prioritat i missatges l'escriu la base de dades.
+// ── Gestión de una denuncia (migración 010) ───────────────────────────
+// El registro de actividad de los cambios de estado, prioridad y mensajes lo escribe la base de datos.
 
 /**
- * Canvia estat i/o prioritat. Si RLS no ho permet no s'actualitza cap fila: es retorna error
- * (abans es mostrava "Canvis desats" sense haver desat res).
+ * Cambia estado o prioridad. Si RLS no lo permite no se actualiza ninguna fila: se devuelve un error
+ * (antes se mostraba «Cambios guardados» sin haber guardado nada).
  */
 export async function updateComplaint(id, changes, actorName = '') {
   if (DEMO_MODE) return (await demo()).updateComplaint(id, changes, actorName);
@@ -392,7 +404,7 @@ export async function updateComplaint(id, changes, actorName = '') {
   const patch = {};
   if (status) patch.status = status;
   if (priority) patch.priority = priority;
-  // Resultat de la tramitació (011); títol i qui porta el cas (012)
+  // Resultado de la tramitación (011); título y quién lleva el caso (012)
   if ('outcome' in changes) patch.outcome = changes.outcome || null;
   if ('title' in changes) patch.title = changes.title?.trim() || null;
   if ('assigned_to' in changes) patch.assigned_to = changes.assigned_to || null;
@@ -402,14 +414,14 @@ export async function updateComplaint(id, changes, actorName = '') {
   return { complaint: data[0], error: null };
 }
 
-/** Nota interna al registre (no la veu qui denuncia). Returns { error } */
+/** Nota interna en el registro (no la ve quien denuncia). Devuelve { error } */
 export async function addComplaintNote(complaintId, note, actorName = '') {
   if (DEMO_MODE) return (await demo()).addNote(complaintId, note, actorName);
   const { error } = await supabase.from('audit_logs').insert({ complaint_id: complaintId, action: 'note_added', details: { note } });
   return { error };
 }
 
-/** Marca com a llegits els missatges de qui denuncia */
+/** Marca como leídos los mensajes de quien denuncia */
 export async function markMessagesRead(complaintId) {
   if (DEMO_MODE) return (await demo()).markRead(complaintId);
   const { error } = await supabase.from('messages').update({ is_read: true })
@@ -417,7 +429,7 @@ export async function markMessagesRead(complaintId) {
   return { error };
 }
 
-/** Amplia el termini de resposta fins a 6 mesos des de la recepció (art. 9.2 d). Returns { until, error } */
+/** Amplía el plazo de respuesta hasta 6 meses desde la recepción (art. 9.2 d). Devuelve { until, error } */
 export async function extendDeadline(complaintId, reason, actorName = '') {
   if (DEMO_MODE) return (await demo()).extendDeadline(complaintId, reason, actorName);
   const { data, error } = await supabase.rpc('extend_response_deadline', { p_complaint: complaintId, p_reason: reason });
@@ -425,13 +437,13 @@ export async function extendDeadline(complaintId, reason, actorName = '') {
 }
 
 /**
- * Suprimeix les dades d'una denúncia (art. 32): primer els arxius del bucket, després el contingut.
- * La fila es conserva anonimitzada al llibre registre. Returns { error }
+ * Suprime los datos de una denuncia (art. 32): primero los archivos del bucket, después el contenido.
+ * La fila se conserva anonimizada en el libro-registro. Devuelve { error }
  */
 export async function anonymizeComplaint(complaintId, reason, actorName = '') {
   if (DEMO_MODE) return (await demo()).anonymize(complaintId, reason, actorName);
   const { data: files } = await supabase.from('attachments').select('storage_path').eq('complaint_id', complaintId);
-  // També el que hi hagi a la carpeta del cas encara que no tingui fila (una pujada que va fallar a mitges)
+  // También lo que haya en la carpeta del caso aunque no tenga fila (una subida que falló a medias)
   const { data: inFolder } = await supabase.storage.from('attachments').list(complaintId, { limit: 1000 });
   const paths = [...new Set([
     ...(files ?? []).map(f => f.storage_path).filter(Boolean),
@@ -445,7 +457,7 @@ export async function anonymizeComplaint(complaintId, reason, actorName = '') {
   return { error };
 }
 
-/** Denúncies que s'han de suprimir (3 mesos sense investigació, o 10 anys). Només administrador. */
+/** Denuncias que hay que suprimir (3 meses sin investigación, o 10 años). Solo administrador. */
 export async function getRetentionDue() {
   if (DEMO_MODE) return (await demo()).retentionDue();
   const { data, error } = await supabase.rpc('retention_due');
@@ -453,7 +465,7 @@ export async function getRetentionDue() {
 }
 
 /**
- * Fetch a single complaint by ID (admin).
+ * Una denuncia por su id (panel).
  */
 export async function getComplaintById(id) {
   if (DEMO_MODE) return (await demo()).getComplaintById(id);
@@ -467,8 +479,8 @@ export async function getComplaintById(id) {
 }
 
 /**
- * Identitat de qui informa, en una denúncia identificada. La base de dades comprova el permís i
- * anota la consulta al registre d'activitat. Returns { identity: { reporter_name, reporter_email, reporter_phone } | null, error }
+ * Identidad de quien informa, en una denuncia identificada. La base de datos comprueba el permiso y
+ * anota la consulta en el registro de actividad. Devuelve { identity: { reporter_name, reporter_email, reporter_phone } | null, error }
  */
 export async function getReporterIdentity(complaintId) {
   if (DEMO_MODE) return (await demo()).getReporterIdentity(complaintId);
@@ -476,23 +488,23 @@ export async function getReporterIdentity(complaintId) {
   return { identity: error ? null : (data?.[0] ?? null), error };
 }
 
-// ── Accions de la fitxa (migracions 011 i 012) ─────────────────────────
+// ── Acciones de la ficha (migraciones 011 y 012) ──────────────────────
 
-/** Marca la reunió presencial com a feta. Returns { error } */
+/** Marca la reunión presencial como hecha. Devuelve { error } */
 export async function markMeetingHeld(complaintId, actorName = '') {
   if (DEMO_MODE) return (await demo()).markMeetingHeld(complaintId, actorName);
   const { error } = await supabase.rpc('mark_meeting_held', { p_complaint: complaintId });
   return { error };
 }
 
-/** Anota la remissió al Ministeri Fiscal (no es pot desfer). Returns { error } */
+/** Anota la remisión al Ministerio Fiscal (no se puede deshacer). Devuelve { error } */
 export async function markFiscalReferral(complaintId, note, actorName = '') {
   if (DEMO_MODE) return (await demo()).markFiscalReferral(complaintId, note, actorName);
   const { error } = await supabase.rpc('mark_fiscal_referral', { p_complaint: complaintId, p_note: note ?? '' });
   return { error };
 }
 
-/** Persones de l'equip a qui es pot assignar un cas. Returns { people: [{ id, full_name, role }], error } */
+/** Personas del equipo a quienes se puede asignar un caso. Devuelve { people: [{ id, full_name, role }], error } */
 export async function listAssignees() {
   if (DEMO_MODE) return (await demo()).listAssignees();
   const { data, error } = await supabase.from('profiles').select('id, full_name, role').order('full_name', { ascending: true });
@@ -500,9 +512,9 @@ export async function listAssignees() {
 }
 
 /**
- * Registra una comunicació rebuda per una altra via (telèfon, presencial, carta, correu).
- * El codi de seguiment es genera aquí i només se n'envia el hash: es mostra una sola vegada
- * perquè es lliuri a la persona informant. Returns { id, trackingCode, error }
+ * Registra una comunicación recibida por otra vía (teléfono, presencial, carta, correo).
+ * El código de seguimiento se genera aquí y solo se envía su hash: se muestra una sola vez
+ * para entregarlo a la persona informante. Devuelve { id, trackingCode, error }
  */
 export async function registerComplaint(form, actorName = '') {
   const trackingCode = generateTrackingCode();
@@ -519,28 +531,28 @@ export async function registerComplaint(form, actorName = '') {
   if (redesign !== false) {
     const { data, error } = await supabase.rpc('register_complaint', { ...base, p_incident_when: when });
     if (!error) return { id: data, trackingCode, error: null };
-    // Només si la funció nova no existeix es prova la d'abans (un error de xarxa no ho diu)
+    // Solo si la función nueva no existe se prueba la de antes (un error de red no lo dice)
     if (!isMissingSchema(error)) return { id: null, trackingCode: null, error };
   }
-  // Sense la migració 012: la funció d'abans, amb el «quan» al final de la descripció
+  // Sin la migración 012: la función de antes, con el «cuándo» al final de la descripción
   const { data, error } = await supabase.rpc('register_complaint', { ...base, p_description: withWhen(base.p_description, when, form.whenLabel ?? 'Cuándo') });
   return { id: error ? null : data, trackingCode: error ? null : trackingCode, error };
 }
 
-// ── Panell v2 ──────────────────────────────────────────────────────────
+// ── Panel v2 ───────────────────────────────────────────────────────────
 
 /**
- * Totes les denúncies que l'usuari pot veure, sense dades del denunciant (només les
- * columnes del llistat). categories = null (superadmin, totes) o la llista permesa.
- * El panell filtra, ordena i calcula els terminis legals a partir d'aquí.
- * Returns { complaints, error }
+ * Todas las denuncias que el usuario puede ver, sin datos del denunciante (solo las
+ * columnas del listado). categories = null (superadmin, todas) o la lista permitida.
+ * El panel filtra, ordena y calcula los plazos legales a partir de aquí.
+ * Devuelve { complaints, error }
  */
 export async function listComplaints({ categories = null } = {}) {
   if (DEMO_MODE) return (await demo()).listComplaints({ categories });
   if (categories && categories.length === 0) return { complaints: [], error: null };
-  // La descripció hi és per al títol del tauler i la cerca per text (es filtra al navegador)
+  // La descripción está para la búsqueda por texto (se filtra en el navegador)
   const cols = 'id, reference, category, status, priority, is_anonymous, department, incident_date, language, created_at, updated_at, acknowledged_at, answered_at, extended_until, anonymized_at, description, channel, meeting_requested, meeting_held_at, outcome, investigation_started_at';
-  // Es llegeix per pàgines: sense límit de 1.000 files
+  // Se lee por páginas: sin límite de 1.000 filas
   const rows = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await withRedesign(extra => {
@@ -552,13 +564,13 @@ export async function listComplaints({ categories = null } = {}) {
     rows.push(...(data ?? []));
     if (!data || data.length < 1000) break;
   }
-  // Missatges de qui denuncia encara no llegits, per marcar-los al llistat
+  // Mensajes de quien denuncia aún no leídos, para marcarlos en el listado
   const { data: unread } = await supabase.from('messages').select('complaint_id').eq('sender', 'reporter').eq('is_read', false);
   const counts = (unread ?? []).reduce((m, r) => m.set(r.complaint_id, (m.get(r.complaint_id) ?? 0) + 1), new Map());
   return { complaints: rows.map(c => ({ ...c, unread: counts.get(c.id) ?? 0 })), error: null };
 }
 
-/** Registre d'activitat d'una denúncia. Returns { logs, error } */
+/** Registro de actividad de una denuncia. Devuelve { logs, error } */
 export async function getAuditLogs(complaintId) {
   if (DEMO_MODE) return (await demo()).getAuditLogs(complaintId);
   const { data, error } = await supabase
@@ -566,35 +578,35 @@ export async function getAuditLogs(complaintId) {
     .select('*, actor:profiles(full_name)')
     .eq('complaint_id', complaintId)
     .order('created_at', { ascending: true });
-  // L'autor el posa la base de dades, no el navegador: el nom que tenia en aquell moment (actor_name,
-  // migració 014) o, sense la 014, el nom actual del perfil
+  // El autor lo pone la base de datos, no el navegador: el nombre que tenía en aquel momento (actor_name,
+  // migración 014) o, sin la 014, el nombre actual del perfil
   return { logs: (data ?? []).map(l => ({ ...l, details: { ...(l.details ?? {}), actor_name: l.actor_name ?? l.actor?.full_name ?? l.details?.actor_name } })), error };
 }
 
-/** Enllaç temporal (60 s) per descarregar un adjunt del bucket privat. Returns { url, demo, error } */
+/** Enlace temporal (60 s) para descargar un adjunto del bucket privado. Devuelve { url, demo, error } */
 export async function getAttachmentUrl(storagePath) {
   if (DEMO_MODE) return { url: null, demo: true, error: null };
   const { data, error } = await supabase.storage.from('attachments').createSignedUrl(storagePath, 60);
   return { url: data?.signedUrl ?? null, demo: false, error };
 }
 
-// ── Verificació en dos passos (alta i baixa des del panell) ────────────
+// ── Verificación en dos pasos (alta y baja desde el panel) ────────────
 
-/** Factors TOTP de l'usuari. Returns { factors, error } */
+/** Factores TOTP del usuario. Devuelve { factors, error } */
 export async function listMfaFactors() {
   if (DEMO_MODE) return (await demo()).listMfaFactors();
   const { data, error } = await supabase.auth.mfa.listFactors();
   return { factors: data?.totp ?? [], error };
 }
 
-/** Inicia l'alta d'un factor TOTP. Returns { factorId, qrCode, secret, error } */
+/** Inicia el alta de un factor TOTP. Devuelve { factorId, qrCode, secret, error } */
 export async function enrollMfaFactor() {
   if (DEMO_MODE) return (await demo()).enrollMfaFactor();
   const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', issuer: 'Reportia Canal Ètic' });
   return { factorId: data?.id ?? null, qrCode: data?.totp?.qr_code ?? null, secret: data?.totp?.secret ?? null, error };
 }
 
-/** Confirma l'alta amb el primer codi de 6 xifres. Returns { error } */
+/** Confirma el alta con el primer código de 6 cifras. Devuelve { error } */
 export async function verifyMfaEnrollment(factorId, code) {
   if (DEMO_MODE) return (await demo()).verifyMfaEnrollment(factorId, code);
   const { data: challenge, error: chalErr } = await supabase.auth.mfa.challenge({ factorId });
@@ -603,7 +615,7 @@ export async function verifyMfaEnrollment(factorId, code) {
   return { error };
 }
 
-/** Dona de baixa un factor TOTP. Returns { error } */
+/** Da de baja un factor TOTP. Devuelve { error } */
 export async function unenrollMfaFactor(factorId) {
   if (DEMO_MODE) return (await demo()).unenrollMfaFactor(factorId);
   const { error } = await supabase.auth.mfa.unenroll({ factorId });
@@ -611,10 +623,10 @@ export async function unenrollMfaFactor(factorId) {
 }
 
 /**
- * Estat de la verificació en dos passos de la sessió.
- * Returns { level: 'aal1'|'aal2'|null, needsCode, needsSetup, error }
- *  needsCode: té un factor verificat però la sessió encara no ha passat el codi
- *  needsSetup: no té cap factor: ha de configurar-ne un abans de veure denúncies
+ * Estado de la verificación en dos pasos de la sesión.
+ * Devuelve { level: 'aal1'|'aal2'|null, needsCode, needsSetup, error }
+ *  needsCode: tiene un factor verificado pero la sesión aún no ha pasado el código
+ *  needsSetup: no tiene ningún factor: debe configurar uno antes de ver denuncias
  */
 export async function getMfaState() {
   if (DEMO_MODE) return (await demo()).mfaState();
@@ -625,7 +637,7 @@ export async function getMfaState() {
   return { level: data.currentLevel, needsCode, needsSetup, error: null };
 }
 
-/** Segon pas de l'accés: comprova el codi de 6 xifres amb el factor verificat. Returns { error } */
+/** Segundo paso del acceso: comprueba el código de 6 cifras con el factor verificado. Devuelve { error } */
 export async function verifyLoginCode(code) {
   if (DEMO_MODE) return (await demo()).verifyLoginCode(code);
   const { data, error: listError } = await supabase.auth.mfa.listFactors();
@@ -636,7 +648,7 @@ export async function verifyLoginCode(code) {
   return { error };
 }
 
-// ── Auth (admin) ───────────────────────────────────────────────────────
+// ── Autenticación (panel) ──────────────────────────────────────────────
 
 export async function signInAdmin(email, password) {
   if (DEMO_MODE) {
@@ -648,10 +660,10 @@ export async function signInAdmin(email, password) {
 }
 
 /**
- * Self-signup for a new organization. Creates the auth.users row with
- * company_name + full_name in raw_user_meta_data; the database trigger
- * (migration 006) provisions the organization + superadmin profile.
- * Returns { user, needsConfirmation, error }.
+ * Alta de una organización nueva. Crea la fila de auth.users con
+ * company_name y full_name en raw_user_meta_data; el trigger de la base de datos
+ * (migración 006) crea la organización y el perfil de superadmin.
+ * Devuelve { user, needsConfirmation, error }.
  */
 export async function signUpOrganization({ companyName, fullName, email, password }) {
   if (DEMO_MODE) return { user: { ...DEMO_USER, email }, needsConfirmation: true, error: null };
@@ -659,7 +671,7 @@ export async function signUpOrganization({ companyName, fullName, email, passwor
     email,
     password,
     options: {
-      // Queda constància de l'acceptació de la política i de la data (es pot consultar a Supabase Auth)
+      // Queda constancia de la aceptación de la política y de la fecha (se puede consultar en Supabase Auth)
       data: { company_name: companyName, full_name: fullName, privacy_accepted_at: new Date().toISOString() },
       emailRedirectTo: `${window.location.origin}/admin/login`,
     },
@@ -682,7 +694,7 @@ function clearStaleAuthToken() {
     const ref = new URL(SUPABASE_URL).hostname.split('.')[0];
     sessionStorage.removeItem(`sb-${ref}-auth-token`);
   } catch {
-    // ignore
+    // se ignora
   }
 }
 
@@ -695,7 +707,7 @@ export async function getAdminSession() {
     ]);
     return data?.session ?? null;
   } catch {
-    // Stale/corrupted session token stuck refreshing — clear it so login works again
+    // Sesión caducada o dañada que no acaba de renovarse: se borra para que el acceso vuelva a funcionar
     clearStaleAuthToken();
     return null;
   }
@@ -712,20 +724,20 @@ export async function sendPasswordReset(email) {
 export async function updatePassword(newPassword) {
   if (DEMO_MODE) return { error: null };
   const { error } = await supabase.auth.updateUser({ password: newPassword });
-  // L'enllaç del correu ja ha fet la seva feina
+  // El enlace del correo ya ha hecho su trabajo
   if (!error) { try { window.sessionStorage.removeItem(LINK_KEY); } catch { /* res */ } }
   return { error };
 }
 
 /**
- * Estat de l'enllaç de «Contrasenya nova» en carregar la pantalla, sense dependre d'haver escoltat
- * l'avís a temps. Espera que Supabase acabi de processar l'adreça (getSession ho fa) i mira si hi ha sessió.
- * Returns { state: 'ready' | 'invalid' | 'wait', invite }
- *   ready: hi ha sessió i s'ha arribat per un enllaç de correu · invalid: l'enllaç porta un error o no
- *   ha deixat sessió · wait: no hi ha rastre de cap enllaç (la pantalla continua escoltant una estona)
+ * Estado del enlace de «Contraseña nueva» al cargar la pantalla, sin depender de haber escuchado
+ * el aviso a tiempo. Espera a que Supabase acabe de procesar la dirección (getSession lo hace) y mira si hay sesión.
+ * Devuelve { state: 'ready' | 'invalid' | 'wait', invite }
+ *   ready: hay sesión y se ha llegado por un enlace de correo · invalid: el enlace trae un error o no
+ *   ha dejado sesión · wait: no hay rastro de ningún enlace (la pantalla sigue escuchando un rato)
  */
 export function getPasswordLinkState() {
-  // Una sola comprovació encara que la pantalla la demani dues vegades: el codi de l'enllaç només serveix un cop
+  // Una sola comprobación aunque la pantalla la pida dos veces: el código del enlace solo sirve una vez
   linkState ??= resolvePasswordLink();
   return linkState;
 }
@@ -734,7 +746,7 @@ async function resolvePasswordLink() {
   if (DEMO_MODE) return { state: 'wait', invite: false };
   if (authLink.error) return { state: 'invalid', invite: false };
   let session = await getAdminSession();
-  // Si el client no ha pogut convertir l'enllaç en sessió tot sol, es prova aquí (una sola vegada)
+  // Si el cliente no ha podido convertir el enlace en sesión por sí solo, se prueba aquí (una sola vez)
   if (!session && (authLink.tokenHash || authLink.code)) {
     const { tokenHash, code } = authLink;
     authLink.tokenHash = ''; authLink.code = '';
@@ -752,9 +764,9 @@ async function resolvePasswordLink() {
 }
 
 /**
- * Escolta els esdeveniments d'autenticació (PASSWORD_RECOVERY, SIGNED_IN…) perquè
- * les pàgines no cridin supabase.auth directament. Retorna la funció per deixar d'escoltar.
- * En mode demo emet PASSWORD_RECOVERY perquè la pàgina de restabliment es pugui revisar.
+ * Escucha los eventos de autenticación (PASSWORD_RECOVERY, SIGNED_IN…) para que
+ * las páginas no llamen a supabase.auth directamente. Devuelve la función para dejar de escuchar.
+ * En modo demo emite PASSWORD_RECOVERY para que la página de restablecimiento se pueda revisar.
  */
 export function onAuthEvent(callback) {
   if (DEMO_MODE) {
@@ -765,10 +777,10 @@ export function onAuthEvent(callback) {
   return () => subscription.unsubscribe();
 }
 
-// ── Profiles & permissions ─────────────────────────────────────────────
+// ── Perfiles y permisos ────────────────────────────────────────────────
 
 export async function getProfile(userId) {
-  if (DEMO_MODE) return { profile: { id: DEMO_USER.id, full_name: 'Laura Puig Ferrer', role: 'superadmin', created_at: '2026-01-15T09:00:00Z' }, error: null };
+  if (DEMO_MODE) return (await demo()).getProfile(DEMO_USER.id);
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
@@ -779,7 +791,7 @@ export async function getProfile(userId) {
 
 export async function getAllProfiles() {
   if (DEMO_MODE) return (await demo()).getAllProfiles();
-  // Amb la migració 008, el correu i l'últim accés venen d'una funció limitada a l'administrador
+  // Con la migración 008, el correo y el último acceso vienen de una función limitada al administrador
   const members = await supabase.rpc('list_org_members');
   if (!members.error) {
     return {
@@ -793,7 +805,7 @@ export async function getAllProfiles() {
     .order('created_at', { ascending: true });
 
   if (error) return { profiles: [], error };
-  // Sense la migració 008 el correu no es pot llegir des del navegador (només el servidor el veu)
+  // Sin la migración 008 el correo no se puede leer desde el navegador (solo el servidor lo ve)
   return { profiles: data.map(p => ({ ...p, email: '' })), error: null };
 }
 
@@ -809,13 +821,13 @@ export async function getManagerPermissions(managerId) {
 export async function setManagerPermissions(managerId, permissionsArray) {
   // permissionsArray: [{ category, can_view, can_edit, can_reply, can_delete }]
   if (DEMO_MODE) return (await demo()).setManagerPermissions(managerId, permissionsArray);
-  // Una sola transacció a la base de dades: si falla, el gestor conserva els permisos que tenia
+  // Una sola transacción en la base de datos: si falla, el gestor conserva los permisos que tenía
   const { error } = await supabase.rpc('set_manager_permissions', { p_manager: managerId, p_permissions: permissionsArray });
   return { error };
 }
 
 export async function inviteManager(email, fullName) {
-  // Uses the Edge Function to send invite email securely
+  // Usa la función de servidor para enviar el correo de invitación de forma segura
   if (DEMO_MODE) return (await demo()).inviteManager(email, fullName);
   return callFunction('invite-manager', { email, full_name: fullName });
 }
@@ -832,10 +844,10 @@ export async function deleteManager(userId) {
   return callFunction('delete-manager', { user_id: userId });
 }
 
-// ── IA (apagada per defecte) ────────────────────────────────────────────
-// Res d'això s'executa si AI_ENABLED és fals: cap pantalla ho crida.
+// ── IA (apagada por defecto) ───────────────────────────────────────────
+// Nada de esto se ejecuta si AI_ENABLED es falso: ninguna pantalla lo llama.
 
-/** Resum i títol fets amb IA que ja té desats un cas. Returns { ai: { summary, title, generatedAt } | null, error } */
+/** Resumen y título hechos con IA que un caso ya tiene guardados. Devuelve { ai: { summary, title, generatedAt } | null, error } */
 export async function getAiSummary(complaintId) {
   if (!AI_ENABLED) return { ai: null, error: null };
   if (DEMO_MODE) return (await demo()).getAiSummary(complaintId);
@@ -844,7 +856,7 @@ export async function getAiSummary(complaintId) {
   return { ai: { summary: data.ai_summary, title: data.ai_title ?? '', generatedAt: data.ai_generated_at }, error: null };
 }
 
-/** Demana el resum (3 frases) i el títol. El desa el servidor. Returns { ai, error } */
+/** Pide el resumen (3 frases) y el título. Lo guarda el servidor. Devuelve { ai, error } */
 export async function requestAiSummary(complaintId, lang, actorName = '') {
   if (!AI_ENABLED) return { ai: null, error: new Error('ai-disabled') };
   if (DEMO_MODE) return (await demo()).requestAiSummary(complaintId, actorName);
@@ -853,7 +865,7 @@ export async function requestAiSummary(complaintId, lang, actorName = '') {
   return { ai: { summary: data.summary, title: data.title ?? '', generatedAt: data.generated_at }, error: null };
 }
 
-/** Demana un esborrany de missatge (kind: ack | question | answer). No desa ni envia res. Returns { draft, error } */
+/** Pide un borrador de mensaje (kind: ack | question | answer). No guarda ni envía nada. Devuelve { draft, error } */
 export async function requestAiDraft(complaintId, kind) {
   if (!AI_ENABLED) return { draft: '', error: new Error('ai-disabled') };
   if (DEMO_MODE) return (await demo()).requestAiDraft(complaintId, kind);
@@ -861,7 +873,7 @@ export async function requestAiDraft(complaintId, kind) {
   return { draft: error ? '' : String(data.draft ?? ''), error };
 }
 
-/** Crida una funció del servidor amb la sessió actual. Mai llança: retorna { userId, error } */
+/** Llama a una función del servidor con la sesión actual. Nunca lanza: devuelve { userId, error } */
 async function callFunction(name, body) {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -879,9 +891,9 @@ async function callFunction(name, body) {
   }
 }
 
-// ── Stats ──────────────────────────────────────────────────────────────
+// ── Cifras ─────────────────────────────────────────────────────────────
 
-// ── Helpers ────────────────────────────────────────────────────────────
+// ── Utilidades ─────────────────────────────────────────────────────────
 
 function generateTrackingCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -890,7 +902,7 @@ function generateTrackingCode() {
   let code = '';
   for (let i = 0; i < 8; i++) {
     if (i === 4) code += '-';
-    code += chars[bytes[i] % chars.length]; // 256 % 32 === 0, no modulo bias
+    code += chars[bytes[i] % chars.length]; // 256 % 32 === 0: sin sesgo al hacer el módulo
   }
-  return code; // e.g. "A3B7-C9X2"
+  return code; // por ejemplo "A3B7-C9X2"
 }

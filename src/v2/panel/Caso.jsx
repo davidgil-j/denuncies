@@ -279,7 +279,7 @@ export default function Caso() {
       const audit_logs = logs.map(l => (l.action === 'created' ? l : { ...l, action: historyText(p, t, l), details: { note: l.details?.note ?? '' } }));
       const { exportComplaintToPDF } = await import('../lib/exportV2.js');
       // La identidad solo sale en el PDF si se ha consultado en esta ficha (y la consulta ya consta en el historial)
-      await exportComplaintToPDF({ ...c, ...(identity ?? { identityWithheld: true }), tracking_code: c.reference, organization: org?.name ?? '', audit_logs, deadline: info }, messages, lang);
+      await exportComplaintToPDF({ ...c, ...(identity ?? { identityWithheld: true }), tracking_code: c.reference, organization: org ?? '', audit_logs, deadline: info }, messages, lang);
     } catch { notify(p.exportErr, 'err'); }
   }
   // «Proponer la reunión»: deja el mensaje preparado en la conversación para que se edite y se envíe

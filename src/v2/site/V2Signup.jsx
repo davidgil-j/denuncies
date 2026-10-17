@@ -9,7 +9,7 @@ import { EMAIL_RE, FieldError, PwInput, authErrorKey } from './fields.jsx';
 
 const EMPTY = { companyName: '', fullName: '', email: '', password: '', terms: false };
 
-// Text que reserva l'espai de l'idioma més llarg: en canviar d'idioma, la pàgina no es mou
+// Texto que reserva el espacio del idioma más largo: al cambiar de idioma, la página no se mueve
 const S = stableOf(T => T.v2site.signup);
 
 export default function V2Signup() {
@@ -40,7 +40,7 @@ export default function V2Signup() {
     if (!form.companyName.trim()) er.companyName = 'errCompany';
     if (!form.fullName.trim()) er.fullName = 'errName';
     if (!EMAIL_RE.test(form.email.trim())) er.email = 'errEmail';
-    // Contrasenya de 8 caràcters o més, que no siguin només espais
+    // Contraseña de 8 caracteres o más, que no sean solo espacios
     if (form.password.length < 8 || !form.password.trim()) er.password = 'errPassword';
     if (!form.terms) er.terms = 'errTerms';
     return er;

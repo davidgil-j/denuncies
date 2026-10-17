@@ -4,11 +4,12 @@ import { LayoutDashboard, BarChart3, Share2, SlidersHorizontal, Search, Plus, Lo
 import { translations } from '../../translations.js';
 import './texts.js'; // textos del panel (lado Gestionar)
 import {
-  getAdminSession, getProfile, getManagerPermissions, getMyOrganization, updateMyOrganization, listAssignees, signOutAdmin, getMfaState, listComplaints, IS_DEMO,
+  getAdminSession, getProfile, getManagerPermissions, getMyOrganization, updateMyOrganization, updateProfile, listAssignees, signOutAdmin, getMfaState, listComplaints, IS_DEMO,
 } from '../../lib/supabase.js';
 import { LANGS, detectLang, fmt } from '../V2Layout.jsx';
 import { planInfo } from '../admin/adminKit.jsx';
-import { SplitShell, PillNav, Button, IconButton, Chip, Card, Avatar, Skeleton, Segmented, Dialog, Field, Menu, MenuItem, Offline, cx } from '../ui/index.js';
+import { SplitShell, PillNav, Button, IconButton, Chip, Card, Avatar, BrandLogo, Skeleton, Segmented, Dialog, Field, Menu, MenuItem, Offline, cx } from '../ui/index.js';
+import { useBrandTheme } from '../lib/brand.js';
 import { caseTitle } from './kit.jsx';
 import './panel.css';
 
@@ -48,6 +49,8 @@ export default function Panel() {
   const p = tr.panel;
   const setLang = (l) => { setLangState(l); try { localStorage.setItem(LANG_KEY, l); } catch { /* nada */ } };
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
+  // La paleta de la empresa («Tu marca») y la apariencia que ha elegido esta persona (claro, oscuro o como el sistema)
+  useBrandTheme(org?.brand_palette, profile?.appearance ?? 'system');
 
   const loadProfile = useCallback(async () => {
     const s = await getAdminSession().catch(() => null);
@@ -77,6 +80,16 @@ export default function Panel() {
     if (!error && organization) setOrg(organization);
     return { error };
   }, [org]);
+
+  // Cambia la apariencia de esta persona: se ve en el acto y se guarda en su perfil (si falla, vuelve a la de antes)
+  const saveAppearance = useCallback(async (appearance) => {
+    if (!profile) return { error: new Error('no-profile') };
+    const before = profile.appearance;
+    setProfile(pr => ({ ...pr, appearance }));
+    const { error } = await updateProfile(profile.id, { appearance });
+    if (error) setProfile(pr => ({ ...pr, appearance: before }));
+    return { error };
+  }, [profile]);
 
   // Al cambiar de pantalla: arriba y con el foco en el contenido
   const firstPath = useRef(true);
@@ -133,10 +146,12 @@ export default function Panel() {
   const canRegister = isSuperadmin || permissions.some(x => x.can_edit);
 
   const channelPath = org?.slug ? `/canal/${org.slug}` : '';
+  // La dirección completa del canal, la que se comparte: con dirección propia (canal.acme.es, migración 017), la suya
+  const channelUrl = !channelPath ? '' : org?.custom_domain ? `https://${org.custom_domain}${channelPath}` : `${import.meta.env.VITE_PUBLIC_ORIGIN || window.location.origin}${channelPath}`;
   const ctx = {
     lang, setLang, t, tr, p, profile, email: session?.user?.email ?? '', permissions, isSuperadmin, can, canRegister,
     allowedCategories, org, saveOrg, members, setMembers, notify, channelPath, refreshProfile: loadProfile, mfaSetup,
-    logout, leaving,
+    logout, leaving, saveAppearance, channelUrl,
   };
 
   const here = `${location.pathname}${location.search}`;
@@ -199,7 +214,7 @@ export default function Panel() {
             <header className="pn-head">
               <div className="pn-head-in">
                 <div className="pn-brand">
-                  <Link className="pn-brand-link" to="/admin"><b title={orgName}>{orgName}</b></Link>
+                  <Link className="pn-brand-link ds-brand" to="/admin"><BrandLogo org={org} /><b title={orgName}>{orgName}</b></Link>
                   {IS_DEMO && <Chip className="pn-chip" title={p.demoLong}>{p.demoChip}<span className="ds-vh">: {p.demoLong}</span></Chip>}
                 </div>
                 <PillNav items={nav} label={p.navLabel} />

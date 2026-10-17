@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- El canal sigue el modo claro u oscuro del sistema desde el primer instante (sin destello blanco) -->
+  <meta name="color-scheme" content="light dark" />
+  <!-- Mientras se descarga el canal, el fondo ya es el del modo del sistema (los mismos colores que src/v2/lib/brand.js) -->
+  <style>@media (prefers-color-scheme: dark) { html body { background: #0E1220; } }</style>
+  <!-- __SUPABASE_PRECONNECT__ -->
+  <!-- La página de entrada del canal de cada empresa (/canal/...): marca blanca. En la pestaña y en la vista previa al
+       compartir el enlace (WhatsApp, Teams, correo) solo dice «Canal de denuncias»: nada de la web comercial. En castellano. -->
+  <title>Canal de denuncias</title>
+  <meta name="description" content="Canal interno de información (Ley 2/2023): comunica una infracción, con tu nombre o de forma anónima, y sigue tu caso con un código." />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="es_ES" />
+  <meta property="og:title" content="Canal de denuncias" />
+  <meta property="og:description" content="Canal interno de información (Ley 2/2023): comunica una infracción, con tu nombre o de forma anónima, y sigue tu caso con un código." />
+  <meta name="twitter:card" content="summary" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234D5672'/%3E%3Cpath d='M32 14l14 5v11c0 9-6 16-14 20-8-4-14-11-14-20V19z' fill='none' stroke='%23fff' stroke-width='3.5' stroke-linejoin='round'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>

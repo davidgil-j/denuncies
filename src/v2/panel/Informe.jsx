@@ -120,10 +120,11 @@ export default function Informe() {
     if (exporting) return;
     setExporting(kind);
     // Las exportaciones llevan la referencia interna, nunca el código de quien informa
-    const list = inPeriod.map(c => ({ ...c, tracking_code: c.reference, organization: org?.name ?? '' }));
+    // La empresa entera (nombre, paleta y logo): los documentos llevan su marca
+    const list = inPeriod.map(c => ({ ...c, tracking_code: c.reference, organization: org ?? '' }));
     try {
       const { exportToExcel, exportSummaryToPDF } = await import('../lib/exportV2.js');
-      const filters = { view: '', status: '', category: '', priority: '', dateFrom: year ? `${year}-01-01` : '', dateTo: year ? `${year}-12-31` : '', q: '', organization: org?.name ?? '' };
+      const filters = { view: '', status: '', category: '', priority: '', dateFrom: year ? `${year}-01-01` : '', dateTo: year ? `${year}-12-31` : '', q: '', organization: org ?? '' };
       if (kind === 'xlsx') await exportToExcel(list, undefined, lang, filters);
       else await exportSummaryToPDF(list, filters, lang);
     } catch { notify(p.exportErr, 'err'); }

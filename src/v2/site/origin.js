@@ -1,10 +1,10 @@
 import { translations } from '../../translations.js';
 
-// Adreça pública del lloc: la que surt a la vista prèvia en compartir un enllaç (og:image, og:url)
-// i al canonical. El mateix valor per defecte es fa servir a vite.config.js per a l'index.html.
+// Dirección pública del sitio: la que sale en la vista previa al compartir un enlace (og:image, og:url)
+// y en el canonical. El mismo valor por defecto se usa en vite.config.js para el index.html.
 export const PUBLIC_ORIGIN = (import.meta.env.VITE_PUBLIC_ORIGIN || 'https://reportia-canal.vercel.app').replace(/\/+$/, '');
 
-/** Adreça absoluta d'un camí del lloc, sense paràmetres */
+/** Dirección absoluta de una ruta del sitio, sin parámetros */
 export const publicUrl = (path = '/') => `${PUBLIC_ORIGIN}${path}`;
 
 function setMeta(selector, content) {
@@ -12,8 +12,8 @@ function setMeta(selector, content) {
   if (el && el.getAttribute('content') !== content) el.setAttribute('content', content);
 }
 
-// og:url no és a l'index.html: allà seria la mateixa per a totes les rutes i un canal compartit
-// comptaria com la portada. Es crea aquí, amb l'adreça de la pàgina que s'està veient.
+// og:url no está en el index.html: allí sería la misma para todas las rutas y un canal compartido
+// contaría como la portada. Se crea aquí, con la dirección de la página que se está viendo.
 function setOgUrl(content) {
   let el = document.head.querySelector('meta[property="og:url"]');
   if (!el) {
@@ -27,17 +27,19 @@ function setOgUrl(content) {
 
 function sync() {
   const lang = translations[document.documentElement.lang] ? document.documentElement.lang : 'ca';
-  const desc = translations[lang].v2site.metaDesc;
+  // El canal de cada empresa es marca blanca (canal.html): su propia descripción y ninguna imagen de Reportia
+  const canal = window.location.pathname.startsWith('/canal/');
+  const desc = canal ? translations[lang].canal.metaDesc : translations[lang].v2site.metaDesc;
   setMeta('meta[name="description"]', desc);
   setMeta('meta[property="og:description"]', desc);
   setMeta('meta[property="og:title"]', document.title);
   setOgUrl(publicUrl(window.location.pathname));
-  setMeta('meta[property="og:image"]', publicUrl('/og.jpg'));
+  if (!canal) setMeta('meta[property="og:image"]', publicUrl('/og.jpg'));
 }
 
 /**
- * Manté la descripció i les etiquetes og: al dia amb l'idioma i el títol de cada pàgina.
- * Cada pantalla ja posa el seu títol i el seu <html lang>: aquí només s'escolten aquests dos canvis.
+ * Mantiene la descripción y las etiquetas og: al día con el idioma y el título de cada página.
+ * Cada pantalla ya pone su título y su <html lang>: aquí solo se escuchan esos dos cambios.
  */
 export function watchShareMeta() {
   sync();

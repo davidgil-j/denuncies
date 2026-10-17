@@ -10,32 +10,32 @@ import { PLANS, TRIAL_DAYS, CONTACT_EMAIL, formatPrice } from './plans.js';
 
 const DEMO_PATH = '/canal/demo';
 const STATUS_FLOW = ['received', 'investigating', 'resolved'];
-// Les categories reals del formulari, cadascuna amb la seva icona
+// Las categorías reales del formulario, cada una con su icono
 const CAT_ICONS = {
   fraud: HandCoins, harassment: UserRoundX, discrimination: Scale, safety: HardHat,
   data: DatabaseZap, conflict: Handshake, accounting: Calculator, environmental: Leaf,
 };
 const CATS = Object.keys(CAT_ICONS);
-// El recorregut: la captura real que s'ensenya a cada pas, dins d'un mòbil
+// El recorrido: la captura real que se enseña en cada paso, dentro de un móvil
 const HOW = ['canal', 'formulario', 'codigo', 'panel'];
-// Cada quant passa sol al pas (o a l'exemple) següent
+// Cada cuánto pasa solo al paso (o al ejemplo) siguiente
 const STEP_MS = 3000;
 const SAY_MS = 3600;
-// Fotos de l'inici (1) i del tancament (2): public/landing/inicio-N*.webp, fetes amb scripts/landing-fotos.mjs.
-// Quatre mides: el navegador baixa la que toca segons l'amplada (un mòbil petit, ~55 KB en lloc de ~100 KB)
+// Fotos del inicio (1) y del cierre (2): public/landing/inicio-N*.webp, hechas con scripts/landing-fotos.mjs.
+// Cuatro tamaños: el navegador baja el que toca según el ancho (un móvil pequeño, ~55 KB en lugar de ~100 KB)
 const photo = (n) => ({
   wide: `/landing/inicio-${n}-d.webp 1440w, /landing/inicio-${n}.webp 2400w`,
   tall: `/landing/inicio-${n}-s.webp 720w, /landing/inicio-${n}-m.webp 1100w`,
   src: `/landing/inicio-${n}-d.webp`,
 });
-// Cada xifra clau enllaça amb el seu article: és l'índex dins de landing.oblRefs
+// Cada cifra clave enlaza con su artículo: es el índice dentro de landing.oblRefs
 const FIG_REF = [0, 1, 1, 3];
 
-// Textos que reserven l'espai de l'idioma més llarg: en canviar d'idioma, res no es mou
+// Textos que reservan el espacio del idioma más largo: al cambiar de idioma, nada se mueve
 const Tx = stableOf(T => T.v2site.landing);
 const Lp = stableOf(T => T.v2site.lp);
 
-/** Codi QR real del canal d'exemple. Si no es pot generar, la peça simplement no surt. */
+/** Código QR real del canal de ejemplo. Si no se puede generar, la pieza simplemente no sale. */
 function DemoQr({ alt }) {
   const [src, setSrc] = useState(null);
   useEffect(() => {
@@ -54,8 +54,8 @@ function DemoQr({ alt }) {
 const calm = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 /**
- * Fa aparèixer les peces marcades amb data-rv quan entren a la pantalla. Si el navegador no té
- * observador, o la persona ha demanat menys moviment, no s'amaga res: tot es veu des del principi.
+ * Hace aparecer las piezas marcadas con data-rv cuando entran en la pantalla. Si el navegador no tiene
+ * observador, o la persona ha pedido menos movimiento, no se esconde nada: todo se ve desde el principio.
  */
 function useReveal() {
   const ref = useRef(null);
@@ -73,8 +73,8 @@ function useReveal() {
 }
 
 /**
- * Passa sol d'un element al següent mentre la peça és a la vista. S'atura quan s'hi posa el ratolí
- * o es tria un element, i no arrenca si la persona ha demanat menys moviment.
+ * Pasa solo de un elemento al siguiente mientras la pieza está a la vista. Se detiene cuando se pone el ratón encima
+ * o se elige un elemento, y no arranca si la persona ha pedido menos movimiento.
  */
 function useCycle(count, ms) {
   const ref = useRef(null);
@@ -108,10 +108,10 @@ function useCycle(count, ms) {
 }
 
 /**
- * Portada de Reportia en set blocs: inici, com funciona, què es pot comunicar, compliment, preus,
- * preguntes i tancament. L'inici és una foto a pantalla completa; la resta d'imatges són captures
- * reals del producte (public/landing, refetes amb scripts/landing-shots.mjs). El moviment (entrades, recorregut que avança sol) és un afegit:
- * sense ell, o amb «reduir moviment», tot el contingut es veu igual.
+ * Portada de Reportia en siete bloques: inicio, cómo funciona, qué se puede comunicar, cumplimiento, precios,
+ * preguntas y cierre. El inicio es una foto a pantalla completa; el resto de imágenes son capturas
+ * reales del producto (public/landing, rehechas con scripts/landing-shots.mjs). El movimiento (entradas, recorrido que avanza solo) es un añadido:
+ * sin él, o con «reducir movimiento», todo el contenido se ve igual.
  */
 export default function V2Landing() {
   const { lang } = useOutletContext();
@@ -131,16 +131,16 @@ export default function V2Landing() {
       await navigator.clipboard.writeText(CONTACT_EMAIL);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
-    } catch { /* el correu ja és a la vista */ }
+    } catch { /* el correo ya está a la vista */ }
   }
 
-  // Text estable que ve d'un altre apartat dels textos (capçalera, canal o panell)
+  // Texto estable que viene de otro apartado de los textos (cabecera, canal o panel)
   const st = (pick, props) => <Stable lang={lang} pick={pick} {...props} />;
   const boe = <span className="v2-vh"> {t.opensBoe}</span>;
 
   return (
     <div className="v2-lp" ref={root}>
-      {/* ── 1 · Inici: una foto a pantalla completa, el titular, una frase i els dos botons ── */}
+      {/* ── 1 · Inicio: una foto a pantalla completa, el titular, una frase y los dos botones ── */}
       <section className="v2-lp-hero" aria-labelledby="v2-land-title">
         <picture className="v2-lp-hero-bg">
           <source media="(max-width: 719px)" srcSet={photo(1).tall} sizes="100vw" />
@@ -159,7 +159,7 @@ export default function V2Landing() {
         </div>
       </section>
 
-      {/* ── 2 · Com funciona: quatre mòbils amb el producte real; el pas actiu s'il·lumina i avança sol ── */}
+      {/* ── 2 · Cómo funciona: cuatro móviles con el producto real; el paso activo se ilumina y avanza solo ── */}
       <section className="v2-lp-sec is-white" id="funciona" aria-labelledby="v2-lp-how-t">
         <div className="v2-wrap">
           <header className="v2-lp-head">
@@ -188,7 +188,7 @@ export default function V2Landing() {
                 </li>
               ))}
             </ol>
-            {/* la frase del pas actiu, en una sola línia: les quatre ocupen el mateix lloc */}
+            {/* la frase del paso activo, en una sola línea: las cuatro ocupan el mismo sitio */}
             <div className="v2-lp-step-line" aria-hidden="true">
               {HOW.map((shot, i) => <Lp as="p" key={shot} className={i === how.index ? 'is-on' : undefined} pick={x => x.howLine[i]} />)}
             </div>
@@ -199,7 +199,7 @@ export default function V2Landing() {
             )}
           </div>
 
-          {/* El que veu l'empresa: la llista de denúncies, en gran */}
+          {/* Lo que ve la empresa: la lista de denuncias, en grande */}
           <div className="v2-lp-panel" data-rv="img">
             <Lp as="h3" className="v2-lp-sub-title" k="panelTitle" />
             <figure>
@@ -217,7 +217,7 @@ export default function V2Landing() {
               <li>
                 <b aria-hidden="true">2</b>
                 <Tx as="div" pick={x => <><h4>{x.step2t}</h4><p>{x.step2d}</p></>} />
-                {/* Les tres peces reals que es copien del panell: l'adreça, el botó i el codi QR */}
+                {/* Las tres piezas reales que se copian del panel: la dirección, el botón y el código QR */}
                 <div className="v2-lp-pieces">
                   <span className="v2-lp-path"><Link2 {...ICON} /><Tx k="step2path" /></span>
                   <span className="v2-lp-sample"><Tx k="intBtnLabel" /></span>
@@ -227,7 +227,7 @@ export default function V2Landing() {
               <li>
                 <b aria-hidden="true">3</b>
                 <Tx as="div" pick={x => <><h4>{x.step3t}</h4><p>{x.step3d}</p></>} />
-                {/* la fila sencera reserva l'espai de l'idioma més llarg */}
+                {/* la fila entera reserva el espacio del idioma más largo */}
                 {st(T => STATUS_FLOW.map((k, i) => (
                   <span className="v2-lp-state" key={k}>
                     {i > 0 && <ArrowRight {...ICON} />}
@@ -240,7 +240,7 @@ export default function V2Landing() {
         </div>
       </section>
 
-      {/* ── 3 · Què es pot comunicar: un exemple cada cop, en gran; les vuit categories del formulari al costat ── */}
+      {/* ── 3 · Qué se puede comunicar: un ejemplo cada vez, en grande; las ocho categorías del formulario al lado ── */}
       <section className="v2-lp-sec is-soft" id="ejemplos" aria-labelledby="v2-lp-cat-t">
         <div className="v2-wrap">
           <header className="v2-lp-head">
@@ -265,7 +265,7 @@ export default function V2Landing() {
                   <li key={value}>
                     <button type="button" className="v2-lp-chip" aria-pressed={i === say.index} onClick={() => say.choose(i)} onMouseEnter={() => say.pick(i)}>
                       <Icon {...ICON} />{st(T => T.categories.find(c => c.value === value)?.label ?? value)}
-                      {/* l'exemple, per a qui no veu la peça gran */}
+                      {/* el ejemplo, para quien no ve la pieza grande */}
                       <span className="v2-vh">: {tl.catSay[value]}</span>
                     </button>
                   </li>
@@ -281,7 +281,7 @@ export default function V2Landing() {
         </div>
       </section>
 
-      {/* ── 4 · Compliment: tot el que és legal en un sol lloc, amb els enllaços al BOE ── */}
+      {/* ── 4 · Cumplimiento: todo lo legal en un solo sitio, con los enlaces al BOE ── */}
       <section className="v2-lp-sec is-white" id="ley" aria-labelledby="v2-lp-law-t">
         <div className="v2-wrap">
           <div className="v2-lp-law-top">
@@ -292,7 +292,7 @@ export default function V2Landing() {
               <p className="v2-lp-links">
                 <a className="v2-link" href={BOE_URL} target="_blank" rel="noopener noreferrer"><Tx k="oblLink" /><ArrowUpRight {...ICON} /></a>
               </p>
-              {/* L'únic article de la llista que no surt ni a les xifres ni al desplegable */}
+              {/* El único artículo de la lista que no sale ni en las cifras ni en el desplegable */}
               <p className="v2-lp-note">
                 <a className="v2-link" href={boeArt(t.oblRefs[2].n)} target="_blank" rel="noopener noreferrer">{t.oblRefs[2].art}{boe}</a>
                 <Tx pick={x => x.oblRefs[2].text} />
@@ -315,7 +315,7 @@ export default function V2Landing() {
             </dl>
           </div>
 
-          {/* Els terminis de l'article 9, en una línia de temps */}
+          {/* Los plazos del artículo 9, en una línea de tiempo */}
           <div className="v2-lp-dead" data-rv="line">
             <div>
               <Lp as="h3" className="v2-lp-sub-title" k="deadTitle" />
@@ -333,7 +333,7 @@ export default function V2Landing() {
             </div>
           </div>
 
-          {/* El que demana la llei, punt per punt: plegat només es veu què exigeix; el com, en obrir */}
+          {/* Lo que pide la ley, punto por punto: plegado solo se ve qué exige; el cómo, al abrir */}
           <div className="v2-lp-law-grid">
             <div>
               <Tx as="h3" className="v2-lp-sub-title" k="lawTitle" />
@@ -370,7 +370,7 @@ export default function V2Landing() {
         </div>
       </section>
 
-      {/* ── 4b · Seguretat i privacitat: quatre peces curtes, totes comprovades ── */}
+      {/* ── 4b · Seguridad y privacidad: cuatro piezas cortas, todas comprobadas ── */}
       <section className="v2-lp-sec is-white v2-lp-secu" id="seguridad" aria-labelledby="v2-lp-sec-t">
         <div className="v2-wrap">
           <header className="v2-lp-head">
@@ -388,7 +388,7 @@ export default function V2Landing() {
         </div>
       </section>
 
-      {/* ── 5 · Preus ── */}
+      {/* ── 5 · Precios ── */}
       <section className="v2-lp-sec is-soft" id="precios" aria-labelledby="v2-lp-price-t">
         <div className="v2-wrap">
           <header className="v2-lp-head">
@@ -417,7 +417,7 @@ export default function V2Landing() {
               ))}
             </ul>
 
-            {/* El que inclouen tots els plans, en un panell fosc: es distingeix del fons a primer cop d'ull */}
+            {/* Lo que incluyen todos los planes, en un panel oscuro: se distingue del fondo a primera vista */}
             <div className="v2-lp-incl" data-rv="">
               <Tx as="h3" k="inclTitle" />
               <ul>
@@ -437,7 +437,7 @@ export default function V2Landing() {
         </div>
       </section>
 
-      {/* ── 6 · Preguntes freqüents: <details> natiu, es llegeix i es navega sense JavaScript ── */}
+      {/* ── 6 · Preguntas frecuentes: <details> nativo, se lee y se recorre sin JavaScript ── */}
       <section className="v2-lp-sec is-white" id="preguntas" aria-labelledby="v2-lp-faq-t">
         <div className="v2-wrap v2-lp-faq">
           <header className="v2-lp-head">
@@ -455,9 +455,9 @@ export default function V2Landing() {
         </div>
       </section>
 
-      {/* ── 7 · Tancament: foto a sang, els dos botons i el correu per a qui prefereix que l'hi ensenyin. Enllaça amb el peu ── */}
+      {/* ── 7 · Cierre: foto a sangre, los dos botones y el correo para quien prefiere que se lo enseñen. Enlaza con el pie ── */}
       <section className="v2-lp-end" id="contacto" aria-labelledby="v2-lp-end-t">
-        {/* la foto que no s'ha fet servir a l'inici: la pàgina s'obre i es tanca amb foto */}
+        {/* la foto que no se ha usado en el inicio: la página se abre y se cierra con foto */}
         <picture className="v2-lp-end-bg">
           <source media="(max-width: 719px)" srcSet={photo(2).tall} sizes="100vw" />
           <img src={photo(2).src} srcSet={photo(2).wide} sizes="100vw" alt="" width="1440" height="900" loading="lazy" decoding="async" />

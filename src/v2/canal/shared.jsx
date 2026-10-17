@@ -4,7 +4,7 @@ import { ArrowLeft, LogOut } from 'lucide-react';
 import { translations } from '../../translations.js';
 import { madridDay, addMonthsDay, dayToDate, ACK_DAYS, RESP_MONTHS } from '../../lib/deadlines.js';
 import { LANGS, Stable, fmt, quickExit } from '../V2Layout.jsx';
-import { Button, Segmented, cx } from '../ui/index.js';
+import { BrandLogo, Button, Segmented, cx } from '../ui/index.js';
 import { LOCALES } from '../../lib/format.js';
 
 // Las 9 categorías, en el orden de la pantalla. El valor que se guarda no cambia.
@@ -63,14 +63,14 @@ export function QuickExit({ lang }) {
 }
 
 /**
- * Barra de arriba de cada pantalla del canal: el nombre de la empresa, el idioma y «Salir rápido».
+ * Barra de arriba de cada pantalla del canal: la empresa (logo y nombre), el idioma y «Salir rápido».
  * children: lo que la pantalla añade antes de «Salir rápido» («Salir de mi caso»). langOnPhone: el idioma
  * también se ve en el móvil (la política de privacidad; en los pasos ya se eligió en la entrada).
  */
 export function CanalHead({ lang, setLang, org, langOnPhone = false, children }) {
   return (
     <div className="flow-head">
-      <b className="flow-brand" title={org.name}>{org.name}</b>
+      <span className="ds-brand flow-brand-wrap"><BrandLogo org={org} /><b className="flow-brand" title={org.name}>{org.name}</b></span>
       <div className="flow-tools">
         {children}
         {setLang && <LangPick lang={lang} setLang={setLang} className={langOnPhone ? undefined : 'is-wide-only'} />}

@@ -7,12 +7,14 @@
 .canal-lost-go { margin-top: 10px; }
 /* El esqueleto tiene la forma de lo que va a salir: las dos mitades o la página blanca */
 .canal-loading .ds-skel + .ds-skel { margin-top: 14px; }
-.canal-loading.is-entry .ds-pane.is-report .ds-skel { background: rgba(255, 255, 255, .28); }
+/* Mientras se carga la empresa no se sabe aún su color: la mitad de Denunciar espera en gris, sin destello azul */
+.canal-loading.is-entry .ds-pane.is-report { background: var(--soft); }
 .canal-loading.is-report .ds-pane-body { width: 100%; max-width: 944px; margin: 0 auto; padding: 104px 32px 32px; }
 @media (max-width: 640px) { .canal-loading.is-report .ds-pane-body { padding: 88px 16px 16px; } }
 
 /* ── Entrada ───────────────────────────────────────────────────────── */
-.entry-brand { display: flex; flex-direction: column; justify-content: center; min-width: 0; color: #FFFFFF; }
+.entry-brand { display: flex; align-items: center; gap: 12px; min-width: 0; color: var(--on-solid); --logo-plate: #FFFFFF; --logo-pad: 4px 7px; --logo-h: 40px; --logo-w: 160px; }
+.entry-brand-txt { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
 .entry-brand b { font-size: 18px; line-height: 1.25; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .entry-brand-sub { font-size: 13px; line-height: 1.3; white-space: nowrap; }
 .entry-tools { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
@@ -42,6 +44,7 @@
 .canal-exit.ds-btn::after, .canal-lang .ds-seg-item::after { content: ''; position: absolute; inset: -6px 0; }
 
 @media (max-width: 640px) {
+  .entry-brand { gap: 10px; --logo-h: 32px; --logo-w: 112px; --logo-pad: 3px 6px; }
   .entry-brand b { font-size: 15px; }
   .entry-brand-sub { display: none; }
   .entry-tools { gap: 8px; flex: none; }
@@ -56,9 +59,9 @@
   .canal-exit.ds-btn { --h: 32px; }
   .canal-lang .ds-seg-item { min-height: 32px; min-width: 32px; padding: 0 6px; }
   /* En la entrada del móvil el idioma y «Salir» quedan sobre el color: en blanco y en contorno */
-  .ds-split.is-entry .canal-lang .ds-seg-item { color: #FFFFFF; }
-  .ds-split.is-entry .canal-lang .ds-seg-item[aria-pressed="true"] { background: transparent; color: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .7); }
-  .ds-split.is-entry .canal-exit.ds-btn { background: transparent; color: #FFFFFF; border-color: rgba(255, 255, 255, .7); }
+  .ds-split.is-entry .canal-lang .ds-seg-item { color: var(--on-solid); }
+  .ds-split.is-entry .canal-lang .ds-seg-item[aria-pressed="true"] { background: transparent; color: var(--on-solid); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .7); }
+  .ds-split.is-entry .canal-exit.ds-btn { background: transparent; color: var(--on-solid); border-color: rgba(255, 255, 255, .7); }
 }
 
 /* Paneles de la entrada (canales externos y «qué guardamos y qué no») */
@@ -78,6 +81,7 @@
 /* ── Las pantallas de Denunciar: barra de la empresa, columna de 880 px y pie ── */
 .flow { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .flow-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 56px; padding: 0 32px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.flow-brand-wrap { --logo-h: 30px; --logo-w: 120px; }
 .flow-brand { min-width: 0; font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .flow-tools { flex: none; display: flex; align-items: center; gap: 12px; }
 .flow-body { width: 100%; max-width: 944px; margin: 0 auto; flex: 1; display: flex; flex-direction: column; gap: 24px; padding: 28px 32px 16px; }
@@ -128,6 +132,7 @@
 
 @media (max-width: 640px) {
   .flow-head { height: 52px; padding: 0 16px; }
+  .flow-brand-wrap { gap: 8px; --logo-h: 28px; --logo-w: 96px; }
   .flow-tools { gap: 8px; }
   .canal-lang.is-wide-only { display: none; }
   .flow-body { gap: 16px; padding: 16px 16px 0; }
@@ -284,7 +289,7 @@
 .tl li:last-child { padding-bottom: 0; }
 .tl li:not(:last-child)::before { content: ''; position: absolute; left: 9.5px; top: 24px; bottom: 2px; width: 1px; background: var(--line); }
 .tl-dot { width: 20px; height: 20px; flex: none; margin-top: 1px; border: 1.5px solid var(--field-line); border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center; }
-.tl li.is-done .tl-dot { border-color: var(--ink); background: var(--ink); color: #FFFFFF; }
+.tl li.is-done .tl-dot { border-color: var(--ink); background: var(--ink); color: var(--on-ink); }
 .tl li.is-now .tl-dot { border: 6px solid var(--report); }
 .tl-txt { display: flex; flex-direction: column; }
 .tl-txt b { font-size: 14px; line-height: 1.55; font-weight: 600; }

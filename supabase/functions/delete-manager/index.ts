@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { withCors } from '../_shared/cors.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,7 +15,7 @@ function aalOf(authHeader: string): string {
   } catch { return ''; }
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withCors(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
@@ -39,7 +40,7 @@ Deno.serve(async (req) => {
     if (!user_id) return json({ error: 'invalid' }, 400);
     if (user_id === user.id) return json({ error: 'self' }, 400);
 
-    // Només usuaris de la mateixa organització, i mai l'últim administrador
+    // Solo usuarios de la misma organización, y nunca el último administrador
     const { data: target } = await adminClient.from('profiles').select('organization_id, role, full_name').eq('id', user_id).single();
     if (!target || target.organization_id !== profile.organization_id) return json({ error: 'Forbidden' }, 403);
     if (target.role === 'superadmin') {
@@ -48,7 +49,7 @@ Deno.serve(async (req) => {
       if ((count ?? 0) <= 1) return json({ error: 'last-admin' }, 400);
     }
 
-    // Queda al registre d'activitat de l'empresa qui ha tret qui de l'equip (abans no en quedava rastre)
+    // Queda en el registro de actividad de la empresa quién ha quitado a quién del equipo (antes no quedaba rastro)
     const { error: logError } = await adminClient.from('audit_logs').insert({
       complaint_id: null, organization_id: profile.organization_id, action: 'member_removed', actor_id: user.id,
       details: { member_id: user_id, member_name: target.full_name ?? '', member_role: target.role, removed_by: user.id },
@@ -64,4 +65,4 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: 'server-error' }, 500);
   }
-});
+}));

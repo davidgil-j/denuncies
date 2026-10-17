@@ -2,10 +2,10 @@ import { fmt } from '../V2Layout.jsx';
 import { daysBetween } from '../../lib/deadlines.js';
 import { localeOf } from '../../lib/format.js';
 
-// Terminis de la Llei 2/2023, en dies de calendari de Madrid (com la base de dades): src/lib/deadlines.js
+// Plazos de la Ley 2/2023, en días de calendario de Madrid (como la base de datos): src/lib/deadlines.js
 export { deadlineInfo, daysBetween, ACK_DAYS, RESP_MONTHS } from '../../lib/deadlines.js';
 
-// ── Constants ───────────────────────────────────────────────────────────
+// ── Constantes ──────────────────────────────────────────────────────────
 export const STATUS_ORDER = ['received', 'reviewing', 'investigating', 'waiting', 'resolved', 'closed', 'archived'];
 export const OPEN = ['received', 'reviewing', 'investigating', 'waiting'];
 export { ANSWERED } from '../../lib/deadlines.js';
@@ -29,10 +29,10 @@ export function fLong(iso, lang) {
   return fDate(iso, lang, { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-// ── Pla de l'organització ───────────────────────────────────────────────
+// ── Plan de la organización ─────────────────────────────────────────────
 /**
- * Estat del pla a partir de les columnes d'organizations (migració 009).
- * Retorna null si l'organització encara no té pla (migració pendent): llavors no es mostra res.
+ * Estado del plan a partir de las columnas de organizations (migración 009).
+ * Devuelve null si la organización aún no tiene plan (migración pendiente): entonces no se muestra nada.
  * { plan, state: trial | trialEnded | active | expired, days, until, renewSoon }
  */
 export function planInfo(org, now = new Date()) {
@@ -53,7 +53,7 @@ export async function copyText(text) {
   try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
 }
 
-/** Text d'una entrada del registre d'activitat */
+/** Texto de una entrada del registro de actividad */
 export function auditText(t, log) {
   const d = log.details ?? {};
   const who = d.actor_name;

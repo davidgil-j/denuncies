@@ -3,20 +3,17 @@ import { LayoutDashboard, BarChart3, Share2, SlidersHorizontal, ArrowRight, EyeO
 import { translations } from '../../translations.js';
 import { LANGS } from '../V2Layout.jsx';
 import {
-  SplitShell, SideTab, PillNav, Button, IconButton, Chip, Chips, Card, OrgMark, Avatar, Skeleton, Field, Segmented,
+  SplitShell, PillNav, Button, IconButton, Chip, Chips, Card, OrgMark, Avatar, Skeleton, Field, Segmented,
   StepBar, DeadlineChip, CaseCard, Kanban, ChatThread, ChatComposer,
 } from '../ui/index.js';
+import { themeVars } from '../lib/brand.js';
 import './dev.css';
 
 // Página de trabajo, solo en desarrollo (/dev/ui): todas las piezas comunes en sus estados.
 // Los textos de ejemplo van en castellano; los propios de cada pieza cambian con el idioma.
 
-const TOKENS = [
-  ['--bg', '#F2F4F8'], ['--surface', '#FFFFFF'], ['--ink', '#0D1530'], ['--muted', '#4D5672'], ['--line', '#D7DEEF'], ['--soft', '#EEF1F7'],
-  ['--report', '#2F54EB'], ['--report-soft', '#E8EDFF'], ['--report-soft-ink', '#1F3FC4'], ['--on-report-muted', '#E3E9FF'],
-  ['--warn-bg', '#FFF0D6'], ['--warn-ink', '#7A4100'], ['--danger-bg', '#FCE5E2'], ['--danger-ink', '#9C1C12'], ['--danger-line', '#F3B5AE'],
-  ['--ok-bg', '#E1F5EC'], ['--ok-ink', '#0E5C41'], ['--on-ink-muted', '#C9D3F5'], ['--on-ink-accent', '#7EA0FF'], ['--on-ink-warn', '#FFC46B'], ['--chart-soft', '#A9BCFA'],
-];
+// Los colores salen de la única fuente (src/v2/lib/brand.js): la paleta azul en claro
+const TOKENS = Object.entries(themeVars('azul', 'light')).filter(([, v]) => v.startsWith('#'));
 
 const CASES = {
   new: [
@@ -181,8 +178,8 @@ export default function DevUi() {
         </div>
         <Card tone="report" radius="xl">
           <div className="dev-row3">
-            <Card tone="shade"><span className="ds-card-title">Oscurecida</span><p style={{ color: 'var(--on-report-muted)' }}>Sobre azul siempre se oscurece.</p></Card>
-            <Card tone="dashed"><span className="ds-card-title">Discontinua</span><p style={{ color: 'var(--on-report-muted)' }}>Zona de pruebas, «Otra cosa».</p></Card>
+            <Card tone="shade"><span className="ds-card-title">Oscurecida</span><p style={{ color: 'var(--on-solid)' }}>Sobre azul siempre se oscurece.</p></Card>
+            <Card tone="dashed"><span className="ds-card-title">Discontinua</span><p style={{ color: 'var(--on-solid)' }}>Zona de pruebas, «Otra cosa».</p></Card>
             <Card picked><span className="ds-card-title">Elegida sobre azul</span><p>Blanca, con sombra.</p></Card>
           </div>
         </Card>
@@ -280,7 +277,7 @@ export default function DevUi() {
         </div>
       </Block>
 
-      <Block title="Las dos mitades (SplitShell y SideTab)" note="Pulsa un lado: la tarjeta crece y la otra queda en una franja de 76 px (250 ms; sin animación si el sistema lo pide).">
+      <Block title="Las dos mitades (SplitShell)" note="Pulsa un lado: el elegido cubre la pantalla y el otro desaparece (250 ms; sin animación si el sistema lo pide).">
         <div className="dev-wrap">
           <Segmented mode="radio" label="Lado elegido" value={side ?? 'entry'} onChange={v => setSide(v === 'entry' ? null : v)}
             options={[{ value: 'entry', label: 'Entrada' }, { value: 'report', label: 'Denunciar' }, { value: 'manage', label: 'Gestionar' }]} />
@@ -316,8 +313,6 @@ export default function DevUi() {
               <div className="dev-between"><span style={{ color: 'var(--muted)', fontWeight: 600, fontSize: 15 }}>Acceso con verificación en dos pasos</span><Button variant="ink" size="xl" iconEnd={arrow} onClick={() => setSide('manage')}>Acceder</Button></div>
             </>
           )}
-          reportTab={<SideTab side="report" label="Ver el canal" icon="external" ariaLabel="Ver el canal público" onClick={() => setSide('report')} />}
-          manageTab={<SideTab side="manage" label="Gestionar" icon="forward" onClick={() => setSide('manage')} />}
         />
       </Block>
     </div>

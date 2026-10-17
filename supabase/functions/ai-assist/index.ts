@@ -1,19 +1,20 @@
-// ai-assist · Ajudes d'IA per a qui gestiona un cas. MAI per a qui denuncia.
+// ai-assist · Ayudas de IA para quien gestiona un caso. NUNCA para quien denuncia.
 //
-// NO ESTÀ DESPLEGADA ni s'ha de desplegar fins que s'hagi triat un proveïdor que processi a la UE,
-// sense conservar les dades, i se n'hagi signat el contracte d'encarregat (vegeu docs/IA.md).
-// Sense els secrets AI_PROVIDER_URL i AI_API_KEY respon «ai-disabled» i no fa res.
+// NO ESTÁ DESPLEGADA ni debe desplegarse hasta que se haya elegido un proveedor que procese en la UE,
+// sin conservar los datos, y se haya firmado su contrato de encargado (ver docs/IA.md).
+// Sin los secretos AI_PROVIDER_URL y AI_API_KEY responde «ai-disabled» y no hace nada.
 //
-// Què fa:
-//   action 'summary' → resum de 3 frases i títol de 6 a 10 paraules. Es desa al cas (store_ai_summary)
-//                      i queda al registre d'activitat amb qui ho ha demanat.
-//   action 'draft'   → proposa un esborrany de missatge (kind: ack | question | answer). NO es desa ni
-//                      s'envia: torna al panell perquè la persona l'editi i decideixi si l'envia.
+// Qué hace:
+//   action 'summary' → resumen de 3 frases y título de 6 a 10 palabras. Se guarda en el caso (store_ai_summary)
+//                      y queda en el registro de actividad con quién lo ha pedido.
+//   action 'draft'   → propone un borrador de mensaje (kind: ack | question | answer). NO se guarda ni
+//                      se envía: vuelve al panel para que la persona lo edite y decida si lo envía.
 //
-// Què envia al proveïdor: la categoria, la descripció, el departament i el «quan». Res més.
-// Mai el nom, el correu ni el telèfon de qui informa (aquesta funció ni tan sols els llegeix), ni les
-// persones implicades, ni els missatges, ni els adjunts, ni el nom de l'empresa.
+// Qué envía al proveedor: la categoría, la descripción, el departamento y el «cuándo». Nada más.
+// Nunca el nombre, el correo ni el teléfono de quien informa (esta función ni siquiera los lee), ni las
+// personas implicadas, ni los mensajes, ni los adjuntos, ni el nombre de la empresa.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { withCors } from '../_shared/cors.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,10 +32,10 @@ function aalOf(authHeader: string): string {
 
 const LANGS: Record<string, string> = { ca: 'català', es: 'castellano', en: 'English' };
 const KINDS = ['ack', 'question', 'answer'];
-const MAX_INPUT = 12000; // caràcters de la descripció que s'envien com a màxim
+const MAX_INPUT = 12000; // caracteres de la descripción que se envían como máximo
 const TIMEOUT_MS = 30000;
 
-// Etiquetes neutres de la categoria (no cal enviar la clau interna)
+// Etiquetas neutras de la categoría (no hace falta enviar la clave interna)
 const CATEGORY: Record<string, string> = {
   harassment: 'acoso laboral o sexual', fraud: 'fraude o corrupción', discrimination: 'discriminación',
   safety: 'seguridad en el trabajo', data: 'datos personales', conflict: 'conflicto de intereses',
@@ -43,7 +44,7 @@ const CATEGORY: Record<string, string> = {
 
 type Case = { category: string; description: string; department: string | null; incident_date: string | null; incident_when: string | null; language: string | null };
 
-/** El text del cas, tal com s'envia. Només aquests camps. */
+/** El texto del caso, tal como se envía. Solo estos campos. */
 function caseText(c: Case): string {
   const when = c.incident_when || c.incident_date || '';
   return [
@@ -74,17 +75,17 @@ function prompts(action: string, kind: string, c: Case, lang: string) {
   }
   const reporterLang = LANGS[c.language ?? ''] ?? LANGS.es;
   const task: Record<string, string> = {
-    ack: 'Redacta un acuse de recibo breve: confirma que la comunicación se ha recibido, que se tratará de forma confidencial y que recibirá respuesta dentro del plazo legal. No prometas resultados.',
+    ack: 'Redacta un acuse de recibo breve: confirma que la comunicación se ha recibido, que se tratará de forma confidencial y que la persona recibirá respuesta dentro del plazo legal. No prometas resultados.',
     question: 'Redacta un mensaje breve que pida a la persona informante los datos concretos que faltan para poder investigar (por ejemplo fechas, lugares o documentos). Como máximo tres preguntas. No pidas su identidad.',
     answer: 'Redacta un borrador de respuesta final breve y neutra: agradece la comunicación e indica que la investigación ha concluido. Deja entre corchetes, para que lo complete quien gestiona, lo que se ha comprobado y las medidas adoptadas.',
   };
   return {
-    system: `${RULES} ${task[kind]} Trata de usted, sin nombres propios y sin firma. Devuelve solo el texto del mensaje, sin comillas ni explicaciones. Escribe en ${reporterLang}.`,
+    system: `${RULES} ${task[kind]} Trata de tú a la persona informante, sin nombres propios y sin firma. Devuelve solo el texto del mensaje, sin comillas ni explicaciones. Escribe en ${reporterLang}.`,
     user: caseText(c),
   };
 }
 
-/** Crida al proveïdor. AI_PROVIDER_FORMAT: 'openai' (per defecte, /chat/completions) o 'anthropic' (/v1/messages). */
+/** Llamada al proveedor. AI_PROVIDER_FORMAT: 'openai' (por defecto, /chat/completions) o 'anthropic' (/v1/messages). */
 async function callProvider(system: string, user: string): Promise<string> {
   const url = Deno.env.get('AI_PROVIDER_URL')!;
   const key = Deno.env.get('AI_API_KEY')!;
@@ -114,7 +115,7 @@ async function callProvider(system: string, user: string): Promise<string> {
   }
 }
 
-/** Treu { title, summary } de la resposta, encara que vingui envoltada de text o de ``` */
+/** Saca { title, summary } de la respuesta, aunque venga rodeada de texto o de ``` */
 function parseSummary(text: string): { title: string; summary: string } | null {
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
@@ -127,14 +128,14 @@ function parseSummary(text: string): { title: string; summary: string } | null {
   } catch { return null; }
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withCors(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) return json({ error: 'Unauthorized' }, 401);
 
-    // Apagada mentre no hi hagi proveïdor configurat
+    // Apagada mientras no haya un proveedor configurado
     if (!Deno.env.get('AI_PROVIDER_URL') || !Deno.env.get('AI_API_KEY')) return json({ error: 'ai-disabled' }, 503);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -149,15 +150,15 @@ Deno.serve(async (req) => {
     if (typeof complaint_id !== 'string' || !['summary', 'draft'].includes(action)) return json({ error: 'invalid' }, 400);
     if (action === 'draft' && !KINDS.includes(kind)) return json({ error: 'invalid' }, 400);
 
-    // El cas es llegeix AMB LA SESSIÓ de qui ho demana: hi apliquen les mateixes regles (RLS) que al
-    // panell. Si no el pot veure, aquí tampoc. La identitat de qui informa no es demana mai.
+    // El caso se lee CON LA SESIÓN de quien lo pide: se aplican las mismas reglas (RLS) que en el
+    // panel. Si no lo puede ver, aquí tampoco. La identidad de quien informa no se pide nunca.
     const { data: c } = await callerClient
       .from('complaints')
       .select('id, category, description, department, incident_date, incident_when, language, anonymized_at')
       .eq('id', complaint_id)
       .maybeSingle();
     if (!c || c.anonymized_at || !c.description) return json({ error: 'Forbidden' }, 403);
-    // Resumir canvia el cas (cal permís d'editar); redactar és per respondre (cal permís de respondre)
+    // Resumir cambia el caso (hace falta permiso de editar); redactar es para responder (hace falta permiso de responder)
     const { data: allowed } = await callerClient.rpc('can_access_category', { p_category: c.category, p_action: action === 'summary' ? 'edit' : 'reply' });
     if (allowed !== true) return json({ error: 'Forbidden' }, 403);
 
@@ -176,7 +177,7 @@ Deno.serve(async (req) => {
     if (storeError) return json({ error: 'store-failed' }, 500);
     return json({ summary: parsed.summary.slice(0, 1200), title: parsed.title.slice(0, 160), generated_at: at });
   } catch {
-    // Mai es retorna ni s'anota el contingut del cas
+    // Nunca se devuelve ni se anota el contenido del caso
     return json({ error: 'server-error' }, 500);
   }
-});
+}));

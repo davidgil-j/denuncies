@@ -239,13 +239,15 @@ await shot('G5-contrasena', { view: true });
 await page.getByRole('button', { name: 'Guardar la contraseña' }).click();
 await toast('Contraseña cambiada.');
 ok('seguridad: el enlace lleva a la verificación', (await page.locator('section[aria-labelledby="st-sec-t"] a').getAttribute('href')) === '/admin/mfa');
-await page.locator('section[aria-labelledby="st-org-t"]').getByRole('button', { name: /Cambiar/ }).click();
-await page.locator('#st-org-name').fill('');
-await page.getByRole('button', { name: 'Guardar' }).last().click();
+// Con «Tu marca» (migración 016), el nombre de la empresa es su «Nombre visible»; «La empresa» ya no lo repite
+const brand = page.locator('form[aria-labelledby="st-brand-t"]');
+ok('empresa: el nombre se cambia en «Tu marca», no en «La empresa»', await brand.isVisible() && (await page.locator('section[aria-labelledby="st-org-t"]').getByRole('button', { name: /Cambiar/ }).count()) === 0);
+await brand.locator('#st-brand-name').fill('');
+await brand.getByRole('button', { name: 'Guardar' }).click();
 ok('empresa: el nombre no puede quedar vacío', await page.getByText('Escribe el nombre de la empresa.').isVisible());
-await page.locator('#st-org-name').fill('Empresa Demo Logística');
-await page.getByRole('button', { name: 'Guardar' }).last().click();
-await toast('Guardado.');
+await brand.locator('#st-brand-name').fill('Empresa Demo Logística');
+await brand.getByRole('button', { name: 'Guardar' }).click();
+await toast('Marca guardada. El canal ya la muestra.');
 ok('empresa: el nombre nuevo sale en la cabecera', (await page.locator('.pn-brand b').innerText()) === 'Empresa Demo Logística');
 
 // Autoridad autonómica: otra, con nombre y enlace https
@@ -270,10 +272,9 @@ ok('autoridad: al volver sigue «Otra…» con sus datos', (await resp.locator('
 await resp.getByLabel('Autoridad autonómica que se muestra en el canal').selectOption('antifrau');
 await resp.getByRole('button', { name: 'Guardar' }).click();
 await toast('Guardado.');
-await page.locator('section[aria-labelledby="st-org-t"]').getByRole('button', { name: /Cambiar/ }).click();
-await page.locator('#st-org-name').fill('Empresa Demo');
-await page.getByRole('button', { name: 'Guardar' }).last().click();
-await toast('Guardado.');
+await brand.locator('#st-brand-name').fill('Empresa Demo');
+await brand.getByRole('button', { name: 'Guardar' }).click();
+await toast('Marca guardada. El canal ya la muestra.');
 
 // Plazo de la AIPI vencido: rojo aquí y aviso en el tablero
 const appointedBefore = (await store()).org.responsible_appointed_at;

@@ -5,20 +5,27 @@ import { translations } from '../../translations.js';
 import './texts.js'; // textos del panel (lado Gestionar)
 import { LANGS, AIPI_URL, Swap, fmt } from '../V2Layout.jsx';
 import { copyText } from '../admin/adminKit.jsx';
-import { Button, IconButton, Card, Menu, MenuItem, Segmented, Skeleton, cx } from '../ui/index.js';
+import { Button, IconButton, Card, Dialog, Menu, MenuItem, Segmented, Skeleton, cx } from '../ui/index.js';
+import { CONTACT_EMAIL } from '../site/plans.js';
 import { usePanel, Tp } from './kit.jsx';
 import { STEPS, MANUAL, hasOnboarding, onboardingState } from './primeros.jsx';
+import { paletteOf } from '../lib/brand.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-// Estilos en línea: el fragmento tiene que funcionar pegado en cualquier web, sin hojas de estilo nuestras
-const BTN_STYLE = "display:inline-flex;align-items:center;padding:12px 18px;border-radius:10px;background:#2F54EB;color:#ffffff;font:600 15px/1.2 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-decoration:none";
+// Estilos en línea: el fragmento tiene que funcionar pegado en cualquier web, sin hojas de estilo nuestras. El botón lleva
+// el color de la empresa («Tu marca»: el principal de su paleta en claro, con texto blanco, que pasa el contraste en las ocho)
+const btnStyle = (color) => `display:inline-flex;align-items:center;padding:12px 18px;border-radius:10px;background:${color};color:#ffffff;font:600 15px/1.2 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-decoration:none`;
 
-function snippet(kind, url, label) {
-  const style = kind === 'button' ? ` style="${BTN_STYLE}"` : '';
+function snippet(kind, url, label, color) {
+  const style = kind === 'button' ? ` style="${btnStyle(color)}"` : '';
   // noreferrer: el canal no recibe la dirección de la página desde la que se llega
   return `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer"${style}>${esc(label)}</a>`;
 }
+
+// Las otras formas de ponerlo en la web (la guía): el script que pinta el botón y el canal dentro de un recuadro (iframe)
+const scriptSnippet = (origin, slug, lang, color) => `<script src="${esc(origin)}/boton-canal.js" data-canal="${esc(slug)}" data-idioma="${lang}" data-color="${color}" async></script>`;
+const iframeSnippet = (url, lang, title) => `<iframe src="${esc(url)}?lang=${lang}" title="${esc(title)}" style="width:100%;height:760px;border:0" loading="lazy" referrerpolicy="no-referrer"></iframe>`;
 
 function download(href, name) {
   const a = document.createElement('a');
@@ -51,7 +58,7 @@ const ti = (Icon) => <Icon size={16} strokeWidth={2} aria-hidden="true" />;
  * una con qué es, su vista previa y su acción a la derecha.
  */
 export default function Compartir() {
-  const { lang, p, org, saveOrg, members, isSuperadmin, channelPath, notify } = usePanel();
+  const { lang, p, org, saveOrg, members, isSuperadmin, channelPath, channelUrl, notify } = usePanel();
   const s = p.share;
   const o = p.onb;
   const [kind, setKind] = useState('button');
@@ -65,12 +72,14 @@ export default function Compartir() {
   const [marking, setMarking] = useState('');
   const [stepsOpen, setStepsOpen] = useState(false);
   const [legalOpen, setLegalOpen] = useState(false);
+  const [guide, setGuide] = useState(false);
 
   useEffect(() => { document.title = `${p.nav.share} · ${org?.name ?? ''}`; }, [p, org]);
 
-  const url = `${import.meta.env.VITE_PUBLIC_ORIGIN || window.location.origin}${channelPath}`;
+  const url = channelUrl;
   const shown = url.replace(/^https?:\/\//, '');
-  const code = useMemo(() => snippet(kind, url, translations[snipLang].canal.ethics), [kind, url, snipLang]);
+  const color = paletteOf(org?.brand_palette).light.accent;
+  const code = useMemo(() => snippet(kind, url, translations[snipLang].canal.ethics, color), [kind, url, snipLang, color]);
   const legal = fmt(translations[legalLang].v2admin.iLegalBody, { org: org?.name ?? '', url });
 
   useEffect(() => {
@@ -103,7 +112,7 @@ export default function Compartir() {
     setPosterBusy(true);
     try {
       const { exportChannelPoster } = await import('../lib/exportV2.js');
-      await exportChannelPoster({ orgName: org?.name ?? '', url, lang: posterLang, slug: org?.slug ?? '' });
+      await exportChannelPoster({ orgName: org?.name ?? '', url, lang: posterLang, slug: org?.slug ?? '', palette: org?.brand_palette, logo: org?.brand_logo });
       notify(s.posterOk);
     } catch {
       notify(s.posterErr, 'err');
@@ -255,6 +264,7 @@ export default function Compartir() {
               <summary>{s.seeCode}</summary>
               <pre tabIndex={0}><code>{code}</code></pre>
             </details>
+            <button type="button" className="pn-link" onClick={() => setGuide(true)}>{s.guideOpen}</button>
           </div>
           <div className="sh-acts"><CopyButton variant="soft" size="md" lang={lang} text={code} k="copyCode" kOn="codeCopied" /></div>
         </section>
@@ -276,6 +286,44 @@ export default function Compartir() {
         <summary>{s.whyTitle.replace(/\.$/, '')}</summary>
         <p>{s.whyText}</p>
       </details>
+
+      <Guide open={guide} onClose={() => setGuide(false)} url={url} color={color} lang={lang} snipLang={snipLang} />
     </div>
+  );
+}
+
+/**
+ * Guía para ponerlo en la web, con las cuatro formas (fase 4): el enlace o el botón (lo de esta pantalla), el script que
+ * pinta el botón, el canal dentro de una página (iframe) y una dirección propia (la activa Reportia).
+ */
+function Guide({ open, onClose, url, color, lang, snipLang }) {
+  const { p, org } = usePanel();
+  const s = p.share;
+  const origin = new URL(url).origin;
+  const ethics = translations[snipLang].canal.ethics;
+  const script = scriptSnippet(origin, org?.slug ?? '', snipLang, color);
+  const frame = iframeSnippet(url, snipLang, ethics);
+  const mail = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(fmt(s.g4Subject, { org: org?.name ?? '' }))}&body=${encodeURIComponent(fmt(s.g4Body, { org: org?.name ?? '' }))}`;
+  return (
+    <Dialog side open={open} onClose={onClose} title={s.guideT} closeLabel={p.close} className="sh-guide">
+      <p>{s.guideLead}</p>
+      <ol className="sh-guide-list">
+        <li><h3>{s.g1T}</h3><p>{s.g1D}</p></li>
+        <li>
+          <h3>{s.g2T}</h3><p>{s.g2D}</p>
+          <pre tabIndex={0}><code>{script}</code></pre>
+          <CopyButton variant="soft" size="sm" lang={lang} text={script} k="copyCode" kOn="codeCopied" />
+        </li>
+        <li>
+          <h3>{s.g3T}</h3><p>{s.g3D}</p>
+          <pre tabIndex={0}><code>{frame}</code></pre>
+          <CopyButton variant="soft" size="sm" lang={lang} text={frame} k="copyCode" kOn="codeCopied" />
+        </li>
+        <li>
+          <h3>{s.g4T}</h3><p>{s.g4D}</p>
+          <Button variant="soft" size="sm" href={mail}>{s.g4Mail}</Button>
+        </li>
+      </ol>
+    </Dialog>
   );
 }

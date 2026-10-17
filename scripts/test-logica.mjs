@@ -4,8 +4,11 @@
 //  · Plazos de la Ley 2/2023 (src/lib/deadlines.js): la misma fecha en Madrid, Canarias, Londres,
 //    Nueva York o Tokio, y la misma que guarda la base de datos al ampliar (Europe/Madrid).
 //  · Limpieza de fotos de las denuncias anónimas (src/lib/cleanImage.js): sin EXIF, XMP ni texto.
+//  · «Tu marca» (src/v2/lib/brand.js): las ocho paletas, en claro y en oscuro, pasan el contraste, y los colores
+//    por defecto de src/v2/ds.css son los de la paleta azul en claro.
 // Para lo de las zonas horarias se vuelve a lanzar a sí mismo con TZ distintas.
 import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const SELF = fileURLToPath(import.meta.url);
@@ -99,6 +102,42 @@ ok('una foto HEIC que no se puede convertir no se envía (antes: con su GPS)', (
 ok('una JPEG rota tampoco', (await cleanForAnonymous(f(Buffer.from([0xff, 0xd8, 0xff, 0xe1, 0xff, 0xff, 1, 2]), 'roto.jpg', 'image/jpeg'))) === null);
 const pdf = f(Buffer.from('%PDF-1.4 prueba'), 'informe.pdf', 'application/pdf');
 ok('un PDF no se toca (el formulario avisa de sus datos ocultos)', (await cleanForAnonymous(pdf)) === pdf);
+
+// ── «Tu marca»: paletas y modo oscuro ─────────────────────────────────
+// Lo mismo que mide la prueba de navegador «contraste», pero de las 16 combinaciones a la vez y sin navegador
+const { PALETTE_IDS, themeVars } = await import('../src/v2/lib/brand.js');
+const lum = (hex) => { const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+// [texto o borde, fondo, mínimo]: 4,5 en texto; 3 en bordes de campo, iconos y el borde de lo elegido
+const PAIRS = [
+  ['ink', 'bg', 7], ['ink', 'surface', 7], ['muted', 'surface', 4.5], ['muted', 'bg', 4.5], ['muted', 'soft', 4.5],
+  ['field-line', 'surface', 3], ['field-line', 'input-bg', 3], ['field-line-strong', 'soft', 3],
+  ['report', 'surface', 4.5], ['report', 'bg', 4.5], ['on-report', 'report', 4.5], ['on-report', 'report-hover', 4.5],
+  ['report-soft-ink', 'report-soft', 4.5], ['report-soft-ink', 'surface', 4.5], ['report-soft-ink', 'bg', 4.5], ['report-link-hover', 'surface', 4.5],
+  ['ink', 'report-soft', 4.5], ['muted', 'report-soft', 4.5], ['report', 'report-soft', 3],
+  ['on-solid', 'solid', 4.5],
+  ['danger-ink', 'surface', 4.5], ['danger-ink', 'bg', 4.5], ['danger-ink', 'danger-bg', 4.5], ['warn-ink', 'surface', 4.5], ['warn-ink', 'warn-bg', 4.5],
+  ['ink', 'note-bg', 4.5], ['warn-ink', 'note-bg', 4.5],
+  ['on-ink', 'ink', 4.5], ['on-ink-muted', 'ink', 4.5], ['on-ink-warn', 'ink', 3], ['on-ink-danger', 'ink', 3],
+];
+for (const mode of ['light', 'dark']) {
+  const bad = [];
+  for (const id of PALETTE_IDS) {
+    const v = themeVars(id, mode);
+    for (const [fg, bg, min] of PAIRS) {
+      const r = ratio(v[`--${fg}`], v[`--${bg}`]);
+      if (r < min) bad.push(`${id}: ${fg} sobre ${bg} ${r.toFixed(2)} < ${min}`);
+    }
+  }
+  ok(`las ocho paletas pasan el contraste en modo ${mode === 'light' ? 'claro' : 'oscuro'} (${PALETTE_IDS.length * PAIRS.length} medidas)`, bad.length === 0, bad.join(' · '));
+}
+const css = fs.readFileSync(new URL('../src/v2/ds.css', import.meta.url), 'utf8');
+const root = css.slice(css.indexOf(':root {'), css.indexOf('}', css.indexOf(':root {')));
+const defaults = Object.fromEntries([...root.matchAll(/(--[a-z0-9-]+):\s*([^;]+);/g)].map(m => [m[1], m[2].trim()]));
+const azul = themeVars('azul', 'light');
+const differ = Object.keys(azul).filter(k => (defaults[k] ?? '').toUpperCase() !== String(azul[k]).toUpperCase());
+ok('ds.css lleva por defecto los colores de la paleta azul en claro (los mismos que brand.js)', differ.length === 0, differ.map(k => `${k}: ${defaults[k]} ≠ ${azul[k]}`).join(' · '));
+ok('una paleta desconocida se pinta con la azul', themeVars('fucsia', 'light')['--report'] === azul['--report']);
 
 console.log(`  ${pass} correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

@@ -18,7 +18,7 @@ const EMPTY = { channel: 'phone', receivedAt: '', category: '', description: '',
 
 /** Registrar una denuncia que llega por teléfono, en persona, por correo o por carta */
 export default function Registrar() {
-  const { lang, tr, p, org, profile, email, can, canRegister, channelPath } = usePanel();
+  const { lang, tr, p, org, profile, email, can, canRegister, channelUrl } = usePanel();
   const [form, setForm] = useState(() => ({ ...EMPTY, receivedAt: localNow() }));
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
@@ -75,7 +75,7 @@ export default function Registrar() {
   }
 
   if (done) {
-    const url = `${import.meta.env.VITE_PUBLIC_ORIGIN || window.location.origin}${channelPath}/consulta`;
+    const url = `${channelUrl}/consulta`;
     return (
       <div className="pn-page rg-done">
         <Tp as="h1" className="ds-h1" lang={lang} k="doneTitle" ref={headRef} tabIndex={-1} />

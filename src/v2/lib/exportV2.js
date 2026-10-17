@@ -1,23 +1,24 @@
-// Exportacions v2 (Excel i PDF) amb el sistema visual "Institucional rigurosa".
-// Mateixes signatures i dades que src/lib/export.js, més un darrer paràmetre opcional `lang` ('ca' | 'es' | 'en', per defecte 'es').
-// El panell v2 ha de passar sempre l'idioma actiu: exportSummaryToPDF(rows, filters, lang).
+// Exportaciones v2 (Excel y PDF) con el sistema visual del producto.
+// Las mismas firmas y datos que la versión anterior (src/lib/export.js, que ya no existe), más un último parámetro opcional `lang` ('ca' | 'es' | 'en', por defecto 'es').
+// El panel tiene que pasar siempre el idioma activo: exportSummaryToPDF(rows, filters, lang).
 //
-// Diferències respecte a l'original (compatibles cap enrere):
-// · Les funcions PDF són async: carreguen la tipografia sota demanda i resolen quan el fitxer s'ha desat.
-// · Dades opcionals que s'aprofiten si arriben: `filters.organization` (nom o { name }) a l'informe;
-//   `complaint.organization` / `complaint.organizations` (nom de l'empresa), `complaint.attachments`
-//   i `complaint.audit_logs` (registre d'activitat) a la fitxa.
-// · En una denúncia anònima (is_anonymous !== false) mai s'imprimeixen nom, correu ni telèfon.
-// · buildExcelWorkbook / buildSummaryPDF / buildComplaintPDF retornen el document sense descarregar-lo
-//   (útil per a previsualitzacions i proves).
+// Diferencias respecto a la versión anterior (compatibles hacia atrás):
+// · Las funciones de PDF son async: cargan la tipografía bajo demanda y resuelven cuando el archivo se ha guardado.
+// · Datos opcionales que se aprovechan si llegan: `filters.organization` (nombre o { name }) en el informe;
+//   `complaint.organization` / `complaint.organizations` (nombre de la empresa), `complaint.attachments`
+//   y `complaint.audit_logs` (registro de actividad) en la ficha.
+// · En una denuncia anónima (is_anonymous !== false) nunca se imprimen nombre, correo ni teléfono.
+// · buildExcelWorkbook / buildSummaryPDF / buildComplaintPDF devuelven el documento sin descargarlo
+//   (útil para vistas previas y pruebas).
 
-// ExcelJS (938 KB) només es baixa en exportar a Excel: els PDF no el necessiten
+// ExcelJS (938 KB) solo se baja al exportar a Excel: los PDF no lo necesitan
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { translations } from '../../translations.js';
 import '../panel/texts.js'; // textos del panel (lado Gestionar)
 import { deadlineInfo } from '../../lib/deadlines.js';
 import { LOCALES } from '../../lib/format.js';
+import { paletteOf, rgbOf, mix } from './brand.js';
 
 const LANGS = ['ca', 'es', 'en'];
 const LOCALE = LOCALES;
@@ -25,7 +26,7 @@ const STATUS_ORDER = ['received', 'reviewing', 'investigating', 'waiting', 'reso
 const CLOSED = new Set(['resolved', 'closed', 'archived']);
 const PRIORITY_ORDER = ['critical', 'high', 'normal', 'low'];
 
-// Paleta (mateixos valors que els tokens de src/v2/v2.css)
+// Paleta de los documentos
 // Los colores del sistema «B · Color» (src/v2/ds.css): tinta, azul del producto y sus neutros
 const C = {
   navy:   [13, 21, 48],    // --ink: títulos, cabeceras de tabla y marca
@@ -42,6 +43,31 @@ const C = {
   onAccent: [227, 233, 255], // --on-report-muted: texto secundario sobre el azul
 };
 const argb = rgb => 'FF' + rgb.map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
+
+// «Tu marca»: los documentos llevan el color principal de la paleta de la empresa (en claro) y, si tiene, su logo.
+// La empresa llega como objeto ({ name, brand_palette, brand_logo }) en complaint.organization o filters.organization.
+function brandOf(src) {
+  const o = Array.isArray(src) ? src[0] : src;
+  return o && typeof o === 'object' ? { palette: o.brand_palette, logo: typeof o.brand_logo === 'string' ? o.brand_logo : null } : {};
+}
+function colorsFor(palette) {
+  const pal = paletteOf(palette).light;
+  return { ...C, accent: rgbOf(pal.accent), tint: rgbOf(pal.soft), onAccent: rgbOf(mix('#FFFFFF', pal.accent, 0.9)) };
+}
+/** Medida del logo dentro de una caja (mm), o null si jsPDF no lo puede leer */
+function logoBox(doc, logo, maxW, maxH) {
+  if (!logo) return null;
+  try {
+    const { width, height, fileType } = doc.getImageProperties(logo);
+    if (!width || !height) return null;
+    let h = maxH;
+    let w = (h * width) / height;
+    if (w > maxW) { w = maxW; h = (w * height) / width; }
+    return { w, h, type: fileType || 'PNG' };
+  } catch {
+    return null;
+  }
+}
 
 // ── Textos ──────────────────────────────────────────────────────────
 
@@ -76,7 +102,7 @@ function dict(lang) {
   };
 }
 
-// Només una denúncia marcada explícitament com a identificada pot mostrar dades personals.
+// Solo una denuncia marcada explícitamente como identificada puede mostrar datos personales.
 const isIdentified = c => c?.is_anonymous === false;
 // Un caso con los datos suprimidos (art. 32) cuenta como cerrado, igual que en el panel
 const isOpen = c => !CLOSED.has(c?.status) && !c?.anonymized_at;
@@ -97,13 +123,13 @@ function orgOf(complaint) {
   return pickName(complaint?.organization) || pickName(complaint?.organizations) || pickName(complaint?.organization_name);
 }
 
-// ── Dates i terminis ────────────────────────────────────────────────
+// ── Fechas y plazos ─────────────────────────────────────────────────
 
 function toDate(v) {
   if (!v) return null;
   if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : v;
   const s = String(v);
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); // data sense hora: dia local, sense salt de zona horària
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); // fecha sin hora: día local, sin salto de zona horaria
   const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(s);
   return Number.isNaN(d.getTime()) ? null : d;
 }
@@ -122,9 +148,9 @@ const fLong = (d, locale) => d.toLocaleDateString(locale, { day: 'numeric', mont
 const isoDay = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /**
- * Terminis de l'article 9 de la Llei 2/2023, amb el mateix compte que el panell (src/lib/deadlines.js):
- * acusament en 7 dies naturals i resposta en 3 mesos o fins a la data ampliada, en dies de Madrid.
- * Una denúncia ja resposta (encara que s'hagi reobert) o suprimida no surt mai com a vençuda.
+ * Plazos del artículo 9 de la Ley 2/2023, con la misma cuenta que el panel (src/lib/deadlines.js):
+ * acuse en 7 días naturales y respuesta en 3 meses o hasta la fecha ampliada, en días de Madrid.
+ * Una denuncia ya respondida (aunque se haya reabierto) o suprimida no sale nunca como vencida.
  */
 function legalDeadlines(complaint, now, messages = []) {
   const received = toDate(complaint?.created_at);
@@ -141,9 +167,9 @@ function legalDeadlines(complaint, now, messages = []) {
     ack: P.ackDue,
     reply: P.respDue,
     open,
-    ackLeft: P.ack.days,   // sense valor si ja s'ha fet
+    ackLeft: P.ack.days,   // sin valor si ya se ha hecho
     replyLeft: P.resp.days,
-    // Vençuda: oberta, sense resposta i passat el termini (ampliat si escau)
+    // Vencida: abierta, sin respuesta y pasado el plazo (ampliado si procede)
     overdue: open && P.resp.state === 'overdue',
     ackOverdue: open && P.ack.state === 'overdue',
     firstManagerMsg,
@@ -174,7 +200,7 @@ function fileType(att) {
   return sub ? sub.toUpperCase() : '';
 }
 
-// ── Descàrrega ──────────────────────────────────────────────────────
+// ── Descarga ────────────────────────────────────────────────────────
 
 function downloadBlob(blob, name) {
   const url = URL.createObjectURL(blob);
@@ -195,7 +221,7 @@ const XL = {
   thin: { style: 'thin', color: { argb: argb(C.line2) } },
   navyRule: { style: 'medium', color: { argb: argb(C.navy) } },
 };
-// ExcelJS desa les dates en UTC: es passa el dia local com a migdia UTC perquè no canviï de dia.
+// ExcelJS guarda las fechas en UTC: se pasa el día local como mediodía UTC para que no cambie de día.
 const xlDate = d => (d ? new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 12)) : null);
 const xlEscape = s => String(s).replace(/&/g, '&&');
 const sheetRef = name => `'${String(name).replace(/'/g, "''")}'`;
@@ -205,12 +231,13 @@ const colLetter = n => {
   return s;
 };
 
-/** Construeix el llibre Excel (full de dades + full "Resum") sense descarregar-lo. */
+/** Construye el libro de Excel (hoja de datos + hoja «Resumen») sin descargarlo. */
 export async function buildExcelWorkbook(complaints = [], lang = 'es', { now = new Date() } = {}) {
   const D = dict(lang);
   const { t, locale } = D;
   const list = Array.isArray(complaints) ? complaints : [];
   const org = list.map(orgOf).find(Boolean) ?? '';
+  const BC = colorsFor(list.map(c => brandOf(c.organization).palette).find(Boolean));
 
   const { default: ExcelJS } = await import('exceljs');
   const wb = new ExcelJS.Workbook();
@@ -223,7 +250,7 @@ export async function buildExcelWorkbook(complaints = [], lang = 'es', { now = n
   if (org) wb.company = org;
   wb.calcProperties.fullCalcOnLoad = true;
 
-  // Full 1 · dades
+  // Hoja 1 · datos
   const cols = [
     { key: 'code',     header: t.cCode },
     { key: 'category', header: t.cCategory },
@@ -259,9 +286,9 @@ export async function buildExcelWorkbook(complaints = [], lang = 'es', { now = n
         dept:     c.department ?? '',
         incident: xlDate(toDate(c.incident_date)),
         received: xlDate(toDate(c.created_at)),
-        // Dates del llibre registre (art. 26): acusament, termini (ampliat si escau) i resposta
+        // Fechas del libro-registro (art. 26): acuse, plazo (ampliado si procede) y respuesta
         acked:    xlDate(toDate(c.acknowledged_at)),
-        deadline: dl ? xlDate(dl.reply) : null,   // ja inclou l'ampliació
+        deadline: dl ? xlDate(dl.reply) : null,   // ya incluye la ampliación
         answered: xlDate(toDate(c.answered_at)),
         lang:     D.langName(c.language),
         via:      D.via(c),
@@ -323,9 +350,9 @@ export async function buildExcelWorkbook(complaints = [], lang = 'es', { now = n
     oddFooter: `&L${xlEscape(t.docConfidential)}&R${fmt(xlEscape(t.page), { n: '&P', total: '&N' })}`,
   };
 
-  // Full 2 · resum (fórmules COUNTIF sobre el full de dades, amb el resultat ja calculat)
+  // Hoja 2 · resumen (fórmulas COUNTIF sobre la hoja de datos, con el resultado ya calculado)
   const ss = wb.addWorksheet(t.xSummarySheet, {
-    properties: { tabColor: { argb: argb(C.accent) } },
+    properties: { tabColor: { argb: argb(BC.accent) } },
     views: [{ showGridLines: false }],
   });
   ss.columns = [{ width: 40 }, { width: 14 }, { width: 14 }];
@@ -342,7 +369,7 @@ export async function buildExcelWorkbook(complaints = [], lang = 'es', { now = n
   put(1, t.xSummaryTitle, { size: 16, bold: true, color: { argb: argb(C.navy) } }, 28);
   put(2, org ? `${org} · ${D.channel}` : D.channel, { size: 11, color: { argb: argb(C.ink2) } }, 18);
   put(3, fmt(t.generated, { date: fLong(now, locale), time: fTime(now, locale) }), { size: 10, color: { argb: argb(C.ink3) } }, 16);
-  put(4, t.docConfidential.toUpperCase(), { size: 9, bold: true, color: { argb: argb(C.accent) } }, 16);
+  put(4, t.docConfidential.toUpperCase(), { size: 9, bold: true, color: { argb: argb(BC.accent) } }, 16);
 
   let r = 6;
   const block = (title, labelHeader, items, dataCol) => {
@@ -388,7 +415,7 @@ export async function buildExcelWorkbook(complaints = [], lang = 'es', { now = n
     r += 2;
   };
 
-  // Comptatges a partir dels valors visibles del full de dades (inclou valors fora de catàleg)
+  // Recuentos a partir de los valores visibles de la hoja de datos (incluye valores fuera de catálogo)
   const countBy = (keys, labelOf, valueKey) => {
     const counts = new Map();
     rows.forEach(row => counts.set(row.values[valueKey], (counts.get(row.values[valueKey]) ?? 0) + 1));
@@ -421,26 +448,26 @@ export async function exportToExcel(complaints, filename, lang = 'es') {
   downloadBlob(blob, `${filename || t.fileExcel}_${isoDay(new Date())}.xlsx`);
 }
 
-// ── PDF · base comuna ───────────────────────────────────────────────
+// ── PDF · base común ────────────────────────────────────────────────
 
 let fontsPromise = null;
 function loadFonts() {
   if (!fontsPromise) {
     fontsPromise = import('./pdfFonts.js').catch(() => {
-      fontsPromise = null; // es tornarà a provar a la següent exportació
+      fontsPromise = null; // se volverá a intentar en la siguiente exportación
       return null;
     });
   }
   return fontsPromise;
 }
 
-async function createDoc(orientation, D) {
+async function createDoc(orientation, D, brand = {}) {
   const doc = new jsPDF({ orientation, unit: 'mm', format: 'a4', compress: true });
   let F = { text: 'helvetica', display: 'helvetica', displayStyle: 'bold' };
   const fonts = await loadFonts();
   if (fonts) {
     try {
-      // Manrope, la tipografia del producte (scripts/pdf-fonts.mjs): 400 per al text, 700 per a les negretes i 800 per als títols
+      // Manrope, la tipografía del producto (scripts/pdf-fonts.mjs): 400 para el texto, 700 para las negritas y 800 para los títulos
       doc.addFileToVFS('Manrope-Regular.ttf', fonts.TEXT_400);
       doc.addFont('Manrope-Regular.ttf', 'Manrope', 'normal');
       doc.addFileToVFS('Manrope-Bold.ttf', fonts.TEXT_700);
@@ -450,7 +477,7 @@ async function createDoc(orientation, D) {
       doc.setFont('Manrope', 'normal');
       F = { text: 'Manrope', display: 'ManropeDisplay', displayStyle: 'normal' };
     } catch {
-      doc.setFont('helvetica', 'normal'); // si la tipografia falla, Helvetica
+      doc.setFont('helvetica', 'normal'); // si la tipografía falla, Helvetica
     }
   }
   if (typeof doc.setLanguage === 'function') doc.setLanguage(D.locale);
@@ -458,7 +485,7 @@ async function createDoc(orientation, D) {
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
   const M = orientation === 'landscape' ? 16 : 18;
-  return { doc, F, D, W, H, M, CW: W - M * 2, TOP: 30, BOTTOM: H - 21, y: 0 };
+  return { doc, F, D, W, H, M, CW: W - M * 2, TOP: 30, BOTTOM: H - 21, y: 0, C: colorsFor(brand.palette), logo: brand.logo ?? null };
 }
 
 function font(ctx, { kind = 'text', bold = false, size = 9, color = C.ink } = {}) {
@@ -486,21 +513,21 @@ function ensureSpace(ctx, needed) {
   if (ctx.y + needed > ctx.BOTTOM) newPage(ctx);
 }
 
-// Capçalera de cada pàgina: banda, organització, canal i marca de confidencialitat
+// Cabecera de cada página: banda, organización, canal y marca de confidencialidad
 function drawRunningHeader(ctx) {
   const { doc, W, M, D, org } = ctx;
-  doc.setFillColor(...C.accent);
+  doc.setFillColor(...ctx.C.accent);
   doc.rect(0, 0, W, 2.2, 'F');
 
   const mid = 12.6;
   const label = D.t.confidential.toUpperCase();
-  font(ctx, { bold: true, size: 6.6, color: C.accent });
+  font(ctx, { bold: true, size: 6.6, color: ctx.C.accent });
   const spacing = 0.32;
   const labelW = doc.getTextWidth(label) + spacing * (label.length - 1);
   const bw = labelW + 5.2;
   const bh = 5.4;
   const bx = W - M - bw;
-  doc.setDrawColor(...C.accent);
+  doc.setDrawColor(...ctx.C.accent);
   doc.setLineWidth(0.25);
   doc.roundedRect(bx, mid - bh / 2, bw, bh, 1, 1, 'S');
   doc.setCharSpace(spacing);
@@ -509,15 +536,23 @@ function drawRunningHeader(ctx) {
 
   const maxW = bx - M - 16;
   if (org) {
+    // El logo de la empresa si lo tiene; si no, sus iniciales en un cuadrado
     const s = 7.6;
-    doc.setFillColor(...C.navy);
-    doc.roundedRect(M, mid - s / 2, s, s, 2, 2, 'F');
-    font(ctx, { kind: 'display', size: 8, color: C.white });
-    doc.text(initials(org) || '·', M + s / 2, mid + 0.15, { align: 'center', baseline: 'middle' });
+    const lb = logoBox(doc, ctx.logo, 30, s);
+    let x = M + s + 3;
+    if (lb) {
+      doc.addImage(ctx.logo, lb.type, M, mid - lb.h / 2, lb.w, lb.h, 'brand-logo');
+      x = M + lb.w + 3;
+    } else {
+      doc.setFillColor(...C.navy);
+      doc.roundedRect(M, mid - s / 2, s, s, 2, 2, 'F');
+      font(ctx, { kind: 'display', size: 8, color: C.white });
+      doc.text(initials(org) || '·', M + s / 2, mid + 0.15, { align: 'center', baseline: 'middle' });
+    }
     font(ctx, { bold: true, size: 8.6, color: C.ink });
-    doc.text(fit(doc, org, maxW), M + s + 3, mid - 0.9);
+    doc.text(fit(doc, org, maxW - (x - M - s - 3)), x, mid - 0.9);
     font(ctx, { size: 7.2, color: C.ink3 });
-    doc.text(fit(doc, D.channel, maxW), M + s + 3, mid + 3);
+    doc.text(fit(doc, D.channel, maxW - (x - M - s - 3)), x, mid + 3);
   } else {
     font(ctx, { bold: true, size: 8.6, color: C.ink });
     doc.text(fit(doc, D.channel, maxW), M, mid + 1);
@@ -557,7 +592,7 @@ function drawTitle(ctx, title, now) {
   ctx.y = 44;
 }
 
-// Taula base: filets fins, capçalera en tinta blava sobre gris clar, sense quadrícula
+// Tabla base: filetes finos, cabecera en tinta azul sobre gris claro, sin cuadrícula
 function table(ctx, { styles, headStyles, ...opts }) {
   const { F } = ctx;
   autoTable(ctx.doc, {
@@ -586,7 +621,7 @@ function sectionTitle(ctx, n, title) {
   const { doc, M, W } = ctx;
   ensureSpace(ctx, 36);
   ctx.y += ctx.y <= ctx.TOP ? 2 : 9;
-  font(ctx, { kind: 'display', size: 10.5, color: C.accent });
+  font(ctx, { kind: 'display', size: 10.5, color: ctx.C.accent });
   doc.text(String(n), M, ctx.y + 3.7);
   font(ctx, { kind: 'display', size: 10.5, color: C.navy });
   doc.text(title, M + 6, ctx.y + 3.7);
@@ -596,7 +631,7 @@ function sectionTitle(ctx, n, title) {
   ctx.y += 9.6;
 }
 
-// Text corregut amb salts de pàgina línia a línia (respecta els salts de paràgraf de l'original)
+// Texto corrido con saltos de página línea a línea (respeta los saltos de párrafo del original)
 function flowText(ctx, text, { size = 9.2, lead = 4.6, color = C.ink, bold = false, x = ctx.M, width = ctx.CW } = {}) {
   const { doc } = ctx;
   font(ctx, { size, color, bold });
@@ -621,7 +656,7 @@ function smallNote(ctx, text, { color = C.ink3 } = {}) {
   flowText(ctx, text, { size: 7.2, lead: 3.5, color });
 }
 
-// ── PDF · informe (llistat) ─────────────────────────────────────────
+// ── PDF · informe (listado) ─────────────────────────────────────────
 
 function filterParts(filters, D) {
   const f = filters ?? {};
@@ -638,12 +673,13 @@ function filterParts(filters, D) {
   return parts;
 }
 
-/** Construeix l'informe PDF (A4 apaïsat) sense descarregar-lo. */
+/** Construye el informe en PDF (A4 apaisado) sin descargarlo. */
 export async function buildSummaryPDF(complaints = [], filters = {}, lang = 'es', { now = new Date() } = {}) {
   const D = dict(lang);
   const { t, locale } = D;
   const list = Array.isArray(complaints) ? complaints : [];
-  const ctx = await createDoc('landscape', D);
+  const brand = [filters?.organization, ...list.map(c => c.organization)].map(brandOf).find(b => b.palette || b.logo) ?? {};
+  const ctx = await createDoc('landscape', D, brand);
   const { doc, M, CW } = ctx;
   ctx.org = pickName(filters?.organization) || pickName(filters?.organizationName) || list.map(orgOf).find(Boolean) || '';
   ctx.footerLeft = [t.docConfidential, t.summaryTitle, fDate(now, locale)].join(' · ');
@@ -651,7 +687,7 @@ export async function buildSummaryPDF(complaints = [], filters = {}, lang = 'es'
   doc.setProperties({ title: `${t.summaryTitle} · ${fDate(now, locale)}`, subject: D.channel, creator: 'Reportia', author: ctx.org || 'Reportia' });
   drawTitle(ctx, t.summaryTitle, now);
 
-  // Filtres aplicats
+  // Filtros aplicados
   const parts = filterParts(filters, D);
   const label = `${t.filters}:`;
   font(ctx, { bold: true, size: 8.2, color: C.ink });
@@ -662,7 +698,7 @@ export async function buildSummaryPDF(complaints = [], filters = {}, lang = 'es'
   fl.forEach((line, i) => doc.text(line, M + lw, ctx.y + 2.6 + i * 3.8));
   ctx.y += 2.6 + (fl.length - 1) * 3.8 + 6;
 
-  // Xifres clau
+  // Cifras clave
   const rows = list.map(c => ({ c, dl: legalDeadlines(c, now) }));
   const overdue = rows.filter(r => r.dl?.overdue).length;
   const kpis = [
@@ -749,7 +785,7 @@ export async function exportSummaryToPDF(complaints, filters = {}, lang = 'es') 
   doc.save(`${t.fileSummary}_${isoDay(new Date())}.pdf`);
 }
 
-// ── PDF · fitxa individual ──────────────────────────────────────────
+// ── PDF · ficha individual ──────────────────────────────────────────
 
 function auditLabel(entry, D) {
   const a = String(entry?.action ?? '');
@@ -764,16 +800,16 @@ function auditDetail(entry) {
   const d = entry?.details;
   if (!d) return '';
   if (typeof d === 'string') return d.trim();
-  return typeof d.note === 'string' ? d.note.trim() : ''; // mai s'imprimeix el JSON sencer
+  return typeof d.note === 'string' ? d.note.trim() : ''; // nunca se imprime el JSON entero
 }
 
-/** Construeix la fitxa PDF (A4 vertical) d'una denúncia sense descarregar-la. */
+/** Construye la ficha en PDF (A4 vertical) de una denuncia sin descargarla. */
 export async function buildComplaintPDF(complaint, messages = [], lang = 'es', { now = new Date() } = {}) {
   const D = dict(lang);
   const { t, locale } = D;
   const c = complaint ?? {};
   const msgs = Array.isArray(messages) ? messages : [];
-  const ctx = await createDoc('portrait', D);
+  const ctx = await createDoc('portrait', D, brandOf(c.organization));
   const { doc, M, W, CW } = ctx;
   const code = c.tracking_code ?? '';
   ctx.org = orgOf(c);
@@ -786,7 +822,7 @@ export async function buildComplaintPDF(complaint, messages = [], lang = 'es', {
   font(ctx, { kind: 'display', size: 15, color: C.navy });
   doc.text(code, W - M, 34.5, { align: 'right' });
 
-  // Franja d'estat
+  // Franja de estado
   const y0 = ctx.y + 2;
   const cells = [
     { label: t.cStatus,   value: D.status(c.status),     w: 0.22 },
@@ -819,7 +855,7 @@ export async function buildComplaintPDF(complaint, messages = [], lang = 'es', {
 
   let n = 0;
 
-  // 1 · Dades
+  // 1 · Datos
   sectionTitle(ctx, ++n, t.sData);
   const data = [];
   if (isIdentified(c)) {
@@ -828,7 +864,7 @@ export async function buildComplaintPDF(complaint, messages = [], lang = 'es', {
     if (c.reporter_phone) data.push([t.phone, c.reporter_phone]);
     if (!data.length) data.push([t.identity, c.identityWithheld ? t.identityWithheld : t.notStated]);
   } else {
-    data.push([t.identity, t.identityNone]); // anònima: mai es llegeixen els camps reporter_*
+    data.push([t.identity, t.identityNone]); // anónima: nunca se leen los campos reporter_*
   }
   data.push([t.cDept, c.department || t.notStated]);
   data.push([t.cIncident, fDate(c.incident_date, locale) || t.notStated]);
@@ -849,7 +885,7 @@ export async function buildComplaintPDF(complaint, messages = [], lang = 'es', {
     },
   });
 
-  // 2 · Terminis
+  // 2 · Plazos
   const dl = legalDeadlines(c, now, msgs);
   if (dl) {
     sectionTitle(ctx, ++n, t.sDeadlines);
@@ -860,7 +896,7 @@ export async function buildComplaintPDF(complaint, messages = [], lang = 'es', {
       : dl.open && dl.ackLeft !== undefined ? countdown(t, dl.ackLeft) : closedText;
     let replyLate = dl.overdue;
     let replyState = dl.open && dl.replyLeft !== undefined ? countdown(t, dl.replyLeft) : closedText;
-    // El panell passa els terminis ja calculats (mateix criteri que la pantalla): s'usen tal qual
+    // El panel pasa los plazos ya calculados (mismo criterio que la pantalla): se usan tal cual
     const P = c.deadline;
     if (P) {
       dl.ack = P.ackDue;
@@ -893,7 +929,7 @@ export async function buildComplaintPDF(complaint, messages = [], lang = 'es', {
     smallNote(ctx, fmt(t.dNote, { date: fDate(dl.received, locale) }));
   }
 
-  // 3 · Fets
+  // 3 · Hechos
   sectionTitle(ctx, ++n, t.sFacts);
   const desc = String(c.description ?? '').trim();
   flowText(ctx, desc || t.noDescription, { color: desc ? C.ink : C.ink3 });
@@ -906,7 +942,7 @@ export async function buildComplaintPDF(complaint, messages = [], lang = 'es', {
     flowText(ctx, String(c.involved_people).trim());
   }
 
-  // 4 · Adjunts
+  // 4 · Adjuntos
   const atts = Array.isArray(c.attachments) ? c.attachments : [];
   if (atts.length) {
     sectionTitle(ctx, ++n, t.sAttachments);
@@ -918,7 +954,7 @@ export async function buildComplaintPDF(complaint, messages = [], lang = 'es', {
     });
   }
 
-  // 5 · Missatges
+  // 5 · Mensajes
   sectionTitle(ctx, ++n, t.sMessages);
   if (msgs.length) {
     const sorted = [...msgs].sort((a, b) => (toDate(a.created_at) ?? 0) - (toDate(b.created_at) ?? 0));
@@ -939,7 +975,7 @@ export async function buildComplaintPDF(complaint, messages = [], lang = 'es', {
     flowText(ctx, t.noMessages, { color: C.ink3 });
   }
 
-  // 6 · Registre d'activitat (si arriba)
+  // 6 · Registro de actividad (si llega)
   const audit = Array.isArray(c.audit_logs) ? c.audit_logs : Array.isArray(c.auditLogs) ? c.auditLogs : [];
   if (audit.length) {
     sectionTitle(ctx, ++n, t.sAudit);
@@ -964,9 +1000,9 @@ export async function exportComplaintToPDF(complaint, messages = [], lang = 'es'
   doc.save(`${t.fileDetail}_${complaint?.tracking_code ?? ''}_${isoDay(new Date())}.pdf`);
 }
 
-// ── Cartell del canal (A4 vertical, per a taulers d'anuncis) ─────────
+// ── Cartel del canal (A4 vertical, para tablones de anuncios) ───────
 
-/** Parteix una adreça llarga per les barres perquè no surti del marc */
+/** Parte una dirección larga por las barras para que no se salga del marco */
 function breakUrl(doc, url, maxW) {
   if (doc.getTextWidth(url) <= maxW) return [url];
   const lines = [];
@@ -979,10 +1015,11 @@ function breakUrl(doc, url, maxW) {
   return lines;
 }
 
-export async function buildChannelPoster({ orgName = '', url, lang = 'es' }) {
+export async function buildChannelPoster({ orgName = '', url, lang = 'es', palette, logo = null }) {
   const D = dict(lang);
   const t = D.t;
-  const ctx = await createDoc('portrait', D);
+  const ctx = await createDoc('portrait', D, { palette, logo });
+  const C = ctx.C;
   const { doc, W, H } = ctx;
   const M = 20;
   const CW = W - M * 2;
@@ -990,19 +1027,28 @@ export async function buildChannelPoster({ orgName = '', url, lang = 'es' }) {
   const qr = await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 0, width: 960, color: { dark: '#0D1530', light: '#ffffff' } });
   const shown = url.replace(/^https?:\/\//, '');
 
-  // Banda superior: organització (fins a dues línies) i marc legal
+  // Banda superior: organización (hasta dos líneas) y marco legal. Con logo, el logo va a la derecha en una placa blanca
+  const lb = logoBox(doc, logo, 46, 12);
+  const nameW = lb ? CW - lb.w - 14 : CW;
   font(ctx, { bold: true, size: 14, color: C.white });
-  const nameLines = doc.splitTextToSize(orgName, CW).slice(0, 2);
-  if (doc.splitTextToSize(orgName, CW).length > 2) nameLines[1] = fit(doc, `${nameLines[1]} …`, CW);
+  const nameLines = doc.splitTextToSize(orgName, nameW).slice(0, 2);
+  if (doc.splitTextToSize(orgName, nameW).length > 2) nameLines[1] = fit(doc, `${nameLines[1]} …`, nameW);
   const bandH = 36 + (nameLines.length - 1) * 6.5;
   doc.setFillColor(...C.accent);
   doc.rect(0, 0, W, bandH, 'F');
+  if (lb) {
+    const pw = lb.w + 8;
+    const ph = lb.h + 8;
+    doc.setFillColor(...C.white);
+    doc.roundedRect(W - M - pw, (bandH - ph) / 2, pw, ph, 2.5, 2.5, 'F');
+    doc.addImage(logo, lb.type, W - M - pw + 4, (bandH - lb.h) / 2, lb.w, lb.h);
+  }
   font(ctx, { bold: true, size: 14, color: C.white });
   doc.text(nameLines, M, 17, { lineHeightFactor: 1.3 });
   font(ctx, { size: 9.5, color: C.onAccent });
   doc.text(t.posterBand, M, 25 + (nameLines.length - 1) * 6.5);
 
-  // Títol, promesa i explicació
+  // Título, promesa y explicación
   let y = 66 + (nameLines.length - 1) * 6.5;
   font(ctx, { kind: 'display', size: 36, color: C.navy });
   const title = doc.splitTextToSize(t.posterTitle, CW);
@@ -1017,8 +1063,8 @@ export async function buildChannelPoster({ orgName = '', url, lang = 'es' }) {
   doc.text(lead, M, y, { lineHeightFactor: 1.45 });
   y += lead.length * 6.4 + 10;
 
-  // Marc amb el codi QR, l'adreça i el que cal saber. L'alçada surt del text (un nom d'empresa
-  // llarg allarga les frases): primer es mesura, després es dibuixa
+  // Marco con el código QR, la dirección y lo que hay que saber. La altura sale del texto (un nombre de empresa
+  // largo alarga las frases): primero se mide, después se dibuja
   const QS = 70;
   const PAD = 12;
   const xText = M + PAD + QS + 14;
@@ -1054,7 +1100,7 @@ export async function buildChannelPoster({ orgName = '', url, lang = 'es' }) {
   doc.line(x, ty - 3, x + colW, ty - 3);
   ty += 4;
   for (const point of t.posterPoints) {
-    // marca de verificació dibuixada (la tipografia incrustada no porta el glif)
+    // marca de verificación dibujada (la tipografía incrustada no trae el glifo)
     doc.setDrawColor(...C.accent);
     doc.setLineWidth(0.55);
     doc.setLineCap('round');
@@ -1068,7 +1114,7 @@ export async function buildChannelPoster({ orgName = '', url, lang = 'es' }) {
   doc.setLineWidth(0.3);
   y += panelH + 12;
 
-  // Consell de privacitat i protecció legal
+  // Consejo de privacidad y protección legal
   font(ctx, { size: 11, color: C.ink2 });
   const tip = doc.splitTextToSize(t.posterTip, CW - 24);
   doc.text(tip, M, y, { lineHeightFactor: 1.45 });
@@ -1087,8 +1133,8 @@ export async function buildChannelPoster({ orgName = '', url, lang = 'es' }) {
   return doc;
 }
 
-export async function exportChannelPoster({ orgName, url, lang = 'es', slug = '' }) {
-  const doc = await buildChannelPoster({ orgName, url, lang });
+export async function exportChannelPoster({ orgName, url, lang = 'es', slug = '', palette, logo = null }) {
+  const doc = await buildChannelPoster({ orgName, url, lang, palette, logo });
   const D = dict(lang);
   downloadBlob(doc.output('blob'), `${D.t.posterFile}${slug ? `-${slug}` : ''}.pdf`);
 }

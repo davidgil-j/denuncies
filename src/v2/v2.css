@@ -7,7 +7,7 @@
    Radios: 8 (piezas pequeñas) · 12 (controles) · 20 (hojas). Interior = exterior - hueco
    Un solo acento (#1C4C96). Movimiento: curvas con duración, sin rebote.
    ========================================================================== */
-/* Reset bàsic (abans venia de global.css, que ja no es carrega) */
+/* Reset básico (antes venía de global.css, que ya no se carga) */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { min-height: 100vh; background: #F2F4F8; -webkit-font-smoothing: antialiased; }
 
@@ -77,7 +77,7 @@ body.v2-body { background: var(--bg); }
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
-/* Resets amb especificitat zero (:where) perquè qualsevol classe de component els guanyi */
+/* Resets con especificidad cero (:where) para que cualquier clase de componente les gane */
 :where(.v2) main { flex: 1 0 auto; }
 :where(.v2) :where(ul, ol) { list-style: none; }
 :where(.v2) :where(fieldset) { border: 0; min-width: 0; }
@@ -163,7 +163,7 @@ body.v2-body { background: var(--bg); }
   .v2-btn-quiet:hover { background: var(--accent-tint); }
 }
 .v2-btn:disabled { cursor: not-allowed; transform: none; box-shadow: none; }
-/* Desactivat: es llegeix com a «encara no», no com a trencat (text fosc sobre gris, 7:1) */
+/* Desactivado: se lee como «todavía no», no como roto (texto oscuro sobre gris, 7:1) */
 .v2-btn-primary:disabled { background: #DDE3EC; color: #5A677B; box-shadow: inset 0 0 0 1px #C9D2DE; }
 .v2-btn-secondary:disabled { background: var(--surface-2); color: #8A96A8; box-shadow: inset 0 0 0 1px var(--line-2); }
 .v2-btn[aria-busy="true"] { color: transparent; pointer-events: none; }
@@ -199,7 +199,7 @@ body.v2-body { background: var(--bg); }
 .v2-center { display: grid; place-items: center; text-align: center; padding: var(--s-9) var(--gutter); }
 .v2-center p { margin-top: var(--s-3); color: var(--ink-2); max-width: 32em; }
 .v2-center.is-tight { padding: var(--s-5); }
-/* canal que no existeix: una sortida cap a Reportia i, per a una empresa, cap a l'alta */
+/* canal que no existe: una salida hacia Reportia y, para una empresa, hacia el alta */
 .v2-lost { display: grid; justify-items: center; gap: var(--s-2); margin-top: var(--s-6); }
 .v2-lost p { margin-top: 0; font-size: 15px; }
 .v2-lost .v2-link { display: inline-flex; align-items: center; min-height: 44px; }
@@ -360,7 +360,7 @@ body.v2-body { background: var(--bg); }
 /* avisos */
 .v2-note { display: grid; grid-template-columns: 22px minmax(0,1fr); gap: var(--s-3); margin-top: var(--s-4); padding: var(--s-4) var(--s-5) var(--s-4) var(--s-4); border-radius: var(--r); background: var(--accent-tint); box-shadow: inset 0 0 0 1px var(--accent-line); color: var(--ink); }
 .v2-note svg { width: 22px; height: 22px; color: var(--accent); }
-/* sense icona, el text ocupa tota l'amplada en lloc de caure a la columna de la icona */
+/* sin icono, el texto ocupa todo el ancho en lugar de caer en la columna del icono */
 .v2-note > :only-child { grid-column: 1 / -1; }
 .v2-note p { font-size: 16px; line-height: 1.45; font-weight: 600; }
 .v2-note small { display: block; margin-top: 2px; font-size: 14px; font-weight: 400; line-height: 1.5; color: var(--ink-2); }
@@ -601,14 +601,14 @@ h1.v2-stable, h2.v2-stable, h3.v2-stable, p.v2-stable, div.v2-stable, dt.v2-stab
 .v2-stable > .v2-stable-v[aria-hidden="true"] { visibility: hidden; pointer-events: none; -webkit-user-select: none; user-select: none; }
 .v2-stable > .v2-swap-v { grid-area: 1 / 1; min-width: 0; }
 .v2-stable > .v2-swap-v[data-off] { visibility: hidden; }
-/* Dins d'un botó la caixa és la de l'idioma més llarg: el text es queda al costat de la seva icona
-   (o centrat si no en té), perquè el botó es vegi igual de ben compost en els tres idiomes */
+/* Dentro de un botón la caja es la del idioma más largo: el texto se queda junto a su icono
+   (o centrado si no tiene), para que el botón se vea igual de bien compuesto en los tres idiomas */
 .v2-btn > .v2-stable > .v2-stable-v { text-align: center; }
 .v2-btn.icon-lead > .v2-stable > .v2-stable-v { text-align: left; }
 .v2-btn.icon-trail > .v2-stable > .v2-stable-v { text-align: right; }
-/* Amb :has(), millor: el botó és una graella i les versions amagades ocupen totes les columnes, de
-   manera que les eixamplen per igual. La icona s'alinea cap al text i el text cap a la icona: queden
-   junts i centrats, i el botó fa sempre l'amplada de l'idioma més llarg. */
+/* Con :has(), mejor: el botón es una rejilla y las versiones ocultas ocupan todas las columnas, de
+   manera que las ensanchan por igual. El icono se alinea hacia el texto y el texto hacia el icono: quedan
+   juntos y centrados, y el botón mide siempre el ancho del idioma más largo. */
 @supports selector(:has(*)) {
   .v2-btn { --btn-ico: 20px; --btn-gap: 10px; }
   .v2-btn:has(> .v2-stable) { display: inline-grid; grid-template-columns: auto; column-gap: var(--btn-gap); align-items: center; }
@@ -628,10 +628,10 @@ h1.v2-stable, h2.v2-stable, h3.v2-stable, p.v2-stable, div.v2-stable, dt.v2-stab
 .v2-stable.v2-brand-sub { display: none; }
 @media (min-width: 600px) { .v2-stable.v2-brand-sub { display: grid; } }
 
-/* ── Fluïdesa en canviar de pàgina ───────────────────────────────────────
-   La pàgina nova entra amb una esvaïda breu (només opacitat: no mou res ni afecta el que és fix).
-   Mentre es descarrega una part, l'espai es manté perquè el peu no pugi, i l'indicador només
-   apareix si la càrrega s'allarga: en una connexió normal no arriba a veure's. */
+/* ── Fluidez al cambiar de página ─────────────────────────────────────
+   La página nueva entra con un fundido breve (solo opacidad: no mueve nada ni afecta a lo que está fijo).
+   Mientras se descarga una parte, el espacio se mantiene para que el pie no suba, y el indicador solo
+   aparece si la carga se alarga: en una conexión normal no llega a verse. */
 @keyframes v2-page-in { from { opacity: 0; } }
 @keyframes v2-late { from { opacity: 0; } to { opacity: 1; } }
 .v2-center[role="status"] { min-height: 60vh; }
@@ -643,7 +643,7 @@ h1.v2-stable, h2.v2-stable, h3.v2-stable, p.v2-stable, div.v2-stable, dt.v2-stab
   .v2-center[role="status"] > .v2-spinner { opacity: 1; animation: none; border-top-color: var(--accent); }
 }
 
-/* Avís del canal d'exemple */
+/* Aviso del canal de ejemplo */
 .v2-example { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px var(--s-5); padding: 4px var(--gutter); background: var(--accent-tint); box-shadow: inset 0 -1px 0 var(--accent-line); color: var(--navy-900); font-size: 13px; font-weight: 500; line-height: 1.4; text-align: center; }
 /* la vuelta a la web de Reportia: sin ella, del canal de ejemplo no se sale */
 .v2-example a { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; color: var(--accent); font-weight: 600; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }

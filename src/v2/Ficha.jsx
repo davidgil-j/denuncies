@@ -3,9 +3,9 @@ import { FileLock2, X, Check } from 'lucide-react';
 import { ICON, Stable } from './V2Layout.jsx';
 
 /**
- * La fitxa "Així consta una denúncia anònima": què es desa i què no. És la mateixa peça al canal
- * de cada empresa i a la portada de Reportia. Tots els textos reserven l'espai de l'idioma més
- * llarg, perquè la fitxa no canviï d'alçada en canviar d'idioma.
+ * La ficha «Así consta una denuncia anónima»: qué se guarda y qué no. Es la misma pieza en el canal
+ * de cada empresa y en la portada de Reportia. Todos los textos reservan el espacio del idioma más
+ * largo, para que la ficha no cambie de altura al cambiar de idioma.
  */
 export default function Ficha({ lang, className = '', as: Tag = 'aside', titleId }) {
   const st = (pick, props) => <Stable lang={lang} pick={T => pick(T.v2)} {...props} />;

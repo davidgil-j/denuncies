@@ -1,26 +1,26 @@
 import { LOCALES } from '../../lib/format.js';
 /**
- * Tarifes i dades comercials de Reportia.
+ * Tarifas y datos comerciales de Reportia.
  *
- * PROPOSTA pendent de validar per direcció. Són els únics valors comercials del web:
- * canviant-los aquí s'actualitzen la portada (Preus) i la pàgina de compte del panell.
- * price: quota anual en euros, sense IVA. null = a mida (es parla amb l'empresa).
+ * PROPUESTA pendiente de validar por dirección. Son los únicos valores comerciales de la web:
+ * al cambiarlos aquí se actualizan la portada (Precios) y la página de cuenta del panel.
+ * price: cuota anual en euros, sin IVA. null = a medida (se habla con la empresa).
  */
 export const PLANS = [
-  { id: 'essential', price: 390 },  // fins a 249 treballadors
-  { id: 'business',  price: 790 },  // de 250 a 999 treballadors
-  { id: 'corporate', price: null }, // 1.000 o més, i grups d'empreses
+  { id: 'essential', price: 390 },  // hasta 249 trabajadores
+  { id: 'business',  price: 790 },  // de 250 a 999 trabajadores
+  { id: 'corporate', price: null }, // 1.000 o más, y grupos de empresas
 ];
 
-/** Dies de prova d'un compte nou. Ha de coincidir amb la migració 009 (trial_ends_at). */
+/** Días de prueba de una cuenta nueva. Tiene que coincidir con la migración 009 (trial_ends_at). */
 export const TRIAL_DAYS = 30;
 
-/** Correu de contacte comercial i de suport. */
+/** Correo de contacto comercial y de soporte. */
 export const CONTACT_EMAIL = 'info@reportia.es';
 
 const LOCALE = LOCALES;
 
-/** 390 → "390 €" segons l'idioma */
+/** 390 → "390 €" según el idioma */
 export function formatPrice(amount, lang) {
   return new Intl.NumberFormat(LOCALE[lang] ?? 'es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(amount);
 }

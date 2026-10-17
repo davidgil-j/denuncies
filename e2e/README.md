@@ -53,11 +53,12 @@ o donde diga `E2E_OUT`.
 | `pulido-fallos-claridad` | Los arreglos del pulido final (bloques A y B) |
 | `movil-teclado` | Recorrido a 360×640 y 390×844 con el teclado en pantalla |
 | `portatil` | 15 pantallas en 6 tamaños de portátil: que quepan, nada partido ni cortado, franja fija |
-| `contraste` | Contraste WCAG medido de cada texto, borde de campo e icono en 40 pantallas y estados |
+| `contraste` | Contraste WCAG medido de cada texto, borde de campo e icono en 40 pantallas y estados. `contraste-oscuro`: lo mismo con el sistema en modo oscuro |
+| `marca` | «Tu marca» y «Apariencia» (fase 3): subir el logo (PNG y SVG; lo que no es imagen se rechaza), elegir paleta, descartar y guardar; el panel y el canal toman la marca; claro, oscuro y como el sistema; y el contraste de 5 pantallas con las 8 paletas en claro y en oscuro. A 1440 y 375 px |
 | `propuestas` | Las propuestas aprobadas de `docs/REVISION_UX.md` |
 | `anchos-idiomas` | 9 anchos × 3 idiomas: sin desbordes ni textos cortados |
 | `textos` | 63 pantallas sin «undefined» ni huecos sin rellenar |
 | `pdf` | Los PDF (también el justificante de quien denuncia) salen con Manrope, también con caracteres del latín extendido |
-| `csp` | Compila la web como en producción, la sirve con las cabeceras de `vercel.json` y recorre web, canal y panel (envío con foto, justificante, PDF, Excel, QR): la política de seguridad no bloquea nada |
+| `csp` | Compila la web como en producción, la sirve con las cabeceras y las reescrituras de `vercel.json` y recorre web, canal y panel (envío con foto, justificante, PDF, Excel, QR, y una empresa con logo y paleta propia): la política de seguridad no bloquea nada y la página del canal no dice «Reportia». Además, desde «la web de una empresa» (puerto 4191): el canal dentro de un iframe, «Acceder» y «Salir rápido» desde dentro, el panel bloqueado, el script del botón (en su sitio y flotante) y la dirección propia (`canal.acme.test`) |
 
 La lógica que no necesita navegador (plazos en seis zonas horarias y limpieza de fotos) se prueba aparte con `npm run test:logic`, y la base de datos con `npm run db:test`.

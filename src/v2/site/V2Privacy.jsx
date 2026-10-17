@@ -5,7 +5,7 @@ import { translations } from '../../translations.js';
 import { ICON, Stable } from '../V2Layout.jsx';
 import './site.css';
 
-// Converteix en enllaç el correu de contacte i l'adreça de l'AEPD que apareixen al text legal
+// Convierte en enlace el correo de contacto y la dirección de la AEPD que aparecen en el texto legal
 const LINKS = {
   'info@reportia.es': 'mailto:info@reportia.es',
   'aepd.es': 'https://www.aepd.es',
@@ -23,7 +23,7 @@ function Rich({ text }) {
   });
 }
 
-// L'índex desplaça la pàgina sense afegir entrades a l'historial (així «Tornar» torna on toca)
+// El índice desplaza la página sin añadir entradas al historial (así «Volver» vuelve a donde toca)
 function Toc({ sections, lang }) {
   const go = (e, id) => {
     const el = document.getElementById(id);
@@ -44,17 +44,17 @@ function Toc({ sections, lang }) {
 }
 
 /**
- * Política de privacitat. A la web de Reportia (/privacitat) i dins de cada canal
- * (/canal/:slug/privacidad); dins del canal, el text nomena l'organització com a responsable
- * i el botó torna al canal sense sortir-ne.
+ * Política de privacidad. En la web de Reportia (/privacitat) y dentro de cada canal
+ * (/canal/:slug/privacidad); dentro del canal, el texto nombra a la organización como responsable
+ * y el botón vuelve al canal sin salir de él.
  */
 export default function V2Privacy() {
   const { lang, org, base } = useOutletContext();
   const tp = translations[lang].v2site.privacy;
   const owner = org?.name || tp.ownerGeneric;
   const t = tp;
-  // Cada text es pinta en els tres idiomes i reserva l'espai del més llarg: en canviar d'idioma,
-  // els apartats no es mouen. P = textos de privacitat d'un idioma, amb el nom de l'organització posat
+  // Cada texto se pinta en los tres idiomas y reserva el espacio del más largo: al cambiar de idioma,
+  // los apartados no se mueven. P = textos de privacidad de un idioma, con el nombre de la organización puesto
   const fillOf = (P) => (text) => text.replace(/\{org\}/g, org?.name || P.ownerGeneric);
   const st = (pick, props) => <Stable lang={lang} pick={T => pick(T.v2site.privacy, T)} {...props} />;
   const { hash, key } = useLocation();
@@ -62,14 +62,14 @@ export default function V2Privacy() {
 
   useEffect(() => { document.title = org ? `${t.title} · ${org.name}` : t.docTitle; }, [t, org]);
 
-  // En obrir amb #secció, hi baixa quan el text ja és a la pàgina
+  // Al abrir con #sección, baja hasta ella cuando el texto ya está en la página
   useEffect(() => {
     if (!hash) return;
     const el = document.getElementById(decodeURIComponent(hash.slice(1)));
     if (el) el.scrollIntoView();
   }, [hash, lang]);
 
-  // Si s'hi ha arribat des de la mateixa web, «Tornar» torna enrere; si s'ha obert directament, a l'inici
+  // Si se ha llegado desde la misma web, «Volver» vuelve atrás; si se ha abierto directamente, va al inicio
   const canGoBack = key !== 'default';
 
   return (

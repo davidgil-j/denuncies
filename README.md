@@ -11,11 +11,14 @@ Aplicació web SaaS per a empreses privades que necessiten un **canal intern de 
 
 | Capa | Tecnologia |
 |------|-----------|
-| Frontend | React 18 + Vite 5 (JavaScript/JSX) |
-| Base de dades | Supabase (PostgreSQL + Auth + Storage) |
+| Frontend | React 18 + Vite 5 (JavaScript/JSX), React Router 7 |
+| Base de dades | Supabase (PostgreSQL amb RLS, Auth amb verificació en dos passos, Storage privat) |
+| Funcions de servidor | Supabase Edge Functions (Deno) |
+| Exportació | ExcelJS (Excel) i jsPDF (PDF) |
+| Tipografia i icones | Manrope variable (`@fontsource-variable/manrope`) i Lucide React |
+| Antispam | Cloudflare Turnstile (opcional) |
+| Monitoratge | Sentry (opcional; mai al canal de denúncies) |
 | Deploy | Vercel (auto-deploy des de `main`) |
-| Icones | Lucide React |
-| Antibot | Cloudflare Turnstile |
 
 ---
 
@@ -37,11 +40,19 @@ Copia `.env.example` a `.env` i omple els valors:
 cp .env.example .env
 ```
 
-| Variable | On trobar-la |
-|----------|-------------|
-| `VITE_SUPABASE_URL` | Supabase Dashboard → Project Settings → API |
-| `VITE_SUPABASE_ANON_KEY` | Supabase Dashboard → Project Settings → API → anon/public key |
-| `VITE_TURNSTILE_SITE_KEY` | dash.cloudflare.com → Turnstile → el teu site |
+| Variable | Per a què |
+|----------|-----------|
+| `VITE_SUPABASE_URL` | Obligatòria en producció. Supabase Dashboard → Project Settings → API |
+| `VITE_SUPABASE_ANON_KEY` | Obligatòria en producció. Project Settings → API → anon/public key |
+| `VITE_PUBLIC_ORIGIN` | Opcional. L'adreça pública per als enllaços, el QR i la vista prèvia en compartir |
+| `VITE_TURNSTILE_SITE_KEY` | Opcional. Antispam al formulari de denúncia i a l'accés (dash.cloudflare.com → Turnstile) |
+| `VITE_MAX_FILE_MB` | Opcional. Mida màxima de cada adjunt (50 per defecte) |
+| `VITE_SENTRY_DSN` | Opcional. Avís d'errors al panell i a la web |
+| `VITE_DEMO` | Opcional. `1` = mode demo en un build sense credencials (només per ensenyar la web) |
+| `VITE_AI_ENABLED` | Opcional. `1` encén les ajudes d'IA del panell (apagades per defecte: vegeu `docs/IA.md`) |
+
+Sense les dues primeres, en desenvolupament l'aplicació arrenca en **mode demo** (dades d'exemple al navegador).
+Els secrets de les funcions de servidor (`SITE_URL`, `RESEND_API_KEY`…) es posen a Supabase, mai al codi: són a `.env.example`.
 
 **Valors del projecte Reportia:**
 - Supabase URL: `https://zojrqjmauruishfvgdja.supabase.co`
@@ -65,7 +76,7 @@ supabase link --project-ref zojrqjmauruishfvgdja
 npm run db:migrate
 ```
 
-Si és la primera vegada, totes les migracions s'aplicaran en ordre. Si alguna ja existeix al projecte remot, Supabase les saltarà automàticament.
+Són disset (`001` … `017`), additives i repetibles. La `016` (marca blanca: «La teva marca» i «Aparença») i la `017` (adreça pròpia del canal) encara no s'han executat a producció. Si és la primera vegada, totes s'aplicaran en ordre. Si alguna ja existeix al projecte remot, Supabase les saltarà automàticament.
 
 Abans d'aplicar una migració nova, comprova les regles de seguretat en local (no toca cap base de dades real):
 
@@ -83,6 +94,24 @@ Aplica totes les migracions a un Postgres en memòria i verifica les polítiques
 npm run dev
 # → http://localhost:3000
 ```
+
+Per provar-ho tot sense tocar cap base de dades (mode demo, amb dades d'exemple que es reinicien en tancar la pestanya):
+
+```bash
+VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= npx vite --port 3111
+# → http://localhost:3111/canal/demo (el canal) i http://localhost:3111/admin/login?from=demo (el panell:
+#   qualsevol correu i contrasenya, i qualsevol codi de 6 xifres)
+```
+
+### 6. Proves
+
+```bash
+npm run test:logic   # lògica: terminis legals, dies hàbils, neteja de fotos (sense navegador)
+npm run db:test      # regles de seguretat de la base de dades, en un Postgres en memòria
+npm run e2e          # navegador: el canal i el panell, en mode demo i contra una xarxa simulada
+```
+
+Cap de les tres toca Supabase. Les de navegador necessiten Playwright, que s'instal·la fora del repositori: vegeu `e2e/README.md`.
 
 ---
 
@@ -106,47 +135,61 @@ vercel --prod
 
 ```
 src/
-├── contexts/AdminAuth.jsx     # Sessió i permisos admin
-├── lib/supabase.js            # Totes les crides a BD (mai cridar Supabase directament des de components)
-├── lib/export.js              # Exportació Excel i PDF
-├── pages/
-│   ├── ComplaintForm.jsx      # Formulari públic (4 passos)
-│   ├── TrackingPortal.jsx     # Portal seguiment per codi
-│   ├── LandingPage.jsx        # Landing SaaS (/)
-│   ├── Signup.jsx             # Alta nova organització (/crear-compte)
-│   └── admin/                 # Panell d'administració (/admin/*)
-├── translations.js            # Textos en ca / es / en
-└── global.css
+├── App.jsx, main.jsx, entries.js   # Rutes i arrencada (cada zona es descarrega quan cal)
+├── translations.js                 # Textos de la web, el canal i les peces comunes, en ca / es / en
+├── translations-panel.js           # Textos del panell i de les exportacions
+├── lib/supabase.js                 # Totes les crides a la BD (mai cridar Supabase des d'un component)
+├── lib/                            # demoStore (mode demo), deadlines (terminis), cleanImage (fotos netes)…
+└── v2/
+    ├── ds.css, ui/                 # Sistema visual i peces comunes
+    ├── canal/                      # Costat Denunciar: entrada, 3 passos, codi i «El meu cas»
+    ├── panel/                      # Costat Gestionar: accés, tauler, fitxa del cas, informe, compartir, ajustos
+    ├── site/                       # Web de Reportia: portada, alta i privacitat
+    ├── lib/                        # Excel, PDF del cas, informe, cartell i justificant
+    └── emails/                     # Plantilles dels correus de Supabase Auth
 
-supabase/migrations/           # Migracions de BD en ordre
+supabase/migrations/                # 001 … 017, en ordre
+supabase/functions/                 # invite-manager, delete-manager, notify, ai-assist (no desplegada)
+scripts/                            # migracions, proves, tipografia dels PDF, textos sense ús
+e2e/                                # Proves de navegador
+docs/                               # Auditories, pla per fases, textos, IA i dubtes legals
 ```
+
+El detall de cada carpeta és a `CLAUDE.md`.
 
 ## Rutes
 
 | Ruta | Descripció |
 |------|-----------|
-| `/` | Landing SaaS |
-| `/crear-compte` | Alta nova empresa |
-| `/canal/:slug` | Canal de denúncies de l'empresa |
-| `/admin/login` | Login administradors |
-| `/admin` | Dashboard denúncies |
-| `/admin/complaints/:id` | Detall denúncia |
-| `/admin/report` | Informe (resum per període) |
-| `/admin/users` | Gestió usuaris (superadmin) |
-| `/admin/integration` | Integrar el canal: enllaç, botó, QR i cartell (superadmin) |
-| `/admin/account` | Compte: pla, organització i facturació (superadmin) |
-| `/admin/mfa` | Configuració 2FA |
+| `/` | Portada comercial |
+| `/crear-compte` | Alta d'una empresa |
+| `/privacitat` | Política de privacitat de Reportia |
+| `/canal/:slug` | Entrada del canal de l'empresa: Denunciar i Gestionar, meitat i meitat |
+| `/canal/:slug/formulario` | Els 3 passos i la denúncia enviada |
+| `/canal/:slug/consulta` | Escriure el codi i «El meu cas» |
 | `/canal/:slug/privacidad` | Política de privacitat dins del canal |
+| `/canal/demo` | Canal d'exemple (sempre en mode demo) |
+| `/admin/login` | Accés al panell i verificació en dos passos |
+| `/admin/forgot-password`, `/admin/reset-password` | Recuperar i canviar la contrasenya |
+| `/admin` | Tauler |
+| `/admin/complaints/:id` | Fitxa del cas |
+| `/admin/nueva` | Registrar un cas arribat per una altra via |
+| `/admin/report` | Informe |
+| `/admin/integration` | Compartir el canal: enllaç, cartell amb QR, botó per al web (només administradors) |
+| `/admin/ajustes` | Equip i ajustos (`/admin/users` i `/admin/account` hi redirigeixen) |
+| `/admin/mfa` | Verificació en dos passos |
 
 ---
 
 ## Convencions importants
 
-- **JavaScript/JSX only** — no TypeScript
-- **Tots els textos en 3 idiomes** (ca/es/en) via `src/translations.js`
+- **JavaScript/JSX only** — no TypeScript (les funcions de servidor sí que són TypeScript de Deno)
+- **Tots els textos en 3 idiomes** (ca/es/en) a `src/translations.js` o `src/translations-panel.js`, i de «tu»
 - **Totes les crides a BD** passen per `src/lib/supabase.js`
-- **Canvis de BD** → sempre amb fitxer de migració a `supabase/migrations/`
+- **Canvis de BD** → sempre amb fitxer de migració a `supabase/migrations/`, additiu i repetible, amb proves a `scripts/test-rls.mjs`
 - **Verificació en dos passos obligatòria** per veure denúncies (també a la base de dades, migració 010)
 - **El codi de seguiment** només el coneix qui denuncia: la base de dades en guarda el hash i el panell usa una referència (REF-XXXXXX)
 - **Mode demo** només en desenvolupament o amb `VITE_DEMO=1`
 - **RLS activat** a totes les taules — mai desactivar ni usar `serviceRole` des del frontend
+- **Les peces del disseny** són a `src/v2/ui` i els colors, a `src/v2/ds.css`
+- **Els comentaris del codi**, en castellà

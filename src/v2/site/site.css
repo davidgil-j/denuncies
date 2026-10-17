@@ -287,7 +287,7 @@
 .v2-su-trial { display: flex; align-items: flex-start; gap: 8px; margin-top: var(--s-4); font-size: 14px; line-height: 1.5; color: var(--ink-2); }
 .v2-su-trial svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: var(--accent); }
 
-/* Menú en fila: cada enllaç ocupa l'amplada de l'idioma més llarg, amb el text centrat */
+/* Menú en fila: cada enlace ocupa el ancho del idioma más largo, con el texto centrado */
 @media (min-width: 1200px) { .v2-site-navlink .v2-stable-v { text-align: center; } }
 
 /* ==========================================================================
