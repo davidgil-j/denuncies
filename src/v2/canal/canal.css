@@ -31,6 +31,8 @@
 .entry-links { display: flex; flex-wrap: wrap; align-items: center; gap: 0 20px; }
 .ds .entry-links :where(a), .entry-linkbtn { padding: 4px 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--muted); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
 .ds .entry-links :where(a):hover, .entry-linkbtn:hover { color: var(--ink); }
+/* «Con Reportia»: discreto, al final del pie */
+.ds .entry-links .entry-by { font-size: 12px; font-weight: 500; }
 /* Enlace con aspecto de enlace que en realidad es un botón (abre un panel o hace algo aquí mismo) */
 .linkbtn { padding: 4px 0; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--link); text-align: left; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
 .linkbtn:hover { color: var(--link-hover); }
@@ -110,7 +112,6 @@
 /* Los botones de abajo no se pierden de vista: si la pantalla es baja, se quedan pegados al borde */
 .flow-actions { position: sticky; bottom: 0; z-index: 2; margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 16px; background: var(--surface); box-shadow: 0 -12px 0 var(--surface); }
 .flow-next.ds-btn { min-width: 160px; }
-.flow-captcha { align-self: flex-end; }
 
 /* En un portátil bajo, el mismo contenido con menos aire entre bloques: sin cambiar ningún tamaño de letra */
 @media (min-width: 641px) and (max-height: 800px) {
@@ -145,7 +146,6 @@
   .flow-actions { margin: auto -16px 0; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); gap: 8px; border-top: 1px solid var(--line); box-shadow: none; }
   .flow-back.ds-btn { --h: 44px; width: 44px; padding: 0; flex: none; }
   .flow-next.ds-btn { --h: 44px; flex: 1; min-width: 0; }
-  .flow-captcha { align-self: stretch; }
   /* El pie (línea legal y enlaces) solo en el ordenador: en el móvil ese sitio es de los botones */
   .canal-flow > .ds-split-bottom { display: none; }
 }

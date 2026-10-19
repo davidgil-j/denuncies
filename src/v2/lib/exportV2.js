@@ -19,6 +19,7 @@ import '../panel/texts.js'; // textos del panel (lado Gestionar)
 import { deadlineInfo } from '../../lib/deadlines.js';
 import { LOCALES } from '../../lib/format.js';
 import { paletteOf, rgbOf, mix } from './brand.js';
+import { EMPRESA } from '../config/producto.js';
 
 const LANGS = ['ca', 'es', 'en'];
 const LOCALE = LOCALES;
@@ -485,7 +486,7 @@ async function createDoc(orientation, D, brand = {}) {
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
   const M = orientation === 'landscape' ? 16 : 18;
-  return { doc, F, D, W, H, M, CW: W - M * 2, TOP: 30, BOTTOM: H - 21, y: 0, C: colorsFor(brand.palette), logo: brand.logo ?? null };
+  return { doc, F, D, W, H, M, CW: W - M * 2, TOP: 30, BOTTOM: H - 21, y: 0, C: colorsFor(brand.palette), logo: brand.logo ?? null, reportiaIcon: await loadReportiaIcon() };
 }
 
 function font(ctx, { kind = 'text', bold = false, size = 9, color = C.ink } = {}) {
@@ -563,13 +564,31 @@ function drawRunningHeader(ctx) {
   doc.line(M, 20.5, W - M, 20.5);
 }
 
+// El icono oficial de Reportia para el pie (n.º 40). Si no se puede leer, el pie va sin él
+let reportiaIcon;
+async function loadReportiaIcon() {
+  if (reportiaIcon !== undefined) return reportiaIcon;
+  try {
+    const blob = await (await fetch('/marca/reportia-icono-64.png')).blob();
+    reportiaIcon = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(blob); });
+  } catch {
+    reportiaIcon = null;
+  }
+  return reportiaIcon;
+}
+
 function drawFooter(ctx, n, total) {
   const { doc, W, H, M, D } = ctx;
   doc.setDrawColor(...C.line2);
   doc.setLineWidth(0.2);
   doc.line(M, H - 13.5, W - M, H - 13.5);
+  // «Generado con Reportia», con su icono: la cabecera es de la empresa y Reportia firma al pie
+  let x = M;
+  if (ctx.reportiaIcon) {
+    try { doc.addImage(ctx.reportiaIcon, 'PNG', M, H - 11.4, 3.2, 3.2, 'reportia-icon'); x = M + 4.6; } catch { /* sin icono */ }
+  }
   font(ctx, { size: 6.8, color: C.ink3 });
-  doc.text(fit(doc, ctx.footerLeft, ctx.CW - 40), M, H - 9);
+  doc.text(fit(doc, `${fmt(D.t.generatedWith, { name: EMPRESA })} · ${ctx.footerLeft}`, ctx.CW - 40 - (x - M)), x, H - 9);
   font(ctx, { bold: true, size: 6.8, color: C.ink2 });
   doc.text(fmt(D.t.page, { n, total }), W - M, H - 9, { align: 'right' });
 }

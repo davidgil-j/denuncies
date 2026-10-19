@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import portada from './scripts/vite-portada.mjs';
 
 // Dirección pública del sitio. WhatsApp y LinkedIn no ejecutan JavaScript y piden una dirección absoluta en og:image,
 // así que se pone en el index.html al compilar. El mismo valor por defecto que en src/v2/site/origin.js.
@@ -14,10 +15,26 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     { name: 'reportia-public-origin', transformIndexHtml: html => html.replaceAll('__PUBLIC_ORIGIN__', publicOrigin(mode)).replace('<!-- __SUPABASE_PRECONNECT__ -->', preconnect(mode)) },
+    // En el canal (canal.html), Manrope se pide desde el principio, sin esperar a leer el CSS: el canal pinta antes
+    // (Lighthouse móvil, de 94 a 96). En index.html no: allí hacía que Lighthouse no viera pintar el acceso
+    {
+      name: 'reportia-font-preload',
+      transformIndexHtml: {
+        order: 'post',
+        handler(html, ctx) {
+          if (!ctx.filename?.endsWith('canal.html')) return html;
+          const font = Object.keys(ctx.bundle ?? {}).find(f => /manrope-latin-wght-normal-[\w-]+\.woff2$/.test(f));
+          return font ? html.replace('</title>', `</title>\n  <link rel="preload" href="/${font}" as="font" type="font/woff2" crossorigin />`) : html;
+        },
+      },
+    },
+    // La portada: páginas estáticas por idioma (inicio-es.html…) y la aplicación pasa a app.html (scripts/vite-portada.mjs)
+    portada({ origin: publicOrigin(mode) }),
   ],
   server: {
     port: 3000,
-    open: true,
+    // Nunca abre el navegador (ni con npm run dev ni con los servidores de las pruebas)
+    open: false,
   },
   build: {
     // Nada incrustado en el CSS o el JS como «data:»: la política de seguridad (vercel.json) no deja cargar

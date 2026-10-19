@@ -759,6 +759,8 @@ export function getOrganization() {
   }
   // «Tu marca» (migración 016): la paleta azul y sin logo, también en las sesiones de demo que ya estaban abiertas
   if (!('brand_palette' in s.org)) { Object.assign(s.org, { brand_palette: 'azul', brand_logo: null }); save(); }
+  // El pie «Con Reportia» (migración 018): visible, como en cualquier empresa nueva
+  if (!('show_powered_by' in s.org)) { s.org.show_powered_by = true; save(); }
   return clone(s.org);
 }
 

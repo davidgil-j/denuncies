@@ -8,7 +8,7 @@ import {
 } from '../../lib/supabase.js';
 import { LANGS, detectLang, fmt } from '../V2Layout.jsx';
 import { planInfo } from '../admin/adminKit.jsx';
-import { SplitShell, PillNav, Button, IconButton, Chip, Card, Avatar, BrandLogo, Skeleton, Segmented, Dialog, Field, Menu, MenuItem, Offline, cx } from '../ui/index.js';
+import { SplitShell, PillNav, Button, IconButton, Chip, Card, Avatar, BrandLogo, ReportiaMark, Skeleton, Segmented, Dialog, Field, Menu, MenuItem, Offline, cx } from '../ui/index.js';
 import { useBrandTheme } from '../lib/brand.js';
 import { caseTitle } from './kit.jsx';
 import './panel.css';
@@ -260,6 +260,10 @@ export default function Panel() {
             <main id="pn-main" className="pn-main" tabIndex={-1}>
               <Outlet context={ctx} />
             </main>
+            {/* Reportia firma en pequeño, al pie: en el panel manda la marca de la empresa (n.º 37) */}
+            <footer className="pn-foot">
+              <span className="pn-foot-by">{p.managedWith}<ReportiaMark size={18} /></span>
+            </footer>
           </>
         )}
       />

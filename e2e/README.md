@@ -10,6 +10,10 @@ Playwright no es una dependencia del proyecto. Se instala aparte:
 ```bash
 npm i --prefix ~/.reportia-e2e playwright
 npx --prefix ~/.reportia-e2e playwright install chromium
+# Opcional: Lighthouse, para medir la portada en la prueba «portada»
+npm i --prefix ~/.reportia-e2e lighthouse@12
+# Opcional: Postgres y PostgREST, para la prueba «base-real» (si no están, se salta y lo dice)
+brew install postgresql@16 postgrest
 ```
 
 Si lo tienes en otra carpeta, indícala con `PLAYWRIGHT_DIR=/ruta/a/la/carpeta`.
@@ -17,7 +21,7 @@ Si lo tienes en otra carpeta, indícala con `PLAYWRIGHT_DIR=/ruta/a/la/carpeta`.
 ## Lanzarlas
 
 ```bash
-npm run e2e                    # todas (unos 25 minutos)
+npm run e2e                    # todas (unos 30 minutos)
 npm run e2e -- --only=red      # solo las que llevan «red» en el nombre
 npm run e2e -- --list          # lista de pruebas
 ```
@@ -30,6 +34,12 @@ npm run e2e -- --list          # lista de pruebas
 | 3112 | Modo real contra una red simulada (`http://localhost:59999`, que no existe: cada prueba responde las peticiones) |
 | 3113 | Modo demo con la IA encendida (`VITE_AI_ENABLED=1`) |
 | 3114 | Red simulada con la IA encendida |
+| 3115 | Red simulada con la clave de pruebas de Turnstile (`1x00000000000000000000AA`) |
+
+Ninguno abre el navegador: todas las pruebas van sin ventana (headless). Además, `csp` y `portada` compilan la web y la
+sirven como Vercel (puertos 4190 y 4192, con las reglas de `vercel.json` y compresión: `lib/vercel.mjs`), y `base-real`
+arranca su propia base de datos (Postgres y PostgREST en los puertos 54329 y 54330, `lib/supabase-local.mjs`) y dos
+servidores de la web (3116 y 3117).
 
 Las capturas y las descargas (PDF, Excel) quedan en la carpeta temporal del sistema, en `reportia-e2e/`,
 o donde diga `E2E_OUT`.
@@ -53,11 +63,14 @@ o donde diga `E2E_OUT`.
 | `pulido-fallos-claridad` | Los arreglos del pulido final (bloques A y B) |
 | `movil-teclado` | Recorrido a 360×640 y 390×844 con el teclado en pantalla |
 | `portatil` | 15 pantallas en 6 tamaños de portátil: que quepan, nada partido ni cortado, franja fija |
-| `contraste` | Contraste WCAG medido de cada texto, borde de campo e icono en 40 pantallas y estados. `contraste-oscuro`: lo mismo con el sistema en modo oscuro |
+| `contraste` | Contraste WCAG medido de cada texto, borde de campo e icono en 40 pantallas y estados, y la portada. `contraste-oscuro`: lo mismo con el sistema en modo oscuro |
 | `marca` | «Tu marca» y «Apariencia» (fase 3): subir el logo (PNG y SVG; lo que no es imagen se rechaza), elegir paleta, descartar y guardar; el panel y el canal toman la marca; claro, oscuro y como el sistema; y el contraste de 5 pantallas con las 8 paletas en claro y en oscuro. A 1440 y 375 px |
 | `propuestas` | Las propuestas aprobadas de `docs/REVISION_UX.md` |
-| `anchos-idiomas` | 9 anchos × 3 idiomas: sin desbordes ni textos cortados |
+| `anchos-idiomas` | 9 anchos × 3 idiomas, también la portada: sin desbordes ni textos cortados |
 | `textos` | 63 pantallas sin «undefined» ni huecos sin rellenar |
+| `captcha` | Turnstile: sin clave, como siempre; con la clave, en el acceso, el alta y «He olvidado la contraseña» (el token llega a Supabase Auth, se pide otro si caduca o lo rechaza, y si el script no carga, aviso y «Reintentar» sin dejar pasar); el canal nunca lo carga. Con `E2E_TURNSTILE_REAL=1`, el script de Cloudflare de verdad |
+| `base-real` | La web contra una base de datos de verdad: hasta la 015, con la 016-017, con la 018 y con la copia y la 019 sobre los mismos datos (el código de antes sigue valiendo y se reescribe con secreto); y la protección contra robots encendida en Auth |
+| `portada` | La portada compilada y servida como Vercel: idioma por navegador y por `?lang=`, etiquetas, robots y sitemap, sin JavaScript, el vídeo (versión por pantalla, se reproduce al verse y se para al salir), movimiento reducido, contraste medido en los píxeles de las fotos, CLS 0 y Lighthouse móvil ≥ 95 |
 | `pdf` | Los PDF (también el justificante de quien denuncia) salen con Manrope, también con caracteres del latín extendido |
 | `csp` | Compila la web como en producción, la sirve con las cabeceras y las reescrituras de `vercel.json` y recorre web, canal y panel (envío con foto, justificante, PDF, Excel, QR, y una empresa con logo y paleta propia): la política de seguridad no bloquea nada y la página del canal no dice «Reportia». Además, desde «la web de una empresa» (puerto 4191): el canal dentro de un iframe, «Acceder» y «Salir rápido» desde dentro, el panel bloqueado, el script del botón (en su sitio y flotante) y la dirección propia (`canal.acme.test`) |
 

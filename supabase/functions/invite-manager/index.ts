@@ -40,7 +40,9 @@ Deno.serve(withCors(async (req) => {
     const { data: profile } = await adminClient.from('profiles').select('role, organization_id').eq('id', user.id).single();
     if (profile?.role !== 'superadmin' || !profile.organization_id) return json({ error: 'Forbidden' }, 403);
 
-    const { email, full_name } = await req.json();
+    const { email, full_name, lang } = await req.json();
+    // El idioma del correo de invitación (y de los siguientes): el de quien invita, si es uno de los tres
+    const cleanLang = ['ca', 'es', 'en'].includes(lang) ? lang : 'es';
     const cleanEmail = String(email ?? '').trim().toLowerCase();
     const cleanName = String(full_name ?? '').trim().slice(0, 120);
     if (!cleanEmail || !cleanName) return json({ error: 'invalid' }, 400);
@@ -61,7 +63,7 @@ Deno.serve(withCors(async (req) => {
     }
 
     const { data, error } = await adminClient.auth.admin.inviteUserByEmail(cleanEmail, {
-      data: { full_name: cleanName },
+      data: { full_name: cleanName, lang: cleanLang },
       redirectTo: `${siteUrl}/admin/reset-password`,
     });
     // Respuesta genérica: no se revela si el correo ya tiene cuenta (en Reportia o en otra empresa)

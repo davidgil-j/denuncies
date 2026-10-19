@@ -14,6 +14,9 @@ await page.addInitScript(() => { if (!location.pathname.startsWith('/admin/login
 let total = 0; const seen = new Set();
 const check = async (name) => { await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(350); const res = (await page.evaluate(audit)).filter(x => { const k = x.split(' — ')[0]; if (seen.has(k)) return false; seen.add(k); return true; }); total += res.length; console.log(`${res.length ? 'MAL' : 'ok '} ${name}${res.length ? '\n   · ' + res.join('\n   · ') : ''}`); };
 const go = async (path, sel) => { await page.goto(B + path, { waitUntil: 'networkidle' }); await page.waitForSelector(sel); };
+// La portada (página estática): toda la página y después con las preguntas y la ley desplegadas
+await go('/?lang=es', '.lp-hero h1'); await check('portada');
+await page.evaluate(() => document.querySelectorAll('details').forEach(d => { d.open = true; })); await check('portada · desplegables abiertos');
 await go('/canal/demo?lang=es', '.ds-hero'); await check('canal · entrada');
 await page.locator('.entry-linkbtn').first().click(); await page.locator('dialog[open]').waitFor(); await check('canal · canales externos'); await page.keyboard.press('Escape');
 await page.locator('.entry-linkbtn').nth(1).click(); await page.locator('dialog[open]').waitFor(); await check('canal · qué guardamos'); await page.keyboard.press('Escape');

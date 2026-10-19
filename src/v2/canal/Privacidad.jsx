@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useLocation, useOutletContext } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { translations } from '../../translations.js';
+import '../site/texts.js'; // la política de privacidad (v2site.privacy, src/translations-site.js)
 import { Stable } from '../V2Layout.jsx';
 import { Button, Card } from '../ui/index.js';
 import { CanalHead, Tc, ic } from './shared.jsx';

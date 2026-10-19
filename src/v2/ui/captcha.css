@@ -1,0 +1,13 @@
+/* La comprobación contra robots: el recuadro de Cloudflare y, si no carga, el aviso con «Reintentar». Va en el acceso
+   (sistema .ds) y en el alta (web de Reportia, .v2): por eso usa las variables de los dos con un valor por defecto */
+.ds-captcha { display: flex; flex-direction: column; gap: 8px; min-height: 65px; }
+.ds-captcha-box:empty { min-height: 65px; border-radius: 8px; background: var(--soft, #F1F3F7); }
+.ds-captcha-err { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.ds-captcha-err p { margin: 0; font-size: 13px; line-height: 1.45; font-weight: 600; color: var(--danger-ink, #B42318); }
+.ds-captcha-retry {
+  min-height: 36px; padding: 0 14px; border: 1px solid var(--line, #E3E6ED); border-radius: 10px;
+  background: var(--surface, #FFFFFF); color: var(--ink, #0D1530); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.ds-captcha-retry:hover { background: var(--soft, #F1F3F7); }
+.ds-captcha-retry:focus-visible { outline: 2px solid var(--focus, #2F54EB); outline-offset: 2px; }
+@media (max-width: 640px) { .ds-captcha-retry { min-height: 44px; } }

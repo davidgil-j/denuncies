@@ -5,6 +5,7 @@ export const panelTexts = {
   ca: {
     panel: {
       viewChannel: 'Veure el canal',
+      managedWith: 'Gestionat amb',
       viewChannelAria: 'Veure el canal públic (s’obre en una altra pestanya)',
       nav: {
         board: 'Tauler',
@@ -722,6 +723,7 @@ export const panelTexts = {
       posterFile: 'cartell-canal-denuncies',
       confidential: 'Confidencial',
       docConfidential: 'Document confidencial',
+      generatedWith: 'Generat amb {name}',
       generated: 'Generat el {date} a les {time}',
       page: 'Pàgina {n} de {total}',
       notStated: 'No consta',
@@ -840,6 +842,7 @@ export const panelTexts = {
   es: {
     panel: {
       viewChannel: 'Ver el canal',
+      managedWith: 'Gestionado con',
       viewChannelAria: 'Ver el canal público (se abre en otra pestaña)',
       nav: {
         board: 'Tablero',
@@ -1556,6 +1559,7 @@ export const panelTexts = {
       posterFile: 'cartel-canal-denuncias',
       confidential: 'Confidencial',
       docConfidential: 'Documento confidencial',
+      generatedWith: 'Generado con {name}',
       generated: 'Generado el {date} a las {time}',
       page: 'Página {n} de {total}',
       notStated: 'No consta',
@@ -1669,6 +1673,7 @@ export const panelTexts = {
   en: {
     panel: {
       viewChannel: 'View the channel',
+      managedWith: 'Managed with',
       viewChannelAria: 'View the public channel (opens in a new tab)',
       nav: {
         board: 'Board',
@@ -2385,6 +2390,7 @@ export const panelTexts = {
       posterFile: 'whistleblowing-channel-poster',
       confidential: 'Confidential',
       docConfidential: 'Confidential document',
+      generatedWith: 'Generated with {name}',
       generated: 'Generated on {date} at {time}',
       page: 'Page {n} of {total}',
       notStated: 'Not stated',

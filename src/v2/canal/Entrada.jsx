@@ -8,6 +8,7 @@ import { BrandLogo, Button, Dialog } from '../ui/index.js';
 import { LangPick, QuickExit, Tc, ic } from './shared.jsx';
 import { inFrame } from '../lib/frame.js';
 import { leaveCanal } from '../lib/domain.js';
+import { PIE_CON_REPORTIA } from '../config/producto.js';
 
 // Dentro de la web de una empresa (iframe), lo que sale del canal se abre en una ventana nueva: el panel y la web de
 // Reportia no se abren nunca dentro de otra web
@@ -104,7 +105,8 @@ export function EntryLinks({ lang, org, base, full = false }) {
         </button>
         <button type="button" className="entry-linkbtn" onClick={() => setPanel('kept')}>{t.footKept}</button>
         <a href={BOE_URL} target="_blank" rel="noopener noreferrer" className="ds-narrow">{t.law}</a>
-        <Link to={leaveCanal(`/?lang=${lang}`)} {...outside()}>{t.footBy}</Link>
+        {/* «Con Reportia», pequeño y sin logo (n.º 49). Reportia lo quita por empresa (migración 018: show_powered_by) */}
+        {PIE_CON_REPORTIA && org.show_powered_by !== false && <Link className="entry-by" reloadDocument to={leaveCanal(`/?lang=${lang}`)} {...outside()}>{t.footBy}</Link>}
       </span>
 
       <Dialog side open={panel === 'ext'} onClose={() => setPanel(null)} title={v.extTitle} closeLabel={t.close}>

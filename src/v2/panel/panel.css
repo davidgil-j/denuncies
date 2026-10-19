@@ -37,6 +37,11 @@
 .pn-avatar { padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .pn-me-lang { padding: 2px 8px 6px; }
 .pn-main { flex: 1; width: 100%; max-width: 1232px; margin: 0 auto; padding: 28px 24px 40px; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+/* El pie: Reportia firma en pequeño, a la derecha */
+.pn-foot { width: 100%; max-width: 1232px; margin: 0 auto; padding: 0 24px 24px; display: flex; justify-content: flex-end; }
+.pn-foot-by { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.pn-foot-by .ds-rmark { gap: 5px; }
+.pn-foot-by .ds-rmark b { font-size: 13px; font-weight: 600; }
 .pn-page { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 /* Por debajo de 1367 px el plan y «Demo» se esconden (el plan sigue en Equipo y ajustes); en pantallas estrechas,
    «Ver el canal» pasa al menú de la cuenta y, si ni así cabe, el menú baja a una segunda fila */
@@ -80,6 +85,7 @@
   /* En el móvil el avatar es pequeño, pero se toca en un cuadrado de 44 px */
   .pn-avatar { min-width: 44px; min-height: 44px; }
   .pn-main { padding: 18px 16px 24px; gap: 16px; }
+  .pn-foot { justify-content: center; padding: 0 16px 20px; }
   .pn-page { gap: 16px; }
   .pn-toast-zone { bottom: calc(72px + env(safe-area-inset-bottom)); }
   .ds-split.pn:has(.cs) ~ .pn-toast-zone { bottom: calc(104px + env(safe-area-inset-bottom)); }

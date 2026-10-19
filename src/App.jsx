@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useParams } from 'react-router-dom';
-import { loadCanal, loadSite, loadLanding } from './entries.js';
+import { loadCanal, loadSite } from './entries.js';
 import { inFrame } from './v2/lib/frame.js';
 import { isOwnHost, onMainSite } from './v2/lib/domain.js';
 
@@ -8,7 +8,6 @@ import { isOwnHost, onMainSite } from './v2/lib/domain.js';
 // la web no baja el canal ni la librería de la base de datos. main.jsx empieza a bajar la de la página de entrada.
 const Canal = lazy(loadCanal);
 const V2SiteLayout = lazy(loadSite);
-const V2Landing = lazy(loadLanding);
 const Denuncia = lazy(() => import('./v2/canal/Denuncia.jsx'));
 const Consulta = lazy(() => import('./v2/canal/Consulta.jsx'));
 const Privacidad = lazy(() => import('./v2/canal/Privacidad.jsx'));
@@ -64,6 +63,29 @@ function OwnDomain() {
   return <div className="ds-page" aria-busy="true" />;
 }
 
+// La ruta con la que se abrió la aplicación (antes de cualquier navegación dentro de ella)
+const BOOT_PATH = window.location.pathname;
+
+/**
+ * La portada no es parte de la aplicación: es una página estática por idioma (src/v2/landing, generada al compilar) y
+ * en «/» la sirve Vercel (vercel.json). Si se llega aquí navegando dentro de la aplicación, se recarga la página. Si la
+ * aplicación se abrió ya en «/» (un servidor sin las reglas de vercel.json), se va directamente a la página del idioma.
+ * En la dirección propia de una empresa que no es de nadie, a la portada de la dirección principal.
+ */
+function ToLanding() {
+  const { search, hash } = useLocation();
+  useEffect(() => {
+    if (!isOwnHost()) { window.location.replace(onMainSite(`/${search}${hash}`)); return; }
+    if (BOOT_PATH !== '/') { window.location.replace(`/${search}${hash}`); return; }
+    // El idioma, como en vercel.json: el de ?lang= o el del navegador (castellano si no es catalán ni inglés)
+    const q = new URLSearchParams(search).get('lang');
+    const nav = (navigator.language || '').toLowerCase();
+    const lang = ['ca', 'es', 'en'].includes(q) ? q : nav.startsWith('ca') ? 'ca' : nav.startsWith('en') ? 'en' : 'es';
+    window.location.replace(`/inicio-${lang}.html${hash}`);
+  }, [search, hash]);
+  return <div className="ds-page" aria-busy="true" />;
+}
+
 /** /canal/:slug/denuncia (la dirección de antes) → /canal/:slug/formulario, con el idioma */
 function ToForm() {
   const { search } = useLocation();
@@ -109,9 +131,16 @@ function prefetchNext() {
 // las redirecciones de los correos de Supabase (/admin/login, /admin/reset-password) siguen funcionando.
 // La versión anterior se puede recuperar con el tag de git "pre-rediseno".
 export default function App() {
+  // Espera a que la página haya cargado del todo (y el navegador esté libre): así no quita ancho de banda a lo que hace
+  // falta para pintar la primera pantalla
   useEffect(() => {
-    const id = 'requestIdleCallback' in window ? window.requestIdleCallback(prefetchNext, { timeout: 4000 }) : setTimeout(prefetchNext, 2000);
-    return () => ('cancelIdleCallback' in window ? window.cancelIdleCallback(id) : clearTimeout(id));
+    let id = null;
+    const idle = () => { id = 'requestIdleCallback' in window ? window.requestIdleCallback(prefetchNext, { timeout: 4000 }) : setTimeout(prefetchNext, 2000); };
+    if (document.readyState === 'complete') idle(); else window.addEventListener('load', idle, { once: true });
+    return () => {
+      window.removeEventListener('load', idle);
+      if (id != null) ('cancelIdleCallback' in window ? window.cancelIdleCallback(id) : clearTimeout(id));
+    };
   }, []);
   return (
     <BrowserRouter>
@@ -132,9 +161,9 @@ export default function App() {
 
         {/* Todo lo que no es el canal: nunca dentro de otra web */}
         <Route element={<NotFramed />}>
+          <Route path="/" element={<ToLanding />} />
           {/* Web de Reportia y acceso */}
           <Route element={page(<V2SiteLayout />)}>
-            <Route path="/" element={page(<V2Landing />)} />
             <Route path="/crear-compte" element={page(<V2Signup />)} />
             <Route path="/privacitat" element={page(<V2Privacy />)} />
             <Route path="*" element={page(<V2NotFound />)} />

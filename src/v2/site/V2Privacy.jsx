@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { ChevronDown, ChevronLeft } from 'lucide-react';
 import { translations } from '../../translations.js';
+import './texts.js'; // los textos de la web (src/translations-site.js)
 import { ICON, Stable } from '../V2Layout.jsx';
 import './site.css';
 
@@ -121,7 +122,7 @@ export default function V2Privacy() {
                 <ChevronLeft {...ICON} />{st(P => P.back)}
               </button>
             ) : (
-              <Link className="v2-btn v2-btn-secondary icon-lead" to="/"><ChevronLeft {...ICON} />{st(P => P.back)}</Link>
+              <Link className="v2-btn v2-btn-secondary icon-lead" reloadDocument to={`/?lang=${lang}`}><ChevronLeft {...ICON} />{st(P => P.back)}</Link>
             )}
           </div>
         </div>

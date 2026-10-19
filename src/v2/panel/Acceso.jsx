@@ -1,22 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
-import { Turnstile } from '@marsidev/react-turnstile';
 import { ArrowLeft, ArrowRight, CircleAlert } from 'lucide-react';
 import { translations } from '../../translations.js';
 import './texts.js'; // textos del panel (lado Gestionar)
 import { signInAdmin, getAdminSession, getMfaState, verifyLoginCode, signOutAdmin, getOrganizationBySlug, IS_DEMO } from '../../lib/supabase.js';
 import { LANGS, detectLang, fmt } from '../V2Layout.jsx';
 import { EMAIL_RE, authErrorKey } from '../site/fields.jsx';
-import { SplitShell, BrandLogo, Button, Card, Field, OrgMark, OtpInput, Segmented } from '../ui/index.js';
+import { SplitShell, BrandLogo, Button, Card, Field, OtpInput, ReportiaMark, Segmented } from '../ui/index.js';
+import Captcha, { captchaRequired } from '../ui/Captcha.jsx';
 import { useBrandTheme } from '../lib/brand.js';
 import PasswordField from './PasswordField.jsx';
 import { Tp } from './kit.jsx';
 import './panel.css';
 
 const LANG_KEY = 'reportia-panel-lang';
-// Si la comprobación contra robots no carga en este tiempo (bloqueada, sin red), no impide entrar:
-// la contraseña y los dos pasos siguen siendo la barrera real
-const TURNSTILE_TIMEOUT = 12000;
 const AUTH_ERR = { errCredentials: 'errLogin', errUnconfirmed: 'errConfirm', errRate: 'errRate' };
 
 /**
@@ -59,7 +56,7 @@ export function AccessLayout() {
       manage={(
         <>
           <header className="ac-head">
-            <div className="pn-brand">{org ? <span className="ds-brand"><BrandLogo org={org} /><b title={org.name}>{org.name}</b></span> : <><OrgMark name="Reportia" /><b>Reportia</b></>}</div>
+            <div className="pn-brand">{org ? <span className="ds-brand"><BrandLogo org={org} /><b title={org.name}>{org.name}</b></span> : <ReportiaMark />}</div>
             <Segmented
               tone="plain" label={p.language} value={lang} onChange={setLang}
               options={LANGS.map(l => ({ value: l, label: l.toUpperCase(), ariaLabel: `${l.toUpperCase()} · ${translations[l].langName}`, lang: l }))}
@@ -69,9 +66,9 @@ export function AccessLayout() {
             <Card className="ac-card"><Outlet context={{ lang, org, from }} /></Card>
             {org
               ? <Link className="ac-back" to={`/canal/${org.slug}?lang=${lang}`}><ArrowLeft size={14} strokeWidth={1.8} aria-hidden="true" />{T.canal.backHome}</Link>
-              : <Link className="ac-back" to={`/?lang=${lang}`}><ArrowLeft size={14} strokeWidth={1.8} aria-hidden="true" />{p.homeAria}</Link>}
+              : <Link className="ac-back" reloadDocument to={`/?lang=${lang}`}><ArrowLeft size={14} strokeWidth={1.8} aria-hidden="true" />{p.homeAria}</Link>}
           </div>
-          <div className="ac-foot"><Link className="ac-by" to={`/?lang=${lang}`}>{p.byReportia}</Link></div>
+          <div className="ac-foot"><Link className="ac-by" reloadDocument to={`/?lang=${lang}`}>{p.byReportia}</Link></div>
         </>
       )}
     />
@@ -96,12 +93,10 @@ export default function Acceso() {
   const [code, setCode] = useState('');
   const [codeErr, setCodeErr] = useState('');
   const [help, setHelp] = useState(false);
+  // La comprobación contra robots (n.º 71): con la clave puesta, sin token no se entra (Supabase lo rechazaría igual)
+  const needsCaptcha = captchaRequired(IS_DEMO);
   const [token, setToken] = useState(null);
-  // En la demo no hay comprobación contra robots
-  const [captchaOff, setCaptchaOff] = useState(IS_DEMO || !import.meta.env.VITE_TURNSTILE_SITE_KEY);
-  const [widgetLoaded, setWidgetLoaded] = useState(false);
-  const turnstileRef = useRef(null);
-  const [narrow] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 420px)').matches);
+  const [captchaRound, setCaptchaRound] = useState(0);
 
   useEffect(() => { document.title = `${step === 'code' ? p.codeTitle : p.accessTitle} · ${org?.name ?? 'Reportia'}`; }, [p, org, step]);
 
@@ -117,12 +112,6 @@ export default function Acceso() {
     return () => { cancelled = true; };
   }, [navigate, target]);
 
-  useEffect(() => {
-    if (widgetLoaded || captchaOff) return undefined;
-    const id = setTimeout(() => setCaptchaOff(true), TURNSTILE_TIMEOUT);
-    return () => clearTimeout(id);
-  }, [widgetLoaded, captchaOff]);
-
   async function submit(e) {
     e.preventDefault();
     if (loading) return;
@@ -133,14 +122,15 @@ export default function Acceso() {
     setSubmitError('');
     if (er.email) { document.getElementById('ac-email')?.focus(); return; }
     if (er.password) { document.getElementById('ac-pw')?.focus(); return; }
-    if (!token && !captchaOff) { setSubmitError(p.errCaptcha); return; }
+    if (needsCaptcha && !token) { setSubmitError(p.errCaptcha); return; }
     setLoading(true);
-    const { error } = await signInAdmin(email.trim(), password);
+    const { error } = await signInAdmin(email.trim(), password, needsCaptcha ? token : undefined);
     setLoading(false);
     if (error) {
-      setSubmitError(p[AUTH_ERR[authErrorKey(error)] ?? 'errGeneric']);
-      setToken(null);
-      turnstileRef.current?.reset();
+      const key = authErrorKey(error);
+      setSubmitError(key === 'errCaptcha' ? translations[lang].v2.captchaRejected : p[AUTH_ERR[key] ?? 'errGeneric']);
+      // El token ya se ha gastado: se pide otro
+      if (needsCaptcha) setCaptchaRound(n => n + 1);
       return;
     }
     const mfa = await getMfaState();
@@ -203,19 +193,9 @@ export default function Acceso() {
           id="ac-pw" labels={{ show: p.showPw, hide: p.hidePw }} label={p.password} value={password} error={errors.password} autoComplete="current-password"
           onChange={e => { setPassword(e.target.value); if (errors.password) setErrors(x => ({ ...x, password: null })); }}
         />
-        {!captchaOff && (
-          <div className="ac-captcha" aria-label={translations[lang].v2.verifying}>
-            <Turnstile
-              ref={turnstileRef} siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
-              options={{ language: lang, size: narrow ? 'compact' : 'normal' }}
-              scriptOptions={{ onError: () => setCaptchaOff(true) }}
-              onWidgetLoad={() => setWidgetLoaded(true)} onSuccess={setToken}
-              onError={() => { setToken(null); setCaptchaOff(true); }} onUnsupported={() => setCaptchaOff(true)} onExpire={() => setToken(null)}
-            />
-          </div>
-        )}
+        <Captcha lang={lang} demo={IS_DEMO} onToken={setToken} resetKey={captchaRound} className="ac-captcha" />
         {submitError && <p className="ac-error" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />{submitError}</p>}
-        <Button type="submit" variant="report" size="lg" full busy={loading} disabled={!token && !captchaOff && !loading} iconEnd={<ArrowRight size={16} strokeWidth={1.8} aria-hidden="true" />}>
+        <Button type="submit" variant="report" size="lg" full busy={loading} disabled={needsCaptcha && !token && !loading} iconEnd={<ArrowRight size={16} strokeWidth={1.8} aria-hidden="true" />}>
           <Tp lang={lang} k={loading ? 'entering' : 'enter'} />
         </Button>
         <div className="ac-row">

@@ -15,9 +15,8 @@ import { unaccent } from '@electric-sql/pglite/contrib/unaccent';
 
 const MIG = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'supabase', 'migrations');
 const upTo = process.argv[2] ? Number(process.argv[2]) : 999;
-const db = new PGlite({ extensions: { unaccent } });
-
-await db.exec(`
+// El esqueleto mínimo de Supabase (roles, auth y storage). Se usa también para las bases de datos nuevas de la 019
+const SKELETON = `
   create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
   create schema auth; create schema storage; create schema extensions;
   create table auth.users (id uuid primary key default gen_random_uuid(), email text unique, raw_user_meta_data jsonb default '{}', last_sign_in_at timestamptz);
@@ -34,33 +33,49 @@ await db.exec(`
   alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
   -- del supabase_schema.sql original (subida de adjuntos)
   create policy "allow_upload_attachments" on storage.objects for insert with check (bucket_id = 'attachments');
-`);
-
+`;
 const files = fs.readdirSync(MIG).filter(f => f.endsWith('.sql')).sort();
+/** Una base de datos nueva con las migraciones hasta la n.º «hasta» (y, si se pide, algo antes de ellas) */
+async function newDb(hasta, antes = '') {
+  const pg = new PGlite({ extensions: { unaccent } });
+  await pg.exec(SKELETON + antes);
+  for (const f of files) {
+    if (Number(f.slice(0, 3)) > hasta) continue;
+    await pg.exec(fs.readFileSync(path.join(MIG, f), 'utf8'));
+  }
+  return pg;
+}
+
+// La base de datos principal llega hasta la 018: las pruebas de siempre buscan las denuncias por su huella sin secreto.
+// La 019 (huella con secreto) se prueba más abajo en bases de datos propias, con denuncias de antes y de después
+const MAIN_UPTO = Math.min(upTo, 18);
+const db = new PGlite({ extensions: { unaccent } });
+await db.exec(SKELETON);
 for (const f of files) {
-  if (Number(f.slice(0, 3)) > upTo) continue;
+  if (Number(f.slice(0, 3)) > MAIN_UPTO) continue;
   try { await db.exec(fs.readFileSync(path.join(MIG, f), 'utf8')); }
   catch (e) { console.error('✗ migración', f, '→', e.message); process.exit(1); }
 }
-console.log('migraciones aplicadas hasta', Math.min(upTo, Number(files.at(-1).slice(0, 3))));
+console.log('migraciones aplicadas hasta', Math.min(MAIN_UPTO, Number(files.at(-1).slice(0, 3))), upTo >= 19 ? '(la 019 y siguientes, en bases de datos aparte)' : '');
 
 // ── utilidades ──
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => { if (cond) { pass++; console.log('  ✓', name); } else { fail++; console.log('  ✗', name, extra); } };
-/** Ejecuta sql como un rol y un usuario; devuelve { rows, error } */
-async function as(role, uid, sql, params = [], aal = 'aal2') {
-  await db.exec('begin');
+/** Ejecuta sql en una base de datos como un rol y un usuario; devuelve { rows, error } */
+async function asOn(pg, role, uid, sql, params = [], aal = 'aal2') {
+  await pg.exec('begin');
   try {
     const claims = uid ? JSON.stringify({ sub: uid, role, aal }) : '';
-    await db.exec(`set local role ${role}; select set_config('request.jwt.claim.sub', '${uid ?? ''}', true); select set_config('request.jwt.claims', '${claims}', true);`);
-    const r = await db.query(sql, params);
-    await db.exec('commit');
+    await pg.exec(`set local role ${role}; select set_config('request.jwt.claim.sub', '${uid ?? ''}', true); select set_config('request.jwt.claims', '${claims}', true);`);
+    const r = await pg.query(sql, params);
+    await pg.exec('commit');
     return { rows: r.rows, count: r.affectedRows ?? r.rows.length, error: null };
   } catch (e) {
-    await db.exec('rollback');
+    await pg.exec('rollback');
     return { rows: [], count: 0, error: e.message };
   }
 }
+const as = (...a) => asOn(db, ...a);
 const anon = (sql, p) => as('anon', null, sql, p);
 const user = (uid, sql, p) => as('authenticated', uid, sql, p);            // con verificación en dos pasos
 const user1 = (uid, sql, p) => as('authenticated', uid, sql, p, 'aal1');   // solo con contraseña
@@ -619,6 +634,159 @@ if (upTo >= 17) {
   ok('sin sesión, una dirección propia lleva al canal de su empresa', found.rows[0]?.slug === slugA, JSON.stringify(found));
   ok('una dirección que no es de nadie no lleva a ningún canal', (await anon(`select get_organization_slug_by_domain('otra.web.es') as slug`)).rows[0]?.slug === null);
   ok('la dirección no se lee de la tabla sin sesión', (await anon(`select custom_domain from organizations`)).rows.length === 0);
+}
+
+// ── Pie «Con Reportia» (018) ────────────────────────────────────────────
+if (upTo >= 18) {
+  console.log('\nPie «Con Reportia» (018)');
+  const MIG18 = path.join(MIG, '018_pie_reportia.sql');
+  if (fs.existsSync(MIG18)) { await db.exec(fs.readFileSync(MIG18, 'utf8')); ok('la 018 se puede ejecutar dos veces', true); }
+  else ok('existe la migración 018', false);
+  const slugA = (await svc(`select slug from organizations where id = $1`, [orgA]))[0].slug;
+  ok('todas las empresas empiezan con el pie visible', (await svc(`select bool_and(show_powered_by) v from organizations`))[0].v === true);
+  ok('el administrador no lo quita desde el panel', !!(await user(adminA, `update organizations set show_powered_by = false where id = $1`, [orgA])).error);
+  ok('…y sigue cambiando lo demás', !(await user(adminA, `update organizations set brand_palette = 'bosque' where id = $1`, [orgA])).error);
+  ok('Reportia sí lo quita (clave de servicio)', (await svc(`update organizations set show_powered_by = false where id = $1 returning id`, [orgA])).length === 1);
+  const pub = (await anon(`select * from get_organization_by_slug($1)`, [slugA])).rows[0] ?? {};
+  ok('el canal lo lee junto con la marca', pub.show_powered_by === false && pub.brand_palette === 'bosque', JSON.stringify(Object.keys(pub)));
+  const sinPie = await newDb(17);
+  let paro = null;
+  try { await sinPie.exec(`update organizations set name = name`); await sinPie.exec(fs.readFileSync(MIG18, 'utf8')); } catch (e) { paro = e.message; }
+  ok('con la 016 ya ejecutada, la 018 entra sin problemas', paro === null, paro);
+  const sin16 = await newDb(15);
+  paro = null;
+  try { await sin16.exec(fs.readFileSync(MIG18, 'utf8')); } catch (e) { paro = e.message; }
+  const tocado = (await sin16.query(`select count(*)::int n from information_schema.columns where table_name = 'organizations' and column_name = 'show_powered_by'`)).rows[0].n;
+  ok('…y si falta la 016 dice cuál ejecutar antes', /016/.test(paro ?? '') && tocado === 0, paro);
+}
+
+// ── Huella del código con secreto (019) ─────────────────────────────────
+if (upTo >= 19) {
+  console.log('\nHuella del código con secreto (019)');
+  const MIG19 = fs.readFileSync(path.join(MIG, '019_huella_con_secreto.sql'), 'utf8');
+  const RB = (f) => fs.readFileSync(path.join(MIG, '..', 'rollback', f), 'utf8');
+  const crypto = await import('node:crypto');
+  const sha = (c) => crypto.createHash('sha256').update(c.toUpperCase().replace(/[^A-Z0-9]/g, '')).digest('hex');
+
+  // Una base de datos «de antes» (hasta la 018) con denuncias guardadas con la huella de siempre
+  const pg = await newDb(18);
+  const q = async (sql, p) => (await pg.query(sql, p)).rows;
+  const an = (sql, p) => asOn(pg, 'anon', null, sql, p);
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('jefa@h.es', '{"company_name":"Empresa H","full_name":"Jefa H"}')`);
+  const [{ organization_id: orgH }] = await q(`select p.organization_id from profiles p join auth.users u on u.id = p.id where u.email = 'jefa@h.es'`);
+  const [{ id: jefa }] = await q(`select id from auth.users where email = 'jefa@h.es'`);
+  const old1 = crypto.randomUUID();
+  await an(`insert into complaints (id, tracking_hash, organization_id, category, description) values ($1, $2, $3, 'fraud', 'Antes de la 019')`, [old1, sha('OLD1-AAAA'), orgH]);
+  const old2 = (await an(`select submit_complaint($1, $2, 'safety', 'Otra de antes', true, null, null, null, null, null, null, 'es', false, null) as id`, [orgH, sha('OLD2-BBBB')])).rows[0]?.id;
+  const old3 = crypto.randomUUID();
+  await an(`insert into complaints (id, tracking_hash, organization_id, category, description) values ($1, $2, $3, 'data', 'Nadie la consulta')`, [old3, sha('OLD3-CCCC'), orgH]);
+  // Una fecha de «última actualización» antigua (sin el disparador que la pone al día)
+  await q(`alter table complaints disable trigger set_updated_at`);
+  await q(`update complaints set updated_at = '2026-09-01T10:00:00Z' where id = $1`, [old1]);
+  await q(`alter table complaints enable trigger set_updated_at`);
+  ok('antes de la 019 las huellas son SHA-256 sin secreto', (await q(`select tracking_hash h from complaints where id = $1`, [old1]))[0].h === sha('OLD1-AAAA'));
+
+  // La copia de seguridad, la 019 y la 019 otra vez
+  await pg.exec(RB('019_copia_antes.sql'));
+  await pg.exec(RB('019_copia_antes.sql'));
+  ok('la copia de seguridad tiene todas las denuncias y se puede repetir', (await q(`select count(*)::int n from private.complaints_copia_019`))[0].n === 3);
+  await pg.exec(MIG19);
+  const pepper = (await q(`select value from private.app_secrets where name = 'tracking_pepper'`))[0]?.value;
+  await pg.exec(MIG19);
+  ok('la 019 se puede ejecutar dos veces y el secreto no cambia', pepper && (await q(`select value from private.app_secrets where name = 'tracking_pepper'`))[0].value === pepper);
+  const keyed = (c) => crypto.createHmac('sha256', Buffer.from(pepper, 'utf8')).update(sha(c)).digest('hex');
+  ok('ejecutarla no transforma nada en bloque', (await q(`select count(*)::int n from complaints where tracking_hash in ($1, $2, $3)`, [sha('OLD1-AAAA'), sha('OLD2-BBBB'), sha('OLD3-CCCC')]))[0].n === 3);
+  ok('el HMAC de la base de datos es el estándar (RFC 2104, igual que Node)', (await q(`select tracking_key($1) k`, [sha('OLD1-AAAA')]))[0].k === keyed('OLD1-AAAA'));
+
+  // Código viejo: se encuentra, se reescribe una sola vez y sin moverle la fecha
+  const logsAntes = (await q(`select count(*)::int n from audit_logs where complaint_id = $1`, [old1]))[0].n;
+  const v1 = await an(`select * from get_complaint_by_tracking_code('old1-aaaa')`);
+  ok('código viejo: se encuentra', v1.rows.length === 1 && v1.rows[0].category === 'fraud', JSON.stringify(v1));
+  const r1 = (await q(`select tracking_hash h, updated_at u from complaints where id = $1`, [old1]))[0];
+  ok('…y su huella queda reescrita con el secreto', r1.h === keyed('OLD1-AAAA'));
+  ok('…sin cambiar su fecha de última actualización', new Date(r1.u).toISOString() === '2026-09-01T10:00:00.000Z', String(r1.u));
+  ok('…ni dejar nada en el historial del caso', (await q(`select count(*)::int n from audit_logs where complaint_id = $1`, [old1]))[0].n === logsAntes);
+  ok('código reescrito: se sigue encontrando', (await an(`select * from get_complaint_by_tracking_code('OLD1-AAAA')`)).rows.length === 1);
+  ok('código reescrito: mensajes y reunión funcionan', !(await an(`select send_reporter_message('OLD1-AAAA', 'Más datos')`)).error
+    && (await an(`select * from get_messages_by_tracking_code('OLD1-AAAA')`)).rows.length === 1
+    && !(await an(`select request_meeting_by_code('OLD1-AAAA')`)).error);
+  ok('código viejo que nadie consulta: se queda como estaba', (await q(`select tracking_hash h from complaints where id = $1`, [old3]))[0].h === sha('OLD3-CCCC'));
+  ok('código viejo enviado con submit_complaint: también se encuentra', (await an(`select * from get_messages_by_tracking_code('OLD2-BBBB')`)).error === null
+    && (await q(`select tracking_hash h from complaints where id = $1`, [old2]))[0].h === keyed('OLD2-BBBB'));
+
+  // Código nuevo: nace con el secreto
+  const n1 = (await an(`select submit_complaint($1, $2, 'fraud', 'Después de la 019', true, null, null, null, null, null, null, 'es', false, null) as id`, [orgH, sha('NEW1-DDDD')])).rows[0]?.id;
+  ok('código nuevo: se guarda ya con el secreto', (await q(`select tracking_hash h from complaints where id = $1`, [n1]))[0]?.h === keyed('NEW1-DDDD'));
+  ok('código nuevo: se encuentra', (await an(`select * from get_complaint_by_tracking_code('NEW1-DDDD')`)).rows.length === 1);
+  ok('el mismo envío repetido devuelve la misma denuncia', (await an(`select submit_complaint($1, $2, 'fraud', 'Después de la 019', true, null, null, null, null, null, null, 'es', false, null) as id`, [orgH, sha('NEW1-DDDD')])).rows[0]?.id === n1);
+  ok('un envío distinto con el mismo código se rechaza', /code-conflict/.test(String((await an(`select submit_complaint($1, $2, 'data', 'Otra cosa', true, null, null, null, null, null, null, 'es', false, null)`, [orgH, sha('NEW1-DDDD')])).error)));
+  ok('un código que ya existe con la huella de antes no se puede repetir', !!(await an(`insert into complaints (tracking_hash, organization_id, category, description) values ($1, $2, 'fraud', 'x')`, [sha('OLD3-CCCC'), orgH])).error);
+  const n2 = crypto.randomUUID();
+  await an(`insert into complaints (id, tracking_hash, organization_id, category, description) values ($1, $2, $3, 'fraud', 'Por el otro camino')`, [n2, sha('NEW2-EEEE'), orgH]);
+  ok('código nuevo por el otro camino (inserción directa): también con el secreto', (await q(`select tracking_hash h from complaints where id = $1`, [n2]))[0]?.h === keyed('NEW2-EEEE'));
+  const reg = await asOn(pg, 'authenticated', jefa, `select register_complaint('safety', 'Llamada a recepción con hechos concretos.', 'phone', now(), true, null, null, null, null, null, null, 'es', $1, null) as id`, [sha('REGI-FFFF')]);
+  ok('caso registrado desde el panel: también con el secreto', !reg.error && (await q(`select tracking_hash h from complaints where id = $1`, [reg.rows[0]?.id]))[0]?.h === keyed('REGI-FFFF'), reg.error);
+
+  // Lo que no se puede
+  ok('un código que no existe no se encuentra y cuenta como intento', (await an(`select * from get_complaint_by_tracking_code('NOPE-0000')`)).rows.length === 0
+    && (await q(`select coalesce(sum(failures), 0)::int n from code_attempts`))[0].n >= 1);
+  ok('desde el navegador no se lee el secreto', !!(await an(`select value from private.app_secrets`)).error && !!(await asOn(pg, 'authenticated', jefa, `select value from private.app_secrets`)).error);
+  ok('desde el navegador no se calcula la huella con secreto', !!(await an(`select tracking_key('abc')`)).error && !!(await an(`select find_complaint_by_code('OLD3-CCCC')`)).error);
+  await q(`update complaints set anonymized_at = now(), tracking_hash = 'anon-' || id::text where id = $1`, [n2]);
+  ok('una denuncia con los datos suprimidos no se encuentra', (await an(`select * from get_complaint_by_tracking_code('NEW2-EEEE')`)).rows.length === 0);
+
+  // Vuelta atrás
+  await pg.exec(RB('019_atras.sql'));
+  await pg.exec(RB('019_atras.sql'));
+  ok('vuelta atrás: se puede ejecutar dos veces', true);
+  ok('vuelta atrás: las reescritas vuelven a su huella de antes', (await q(`select tracking_hash h from complaints where id = $1`, [old1]))[0].h === sha('OLD1-AAAA')
+    && (await q(`select tracking_hash h from complaints where id = $1`, [old2]))[0].h === sha('OLD2-BBBB'));
+  ok('vuelta atrás: las que nacieron con secreto se siguen encontrando', (await an(`select * from get_complaint_by_tracking_code('NEW1-DDDD')`)).rows.length === 1);
+  ok('vuelta atrás: las de antes también', (await an(`select * from get_complaint_by_tracking_code('OLD1-AAAA')`)).rows.length === 1
+    && (await q(`select tracking_hash h from complaints where id = $1`, [old1]))[0].h === sha('OLD1-AAAA'));
+  const n3 = crypto.randomUUID();
+  await an(`insert into complaints (id, tracking_hash, organization_id, category, description) values ($1, $2, $3, 'fraud', 'Después de volver atrás')`, [n3, sha('NEW3-GGGG'), orgH]);
+  ok('vuelta atrás: las nuevas vuelven a guardarse sin secreto', (await q(`select tracking_hash h from complaints where id = $1`, [n3]))[0]?.h === sha('NEW3-GGGG'));
+
+  // Con el almacén cifrado de Supabase (Vault): el secreto va allí y no a la tabla
+  const VAULT = `
+    create schema vault;
+    create table vault.secrets (id uuid primary key default gen_random_uuid(), name text unique, secret text, description text);
+    create view vault.decrypted_secrets as select id, name, secret as decrypted_secret from vault.secrets;
+    create function vault.create_secret(new_secret text, new_name text default null, new_description text default '') returns uuid
+      language sql as $$ insert into vault.secrets (name, secret, description) values (new_name, new_secret, new_description) returning id $$;
+    revoke all on schema vault from public, anon, authenticated;`;
+  const pv = await newDb(18, VAULT);
+  await pv.exec(MIG19);
+  await pv.exec(MIG19);
+  const enVault = (await pv.query(`select count(*)::int n from vault.secrets where name = 'reportia_tracking_pepper'`)).rows[0].n;
+  const enTabla = (await pv.query(`select count(*)::int n from private.app_secrets`)).rows[0].n;
+  ok('con el Vault de Supabase, el secreto se guarda allí (una sola vez) y no en la tabla', enVault === 1 && enTabla === 0, `${enVault} · ${enTabla}`);
+  await pv.exec(`insert into auth.users (email, raw_user_meta_data) values ('v@v.es', '{"company_name":"Empresa V","full_name":"V"}')`);
+  const [{ organization_id: orgV }] = (await pv.query(`select p.organization_id from profiles p join auth.users u on u.id = p.id where u.email = 'v@v.es'`)).rows;
+  await asOn(pv, 'anon', null, `select submit_complaint($1, $2, 'fraud', 'Con Vault', true, null, null, null, null, null, null, 'es', false, null)`, [orgV, sha('VAUL-TTTT')]);
+  ok('…y se encuentra con el código', (await asOn(pv, 'anon', null, `select * from get_complaint_by_tracking_code('VAUL-TTTT')`)).rows.length === 1);
+  ok('sin la 014 se para al principio', await (async () => { const p14 = await newDb(13); try { await p14.exec(MIG19); return false; } catch (e) { return /014/.test(e.message); } })());
+}
+
+// ── Vueltas atrás de la 018, la 017 y la 016 ────────────────────────────
+if (upTo >= 18) {
+  console.log('\nVueltas atrás (018, 017, 016)');
+  const RB = (f) => fs.readFileSync(path.join(MIG, '..', 'rollback', f), 'utf8');
+  const slugA = (await svc(`select slug from organizations where id = $1`, [orgA]))[0].slug;
+  await db.exec(RB('018_atras.sql')); await db.exec(RB('018_atras.sql'));
+  let pub = (await anon(`select * from get_organization_by_slug($1)`, [slugA])).rows[0] ?? {};
+  ok('018 atrás: el canal vuelve a leer la marca sin el ajuste del pie', !('show_powered_by' in pub) && pub.brand_palette === 'bosque');
+  ok('018 atrás: el administrador ya puede tocar la columna (sin uso)', !(await user(adminA, `update organizations set show_powered_by = true where id = $1`, [orgA])).error);
+  await db.exec(RB('017_atras.sql')); await db.exec(RB('017_atras.sql'));
+  ok('017 atrás: la dirección propia ya no lleva a ningún canal', !!(await anon(`select get_organization_slug_by_domain('canal.a.es')`)).error);
+  ok('017 atrás: la dirección se queda guardada', (await svc(`select custom_domain from organizations where id = $1`, [orgA]))[0].custom_domain === 'canal.a.es');
+  await db.exec(RB('016_atras.sql')); await db.exec(RB('016_atras.sql'));
+  pub = (await anon(`select * from get_organization_by_slug($1)`, [slugA])).rows[0] ?? {};
+  ok('016 atrás: el canal vuelve a leer solo nombre, dirección y autoridad', !('brand_palette' in pub) && pub.slug === slugA, Object.keys(pub).join(' '));
+  const cols = (await svc(`select column_name c from information_schema.columns where table_name = 'organizations' and column_name like 'brand%'`)).map(r => r.c).sort().join(' ');
+  ok('016 atrás: la marca no se borra (queda apartada con otro nombre)', cols === 'brand_logo_016 brand_palette_016', cols);
+  ok('016 atrás: la empresa se sigue leyendo entera desde el panel', (await user(adminA, `select * from organizations`)).rows.length === 1);
 }
 
 console.log(`\n${pass} correctas, ${fail} fallidas`);

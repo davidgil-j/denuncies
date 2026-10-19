@@ -45,7 +45,7 @@ cp .env.example .env
 | `VITE_SUPABASE_URL` | Obligatòria en producció. Supabase Dashboard → Project Settings → API |
 | `VITE_SUPABASE_ANON_KEY` | Obligatòria en producció. Project Settings → API → anon/public key |
 | `VITE_PUBLIC_ORIGIN` | Opcional. L'adreça pública per als enllaços, el QR i la vista prèvia en compartir |
-| `VITE_TURNSTILE_SITE_KEY` | Opcional. Antispam al formulari de denúncia i a l'accés (dash.cloudflare.com → Turnstile) |
+| `VITE_TURNSTILE_SITE_KEY` | Opcional. Antispam a l'accés, l'alta i «He oblidat la contrasenya»; mai al canal (dash.cloudflare.com → Turnstile). Posar-la abans d'encendre el captcha a Supabase Auth |
 | `VITE_MAX_FILE_MB` | Opcional. Mida màxima de cada adjunt (50 per defecte) |
 | `VITE_SENTRY_DSN` | Opcional. Avís d'errors al panell i a la web |
 | `VITE_DEMO` | Opcional. `1` = mode demo en un build sense credencials (només per ensenyar la web) |
@@ -76,7 +76,7 @@ supabase link --project-ref zojrqjmauruishfvgdja
 npm run db:migrate
 ```
 
-Són disset (`001` … `017`), additives i repetibles. La `016` (marca blanca: «La teva marca» i «Aparença») i la `017` (adreça pròpia del canal) encara no s'han executat a producció. Si és la primera vegada, totes s'aplicaran en ordre. Si alguna ja existeix al projecte remot, Supabase les saltarà automàticament.
+Són dinou (`001` … `019`), additives i repetibles. La `016` (marca blanca) i la `017` (adreça pròpia del canal) es van executar a producció el 19 d'octubre de 2026; la `018` (peu «Amb Reportia») i la `019` (empremta del codi amb secret) encara no: l'ordre, les comprovacions i la còpia prèvia són a `docs/QUE_TIENE_QUE_HACER_DAVID.md`, i la tornada enrere, a `supabase/rollback/`. Si és la primera vegada, totes s'aplicaran en ordre. Si alguna ja existeix al projecte remot, Supabase les saltarà automàticament.
 
 Abans d'aplicar una migració nova, comprova les regles de seguretat en local (no toca cap base de dades real):
 
@@ -92,7 +92,7 @@ Aplica totes les migracions a un Postgres en memòria i verifica les polítiques
 
 ```bash
 npm run dev
-# → http://localhost:3000
+# → http://localhost:3000 (no obre el navegador). «/» és la portada; la resta, l'aplicació
 ```
 
 Per provar-ho tot sense tocar cap base de dades (mode demo, amb dades d'exemple que es reinicien en tancar la pestanya):
@@ -106,9 +106,9 @@ VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= npx vite --port 3111
 ### 6. Proves
 
 ```bash
-npm run test:logic   # lògica: terminis legals, dies hàbils, neteja de fotos (sense navegador)
+npm run test:logic   # lògica: terminis legals, dies hàbils, neteja de fotos, decisions de producte i portada (sense navegador)
 npm run db:test      # regles de seguretat de la base de dades, en un Postgres en memòria
-npm run e2e          # navegador: el canal i el panell, en mode demo i contra una xarxa simulada
+npm run e2e          # navegador: el canal, el panell i la portada, en mode demo, contra una xarxa simulada i contra una base de dades real local
 ```
 
 Cap de les tres toca Supabase. Les de navegador necessiten Playwright, que s'instal·la fora del repositori: vegeu `e2e/README.md`.
@@ -136,21 +136,25 @@ vercel --prod
 ```
 src/
 ├── App.jsx, main.jsx, entries.js   # Rutes i arrencada (cada zona es descarrega quan cal)
-├── translations.js                 # Textos de la web, el canal i les peces comunes, en ca / es / en
+├── translations.js                 # Textos del canal i les peces comunes, en ca / es / en
 ├── translations-panel.js           # Textos del panell i de les exportacions
+├── translations-site.js            # Textos de la web de Reportia (alta, privacitat, portada)
 ├── lib/supabase.js                 # Totes les crides a la BD (mai cridar Supabase des d'un component)
 ├── lib/                            # demoStore (mode demo), deadlines (terminis), cleanImage (fotos netes)…
 └── v2/
     ├── ds.css, ui/                 # Sistema visual i peces comunes
     ├── canal/                      # Costat Denunciar: entrada, 3 passos, codi i «El meu cas»
     ├── panel/                      # Costat Gestionar: accés, tauler, fitxa del cas, informe, compartir, ajustos
-    ├── site/                       # Web de Reportia: portada, alta i privacitat
+    ├── config/producto.js          # Decisions de negoci (nom, adreça, preus, multa…): docs/DECISIONES_TOMADAS.md
+    ├── landing/                    # La portada: pàgina estàtica per idioma, generada en compilar
+    ├── site/                       # Web de Reportia dins de l'aplicació: alta, privacitat i «no trobada»
     ├── lib/                        # Excel, PDF del cas, informe, cartell i justificant
     └── emails/                     # Plantilles dels correus de Supabase Auth
 
-supabase/migrations/                # 001 … 017, en ordre
+supabase/migrations/                # 001 … 019, en ordre
+supabase/rollback/                  # Còpia abans de la 019 i tornada enrere de la 016 a la 019
 supabase/functions/                 # invite-manager, delete-manager, notify, ai-assist (no desplegada)
-scripts/                            # migracions, proves, tipografia dels PDF, textos sense ús
+scripts/                            # migracions, proves, portada (vite-portada), vídeos (video-demo), correus, tipografia dels PDF, textos sense ús
 e2e/                                # Proves de navegador
 docs/                               # Auditories, pla per fases, textos, IA i dubtes legals
 ```
@@ -161,7 +165,7 @@ El detall de cada carpeta és a `CLAUDE.md`.
 
 | Ruta | Descripció |
 |------|-----------|
-| `/` | Portada comercial |
+| `/` | Portada comercial (pàgina estàtica per idioma: `?lang=ca|es|en` o l'idioma del navegador) |
 | `/crear-compte` | Alta d'una empresa |
 | `/privacitat` | Política de privacitat de Reportia |
 | `/canal/:slug` | Entrada del canal de l'empresa: Denunciar i Gestionar, meitat i meitat |
@@ -184,11 +188,11 @@ El detall de cada carpeta és a `CLAUDE.md`.
 ## Convencions importants
 
 - **JavaScript/JSX only** — no TypeScript (les funcions de servidor sí que són TypeScript de Deno)
-- **Tots els textos en 3 idiomes** (ca/es/en) a `src/translations.js` o `src/translations-panel.js`, i de «tu»
+- **Tots els textos en 3 idiomes** (ca/es/en) a `src/translations.js`, `src/translations-panel.js` o `src/translations-site.js`, i de «tu»
 - **Totes les crides a BD** passen per `src/lib/supabase.js`
 - **Canvis de BD** → sempre amb fitxer de migració a `supabase/migrations/`, additiu i repetible, amb proves a `scripts/test-rls.mjs`
 - **Verificació en dos passos obligatòria** per veure denúncies (també a la base de dades, migració 010)
-- **El codi de seguiment** només el coneix qui denuncia: la base de dades en guarda el hash i el panell usa una referència (REF-XXXXXX)
+- **El codi de seguiment** només el coneix qui denuncia: la base de dades en guarda l'empremta (des de la 019, amb un secret) i el panell usa una referència (REF-XXXXXX)
 - **Mode demo** només en desenvolupament o amb `VITE_DEMO=1`
 - **RLS activat** a totes les taules — mai desactivar ni usar `serviceRole` des del frontend
 - **Les peces del disseny** són a `src/v2/ui` i els colors, a `src/v2/ds.css`

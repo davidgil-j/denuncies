@@ -6,6 +6,8 @@
 //  · Limpieza de fotos de las denuncias anónimas (src/lib/cleanImage.js): sin EXIF, XMP ni texto.
 //  · «Tu marca» (src/v2/lib/brand.js): las ocho paletas, en claro y en oscuro, pasan el contraste, y los colores
 //    por defecto de src/v2/ds.css son los de la paleta azul en claro.
+//  · Decisiones de producto (src/v2/config/producto.js) y la portada (src/v2/landing): coinciden con la base de datos y
+//    con los textos aprobados, la portada sale entera en los tres idiomas y vercel.json da a cada visita su página.
 // Para lo de las zonas horarias se vuelve a lanzar a sí mismo con TZ distintas.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -138,6 +140,37 @@ const azul = themeVars('azul', 'light');
 const differ = Object.keys(azul).filter(k => (defaults[k] ?? '').toUpperCase() !== String(azul[k]).toUpperCase());
 ok('ds.css lleva por defecto los colores de la paleta azul en claro (los mismos que brand.js)', differ.length === 0, differ.map(k => `${k}: ${defaults[k]} ≠ ${azul[k]}`).join(' · '));
 ok('una paleta desconocida se pinta con la azul', themeVars('fucsia', 'light')['--report'] === azul['--report']);
+
+// ── Decisiones de producto y portada ──────────────────────────────────
+{
+  const P = await import('../src/v2/config/producto.js');
+  const { translations } = await import('../src/translations.js');
+  const { siteTexts } = await import('../src/translations-site.js');
+  const T = (l) => ({ ...translations[l], v2site: { ...translations[l].v2site, ...siteTexts[l].v2site } });
+  const m009 = fs.readFileSync(new URL('../supabase/migrations/009_organization_account.sql', import.meta.url), 'utf8');
+  ok(`los días de prueba (${P.DIAS_PRUEBA}) son los de la base de datos (009)`, m009.includes(`set default (now() + interval '${P.DIAS_PRUEBA} days')`));
+  ok('cada plan tiene nombre en los tres idiomas y un precio (o «a medida»)', P.PLANES.every(p => ['ca', 'es', 'en'].every(l => T(l).v2site.landing.plans[p.id]?.name) && (p.precio === null || p.precio > 0)));
+  const nums = { ca: ['600.001', '1.000.000'], es: ['600.001', '1.000.000'], en: ['600,001', '1,000,000'] };
+  ok('la multa de producto.js es la del texto legal aprobado, sin redondear, en los tres idiomas', P.MULTA.minimo === 600001 && P.MULTA.maximo === 1000000
+    && ['ca', 'es', 'en'].every(l => nums[l].every(n => T(l).v2site.landing.oblRefs[3].text.includes(n))));
+  const { generarPortada, LANGS } = await import('../src/v2/landing/generar.js');
+  const { VIDEOS, landingLang } = await import('./vite-portada.mjs');
+  for (const lang of LANGS) {
+    const html = generarPortada({ lang, T: T(lang), P, assets: { css: '', js: '/x.js', font: '/x.woff2', video: VIDEOS, origin: 'https://canal.reportia.es' } });
+    const gaps = html.match(/undefined|\[object Object\]|\bNaN\b|\{[a-z]+\}/g);
+    ok(`portada en ${lang}: entera, sin huecos y con los precios y los artículos de la multa`, !gaps && html.includes(`<html lang="${lang}">`)
+      && ['#a6-5', '#a6-7'].every(a => html.includes(a)) && P.PLANES.filter(p => p.precio).every(p => html.includes(String(p.precio))) && html.length < 120000, gaps?.join(' '));
+  }
+  ok('idioma de la portada: ?lang= manda; si no, el del navegador; castellano por defecto', landingLang('en', 'ca-ES') === 'en' && landingLang(null, 'ca-ES,ca') === 'ca'
+    && landingLang(null, 'en-GB') === 'en' && landingLang(null, 'fr-FR') === 'es' && landingLang(null, '') === 'es');
+  const { resolveFile } = await import('../e2e/lib/vercel.mjs');
+  const empty = fs.mkdtempSync(`${(await import('node:os')).tmpdir()}/reportia-vercel-`);
+  const page = (p, headers = {}) => (resolveFile(empty, { headers: { host: 'canal.reportia.es', ...headers } }, new URL(p, 'http://x')).file ?? '').replace(empty, '');
+  ok('vercel.json: la raíz da la portada del idioma (y la dirección propia de una empresa, su canal)', page('/') === '/inicio-es.html' && page('/', { 'accept-language': 'ca-ES' }) === '/inicio-ca.html'
+    && page('/?lang=en') === '/inicio-en.html' && page('/', { host: 'canal.acme.es' }) === '/canal.html');
+  ok('vercel.json: el canal con su página y lo demás con la aplicación', page('/canal/acme') === '/canal.html' && page('/admin/login') === '/app.html' && page('/crear-compte') === '/app.html');
+  fs.rmSync(empty, { recursive: true, force: true });
+}
 
 console.log(`  ${pass} correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

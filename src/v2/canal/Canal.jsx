@@ -73,7 +73,7 @@ export default function Canal() {
 
   const banner = org?.is_example && status === 'ready' && (
     <>
-      <Link to={leaveCanal(`/?lang=${lang}`)} {...(inFrame() ? { target: '_blank', rel: 'noopener noreferrer' } : {})}><ArrowLeft size={15} strokeWidth={2.2} aria-hidden="true" /><Stable lang={lang} pick={T => T.v2.exampleBack} /></Link>
+      <Link reloadDocument to={leaveCanal(`/?lang=${lang}`)} {...(inFrame() ? { target: '_blank', rel: 'noopener noreferrer' } : {})}><ArrowLeft size={15} strokeWidth={2.2} aria-hidden="true" /><Stable lang={lang} pick={T => T.v2.exampleBack} /></Link>
       <Tc lang={lang} k="exampleNote" />
     </>
   );

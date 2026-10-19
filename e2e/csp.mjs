@@ -9,6 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from './lib/playwright.mjs';
+import { serveLikeVercel } from './lib/vercel.mjs';
 
 const OUT = process.argv[2] ?? os.tmpdir();
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -25,22 +26,12 @@ const build = spawnSync(process.execPath, [path.join(ROOT, 'node_modules/vite/bi
 });
 if (build.status !== 0) { console.log(`PROBLEMAS: no compila\n${build.stderr.slice(-800)}`); process.exit(1); }
 
-// ── Servirla con las cabeceras de vercel.json: las de todo menos el canal y las del canal (que sí se puede incrustar) ──
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.woff': 'font/woff', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.json': 'application/json' };
-const base = vercel.headers.find(h => h.source === '/((?!canal/).*)').headers;
+// ── Servirla como Vercel: los archivos, las reescrituras y las cabeceras de vercel.json (e2e/lib/vercel.mjs) ──
 // El canal deja que lo incruste cualquier web con https; aquí la «web de la empresa» es http://localhost:4191
-const canalHeaders = vercel.headers.find(h => h.source === '/canal/(.*)').headers
-  .map(h => (h.key === 'Content-Security-Policy' ? { ...h, value: h.value.replace('frame-ancestors https:', 'frame-ancestors http://localhost:4191') } : h));
-const server = http.createServer((req, res) => {
-  const url = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-  let file = path.join(DIST, url);
-  // Como las reescrituras de vercel.json: el canal de cada empresa con su página (canal.html) y el resto con index.html
-  if (!file.startsWith(DIST) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(DIST, url.startsWith('/canal/') ? 'canal.html' : 'index.html');
-  for (const { key, value } of url.startsWith('/canal/') ? canalHeaders : base) if (key !== 'Strict-Transport-Security') res.setHeader(key, value.replace('; upgrade-insecure-requests', ''));
-  res.setHeader('Content-Type', MIME[path.extname(file)] ?? 'application/octet-stream');
-  fs.createReadStream(file).pipe(res);
+const server = await serveLikeVercel({
+  dist: DIST, port: 4190,
+  header: (key, value) => (key === 'Content-Security-Policy' ? value.replace('frame-ancestors https:', 'frame-ancestors http://localhost:4191') : value),
 });
-await new Promise(r => server.listen(4190, r));
 const APP = 'http://localhost:4190';
 // La web de una empresa que pone el canal (y, por error o con mala intención, el acceso al panel) dentro de un recuadro
 const outside = http.createServer((req, res) => {
@@ -109,13 +100,21 @@ page.on('console', m => { if (m.type() === 'error' && /Content Security Policy|R
 const violations = async (where) => { const v = await page.evaluate(() => window.__csp.splice(0)); ok(`${where}: sin bloqueos de la política`, v.length === 0, v.join(' · ')); };
 const save = async (fn) => { const [d] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), fn()]); return d.suggestedFilename(); };
 
-for (const [route, sel] of [['/', 'h1'], ['/crear-compte', 'form'], ['/privacitat', 'h1']]) {
+for (const [route, sel] of [['/', '.lp-hero h1'], ['/crear-compte', 'form'], ['/privacitat', 'h1']]) {
   await page.goto(`${APP}${route}?lang=es`, { waitUntil: 'networkidle' });
   await page.waitForSelector(sel);
   await page.evaluate(() => document.fonts.ready);
   ok(`${route}: las tipografías se cargan`, await page.evaluate(() => [...document.fonts].some(f => f.status === 'loaded')));
   await violations(route);
 }
+// La portada es la página estática del idioma, sin la aplicación (src/v2/landing)
+await page.goto(`${APP}/?lang=ca`, { waitUntil: 'networkidle' });
+ok('portada: es la página estática del idioma, sin la aplicación', await page.locator('#root').count() === 0 && (await page.getAttribute('html', 'lang')) === 'ca');
+await page.goto(`${APP}/crear-compte?lang=es`, { waitUntil: 'networkidle' });
+await page.locator('.v2-site-brand').click();
+await page.waitForSelector('.lp-hero h1');
+ok('desde el alta, la marca lleva a la portada (página entera)', new URL(page.url()).pathname === '/' && await page.locator('#root').count() === 0);
+await violations('portada desde el alta');
 
 // Canal: la página que se comparte no lleva Reportia (marca blanca), y sí el logo y el color de la empresa
 // (con http.get: el fetch de Node no deja pedir al puerto 4190)
@@ -218,8 +217,10 @@ ok('dirección propia: «Acceder» lleva a la dirección principal', /^https:\/\
 const toMain = p2.waitForRequest(r => r.isNavigationRequest() && /^https:\/\/[^/]+\/admin$/.test(r.url()), { timeout: 10000 }).catch(() => null);
 await p2.goto('http://canal.acme.test:4190/admin').catch(() => {});
 ok('dirección propia: el panel se abre en la dirección principal', !!(await toMain));
-await p2.goto('http://otra.test:4190/?lang=es', { waitUntil: 'networkidle' });
-ok('una dirección que no es de ninguna empresa enseña la web de siempre', await p2.locator('.v2 h1').first().isVisible({ timeout: 10000 }).catch(() => false));
+const toLanding = p2.waitForRequest(r => r.isNavigationRequest() && /^https:\/\/[^/]+\/\?lang=es$/.test(r.url()), { timeout: 10000 }).catch(() => null);
+await p2.goto('http://otra.test:4190/?lang=es').catch(() => {});
+const landingReq = await toLanding;
+ok('una dirección que no es de ninguna empresa lleva a la portada de la dirección principal', !!landingReq && !landingReq.url().includes('otra.test'), landingReq?.url());
 await b2.close();
 
 await browser.close();

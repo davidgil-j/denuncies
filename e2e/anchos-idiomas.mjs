@@ -1,7 +1,7 @@
 import { chromium } from './lib/playwright.mjs';
 const browser = await chromium.launch();
 const problems = [];
-const ROUTES = [['/admin', '.pn-notice'], ['/admin/report', '.rp-figs dd'], ['/admin/integration', '.sh-qr img'], ['/admin/ajustes', '.tm-list li'], ['/admin/mfa', '.sg-state'], ['/canal/demo?lang=es', '.ds-hero']];
+const ROUTES = [['/?lang=es', '.lp-hero h1'], ['/admin', '.pn-notice'], ['/admin/report', '.rp-figs dd'], ['/admin/integration', '.sh-qr img'], ['/admin/ajustes', '.tm-list li'], ['/admin/mfa', '.sg-state'], ['/canal/demo?lang=es', '.ds-hero']];
 for (const [w, h, touch] of [[320, 640, true], [375, 812, true], [414, 896, true], [768, 1024, true], [1024, 768, false], [1280, 800, false], [1366, 768, false], [1440, 900, false], [1920, 1080, false]]) {
   for (const lang of ['es', 'ca', 'en']) {
     const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: touch, isMobile: touch && w < 700 });
@@ -17,18 +17,19 @@ for (const [w, h, touch] of [[320, 640, true], [375, 812, true], [414, 896, true
       const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       if (over > 0) problems.push(`${w}px ${lang} ${path}: desborda ${over}px`);
       // Texto que se sale de su caja (recortado sin puntos suspensivos)
-      const clipped = await page.evaluate(() => [...document.querySelectorAll('.ds-btn, .ds-seg-item, .ds-nav-item, .st-tile b, .rp-fig dd, .ds-case-title')].filter(el => { const b = el.getBoundingClientRect(); return b.width > 0 && el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).textOverflow !== 'ellipsis'; }).map(el => (el.innerText || '').trim().slice(0, 30)));
+      const clipped = await page.evaluate(() => [...document.querySelectorAll('.ds-btn, .ds-seg-item, .ds-nav-item, .st-tile b, .rp-fig dd, .ds-case-title, .lp-btn, .lp-vtab, .lp-nav a, .lp-plan-price, .lp-facts dt')].filter(el => { const b = el.getBoundingClientRect(); return b.width > 0 && el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).textOverflow !== 'ellipsis'; }).map(el => (el.innerText || '').trim().slice(0, 30)));
       if (clipped.length) problems.push(`${w}px ${lang} ${path}: texto que no cabe: ${[...new Set(clipped)].join(' · ')}`);
       // Zona táctil: 40 px en el móvil y 24 en el ordenador (WCAG 2.2; la escala nueva tiene botones pequeños de 32)
-      if (lang === 'es' && [1440, 375].includes(w) && path.startsWith('/admin')) {
+      if (lang === 'es' && [1440, 375].includes(w) && (path.startsWith('/admin') || path.startsWith('/?'))) {
         const r = await page.evaluate(() => {
-          const visible = el => { const b = el.getBoundingClientRect(); const s = getComputedStyle(el); return b.width > 0 && b.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
+          // Lo que está dentro de un desplegable cerrado (<details>) no se ve ni se puede pulsar: no cuenta
+          const visible = el => { if (el.closest('details:not([open])') && !el.closest('summary')) return false; const b = el.getBoundingClientRect(); const s = getComputedStyle(el); return b.width > 0 && b.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
           const name = el => (el.getAttribute('aria-label') || el.innerText || el.getAttribute('title') || '').trim();
           const unnamed = [...document.querySelectorAll('button, a, input:not([type=hidden]), textarea, select')].filter(visible).filter(el => {
             if (el.matches('input, textarea, select')) return !(el.getAttribute('aria-label') || (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)) || el.closest('label'));
             return !name(el);
           }).map(el => el.outerHTML.slice(0, 90));
-          const small = [...document.querySelectorAll('button, a.ds-btn, .ds-nav-item, .ds-seg-item, .ds-menu-item, .st-link, .st-ext, summary')].filter(visible).map(el => [el, el.getBoundingClientRect()]).filter(([el, b]) => b.height < (innerWidth > 640 || el.matches('.pn-link, .pn-back, summary') ? 24 : 40)).map(([el, b]) => `${name(el).slice(0, 28)} (${Math.round(b.height)}px)`);
+          const small = [...document.querySelectorAll('button, a.ds-btn, .ds-nav-item, .ds-seg-item, .ds-menu-item, .st-link, .st-ext, summary, .lp-btn, .lp-vtab, .lp-nav a, .lp-langs a, .lp-top-login')].filter(visible).map(el => [el, el.getBoundingClientRect()]).filter(([el, b]) => b.height < (innerWidth > 640 || el.matches('.pn-link, .pn-back, summary') ? 24 : 40)).map(([el, b]) => `${name(el).slice(0, 28)} (${Math.round(b.height)}px)`);
           const noAlt = [...document.querySelectorAll('img')].filter(visible).filter(i => !i.hasAttribute('alt')).length;
           const headings = [...document.querySelectorAll('h1, h2, h3')].filter(visible).map(x => Number(x.tagName[1]));
           const skips = headings.some((lv, i) => i > 0 && lv - headings[i - 1] > 1);

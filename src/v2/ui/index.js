@@ -21,3 +21,4 @@ export { default as Menu, MenuItem } from './Menu.jsx';
 export { default as OtpInput } from './OtpInput.jsx';
 export { default as Offline } from './Offline.jsx';
 export { default as BrandLogo } from './BrandLogo.jsx';
+export { default as ReportiaMark } from './ReportiaMark.jsx';

@@ -1,7 +1,8 @@
 <!-- Supabase Dashboard > Authentication > Emails > Templates > «Confirm sign up»: pegar todo este archivo en el cuerpo del mensaje (HTML). -->
 <!-- Asunto: Confirma tu correo electrónico · Confirma el teu correu electrònic -->
-<!DOCTYPE html>
-<html lang="es" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<!-- Generado con scripts/correos.mjs: no se edita a mano. Un idioma por correo: el de la persona (.Data.lang); si no lo hay, castellano. -->
+{{ $l := "es" }}{{ with .Data.lang }}{{ $l = . }}{{ end }}<!DOCTYPE html>
+<html lang="{{ $l }}" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,7 +11,7 @@
   <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
   <meta name="color-scheme" content="light dark">
   <meta name="supported-color-schemes" content="light dark">
-  <title>Confirma tu correo electrónico</title>
+  <title>{{ if eq $l "ca" }}Confirma el teu correu electrònic{{ else if eq $l "en" }}Confirm your email address{{ else }}Confirma tu correo electrónico{{ end }}</title>
   <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
   <style>
     :root { color-scheme: light dark; supported-color-schemes: light dark; }
@@ -24,105 +25,107 @@
       .btn-td, .btn-a { display: block !important; text-align: center !important; }
     }
     @media (prefers-color-scheme: dark) {
-      .bg { background: #0B1424 !important; }
-      .card { background: #111C2E !important; border-color: #26354D !important; }
-      .soft { background: #16233A !important; }
-      .rule { border-color: #26354D !important; }
-      .ink { color: #E8EDF5 !important; }
-      .ink-navy { color: #F1F4F9 !important; }
-      .ink2 { color: #B9C4D3 !important; }
-      .ink3 { color: #A3AFC0 !important; }
-      .mark { background: #2F54EB !important; }
-      .link { color: #C9D3F5 !important; }
+      .bg { background: #0E1220 !important; }
+      .card { background: #171C2B !important; border-color: #2B3348 !important; }
+      .rule { border-color: #2B3348 !important; }
+      .ink { color: #EEF1F7 !important; }
+      .muted { color: #A8B1C6 !important; }
+      .link { color: #B7C5FF !important; }
     }
-    [data-ogsc] .ink, [data-ogsc] .ink-navy { color: #E8EDF5 !important; }
-    [data-ogsc] .ink2, [data-ogsc] .ink3 { color: #B9C4D3 !important; }
-    [data-ogsc] .link { color: #C9D3F5 !important; }
+    [data-ogsc] .ink { color: #EEF1F7 !important; }
+    [data-ogsc] .muted { color: #A8B1C6 !important; }
+    [data-ogsc] .link { color: #B7C5FF !important; }
   </style>
 </head>
-<body class="bg" style="margin:0;padding:0;background:#F2F4F8;">
-  <div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;font-size:1px;line-height:1px;color:#F2F4F8;">Confirma tu dirección para activar la cuenta de Reportia. Confirma la teva adreça per activar el compte.&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
-  <table role="presentation" class="bg" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F2F4F8;">
+<body class="bg" style="margin:0;padding:0;background:#F6F7F9;">
+  <div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;font-size:1px;line-height:1px;color:#F6F7F9;">{{ if eq $l "ca" }}Confirma l'adreça per activar el compte.{{ else if eq $l "en" }}Confirm your address to activate the account.{{ else }}Confirma tu dirección para activar la cuenta.{{ end }}&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
+  <table role="presentation" class="bg" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F6F7F9;">
     <tr>
       <td class="outer" align="center" style="padding:32px 12px;">
         <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
-        <table role="presentation" class="card" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#FFFFFF;border:1px solid #D7DEEF;border-radius:24px;">
+        <table role="presentation" class="card" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#FFFFFF;border:1px solid #E3E6ED;border-radius:14px;">
           <tr>
-            <td height="6" style="height:6px;background:#2F54EB;border-radius:23px 23px 0 0;font-size:0;line-height:0;">&nbsp;</td>
-          </tr>
-          <tr>
-            <td class="px" style="padding:24px 40px 0;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td width="36" valign="middle" style="width:36px;">
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td class="mark" width="32" height="32" align="center" valign="middle" bgcolor="#0D1530" style="width:32px;height:32px;background:#0D1530;border-radius:10px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;font-weight:800;line-height:32px;color:#FFFFFF;">R</td>
-                      </tr>
-                    </table>
-                  </td>
-                  <td valign="middle" style="padding-left:10px;">
-                    <p class="ink" style="margin:0;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:20px;font-weight:800;color:#0D1530;">Reportia</p>
-                    <p class="ink3" style="margin:0;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:17px;color:#4D5672;">Canal de denuncias anónimas</p>
-                  </td>
-                </tr>
-              </table>
+            <td bgcolor="#294E59" style="background:#294E59;padding:20px 32px;border-radius:13px 13px 0 0;">
+              <img src="{{ .SiteURL }}/marca/reportia-logo-316.png" width="158" height="33" alt="Reportia" style="display:block;border:0;outline:none;width:158px;height:33px;color:#27D18D;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:20px;font-weight:700;">
             </td>
           </tr>
-          <tr>
-            <td class="px" style="padding:20px 40px 0;"><div class="rule" style="border-top:1px solid #EEF1F7;font-size:0;line-height:0;">&nbsp;</div></td>
-          </tr>
+{{ if eq $l "ca" }}
               <tr>
-                <td class="px" lang="es" style="padding:28px 40px 8px;">
-                  <h1 class="ink-navy" style="margin:0 0 16px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:24px;line-height:30px;font-weight:800;color:#0D1530;">Confirma tu correo electrónico</h1>
+                <td class="px" lang="ca" style="padding:28px 32px 4px;">
+                  <h1 class="ink" style="margin:0 0 16px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:28px;font-weight:800;color:#0D1530;">Confirma el teu correu electrònic</h1>
                   <p class="ink" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#0D1530;">Hola:</p>
-                  <p class="ink" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#0D1530;">Has creado una cuenta en Reportia para gestionar vuestro canal de denuncias anónimas. Para activarla, confirma que esta dirección de correo es tuya.</p>
-                    <table role="presentation" class="btn-t" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 18px;">
-                      <tr>
-                        <td class="btn-td" align="center" bgcolor="#2F54EB" style="border-radius:999px;background:#2F54EB;mso-padding-alt:16px 28px;">
-                          <a class="btn-a" href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block;padding:16px 28px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;font-weight:800;line-height:20px;color:#FFFFFF;text-decoration:none;border-radius:999px;">Confirmar el correo</a>
-                        </td>
-                      </tr>
-                    </table>
-                  <p class="ink3" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#4D5672;font-size:13px;line-height:20px;margin:0 0 20px;">Si no has creado tú esta cuenta, ignora este mensaje y la cuenta no se activará.</p>
+                  <p class="ink" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#0D1530;">Has creat un compte a Reportia per gestionar el vostre canal de denúncies. Per activar-lo, confirma que aquesta adreça de correu és teva.</p>
+                  <table role="presentation" class="btn-t" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 20px;">
+                    <tr>
+                      <td class="btn-td" align="center" bgcolor="#2F54EB" style="border-radius:10px;background:#2F54EB;mso-padding-alt:14px 24px;">
+                        <a class="btn-a" href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block;padding:14px 24px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;font-weight:700;line-height:20px;color:#FFFFFF;text-decoration:none;border-radius:10px;">Confirmar el correu</a>
+                      </td>
+                    </tr>
+                  </table>
+                  <p class="muted" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#4D5672;">Si no has creat tu aquest compte, ignora aquest missatge i el compte no s'activarà.</p>
+                  
                 </td>
               </tr>
-          <tr>
-            <td class="px" style="padding:0 40px;"><div class="rule" style="border-top:1px solid #EEF1F7;font-size:0;line-height:0;">&nbsp;</div></td>
-          </tr>
               <tr>
-                <td class="px" lang="ca" style="padding:26px 40px 8px;">
-                  <h2 class="ink-navy" style="margin:0 0 16px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:20px;line-height:26px;font-weight:800;color:#0D1530;">Confirma el teu correu electrònic</h2>
-                  <p class="ink" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#0D1530;">Hola:</p>
-                  <p class="ink" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#0D1530;">Has creat un compte a Reportia per gestionar el vostre canal de denúncies anònimes. Per activar-lo, confirma que aquesta adreça de correu és teva.</p>
-                    <table role="presentation" class="btn-t" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 18px;">
-                      <tr>
-                        <td class="btn-td" align="center" bgcolor="#2F54EB" style="border-radius:999px;background:#2F54EB;mso-padding-alt:16px 28px;">
-                          <a class="btn-a" href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block;padding:16px 28px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;font-weight:800;line-height:20px;color:#FFFFFF;text-decoration:none;border-radius:999px;">Confirmar el correu</a>
-                        </td>
-                      </tr>
-                    </table>
-                  <p class="ink3" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#4D5672;font-size:13px;line-height:20px;margin:0 0 20px;">Si no has creat tu aquest compte, ignora aquest missatge i el compte no s'activarà.</p>
+                <td class="px" style="padding:0 32px 24px;">
+                  <div class="rule" style="border-top:1px solid #E3E6ED;font-size:0;line-height:0;margin:0 0 16px;">&nbsp;</div>
+                  <p class="muted" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#4D5672;margin:0 0 6px;">El botó no funciona? Copia aquest enllaç al navegador.</p>
+                  <p style="margin:0;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;word-break:break-all;"><a class="link" href="{{ .ConfirmationURL }}" target="_blank" style="color:#1F3FC4;text-decoration:underline;">{{ .ConfirmationURL }}</a></p>
+                </td>
+              </tr>{{ else if eq $l "en" }}
+              <tr>
+                <td class="px" lang="en" style="padding:28px 32px 4px;">
+                  <h1 class="ink" style="margin:0 0 16px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:28px;font-weight:800;color:#0D1530;">Confirm your email address</h1>
+                  <p class="ink" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#0D1530;">Hello,</p>
+                  <p class="ink" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#0D1530;">You have created a Reportia account to manage your reporting channel. To activate it, confirm that this email address is yours.</p>
+                  <table role="presentation" class="btn-t" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 20px;">
+                    <tr>
+                      <td class="btn-td" align="center" bgcolor="#2F54EB" style="border-radius:10px;background:#2F54EB;mso-padding-alt:14px 24px;">
+                        <a class="btn-a" href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block;padding:14px 24px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;font-weight:700;line-height:20px;color:#FFFFFF;text-decoration:none;border-radius:10px;">Confirm the email</a>
+                      </td>
+                    </tr>
+                  </table>
+                  <p class="muted" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#4D5672;">If you did not create this account, ignore this message and it will not be activated.</p>
+                  
                 </td>
               </tr>
-          <tr>
-            <td class="px soft rule" lang="en" style="padding:16px 40px;background:#F2F4F8;border-top:1px solid #EEF1F7;">
-              <p class="ink2" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#4D5672;font-size:13px;line-height:20px;margin:0;"><strong style="font-weight:800;">English.</strong> You created a Reportia account. Use the button above to confirm your email address. If this was not you, ignore this message.</p>
-            </td>
-          </tr>
-          <tr>
-            <td class="px rule" style="padding:18px 40px 26px;border-top:1px solid #EEF1F7;">
-              <p class="ink3" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#4D5672;font-size:12px;line-height:18px;margin:0 0 6px;"><span lang="es">¿El botón no funciona? Copia este enlace en el navegador.</span><br><span lang="ca">El botó no funciona? Copia aquest enllaç al navegador.</span></p>
-              <p style="margin:0;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;word-break:break-all;"><a class="link" href="{{ .ConfirmationURL }}" target="_blank" style="color:#1F3FC4;text-decoration:underline;">{{ .ConfirmationURL }}</a></p>
-            </td>
-          </tr>
+              <tr>
+                <td class="px" style="padding:0 32px 24px;">
+                  <div class="rule" style="border-top:1px solid #E3E6ED;font-size:0;line-height:0;margin:0 0 16px;">&nbsp;</div>
+                  <p class="muted" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#4D5672;margin:0 0 6px;">Button not working? Copy this link into your browser.</p>
+                  <p style="margin:0;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;word-break:break-all;"><a class="link" href="{{ .ConfirmationURL }}" target="_blank" style="color:#1F3FC4;text-decoration:underline;">{{ .ConfirmationURL }}</a></p>
+                </td>
+              </tr>{{ else }}
+              <tr>
+                <td class="px" lang="es" style="padding:28px 32px 4px;">
+                  <h1 class="ink" style="margin:0 0 16px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:28px;font-weight:800;color:#0D1530;">Confirma tu correo electrónico</h1>
+                  <p class="ink" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#0D1530;">Hola:</p>
+                  <p class="ink" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#0D1530;">Has creado una cuenta en Reportia para gestionar vuestro canal de denuncias. Para activarla, confirma que esta dirección de correo es tuya.</p>
+                  <table role="presentation" class="btn-t" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 20px;">
+                    <tr>
+                      <td class="btn-td" align="center" bgcolor="#2F54EB" style="border-radius:10px;background:#2F54EB;mso-padding-alt:14px 24px;">
+                        <a class="btn-a" href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block;padding:14px 24px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;font-weight:700;line-height:20px;color:#FFFFFF;text-decoration:none;border-radius:10px;">Confirmar el correo</a>
+                      </td>
+                    </tr>
+                  </table>
+                  <p class="muted" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#4D5672;">Si no has creado tú esta cuenta, ignora este mensaje y la cuenta no se activará.</p>
+                  {{ if not .Data.lang }}<p class="muted" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#4D5672;margin:0 0 8px;">Català: confirma amb el botó que aquesta adreça de correu és teva.</p><p class="muted" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#4D5672;margin:0 0 8px;">English: use the button to confirm that this email address is yours.</p>{{ end }}
+                </td>
+              </tr>
+              <tr>
+                <td class="px" style="padding:0 32px 24px;">
+                  <div class="rule" style="border-top:1px solid #E3E6ED;font-size:0;line-height:0;margin:0 0 16px;">&nbsp;</div>
+                  <p class="muted" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#4D5672;margin:0 0 6px;">¿El botón no funciona? Copia este enlace en el navegador.</p>
+                  <p style="margin:0;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;word-break:break-all;"><a class="link" href="{{ .ConfirmationURL }}" target="_blank" style="color:#1F3FC4;text-decoration:underline;">{{ .ConfirmationURL }}</a></p>
+                </td>
+              </tr>{{ end }}
         </table>
         <!--[if mso]></td></tr></table><![endif]-->
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
           <tr>
-            <td class="px" style="padding:18px 40px 0;">
-              <p class="ink3" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#4D5672;font-size:12px;line-height:18px;margin:0 0 6px;">Mensaje automático de Reportia. Enviado a {{ .Email }}.<br><span lang="ca">Missatge automàtic de Reportia. Enviat a {{ .Email }}.</span></p>
-              <p style="margin:0;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;"><a class="link" href="{{ .SiteURL }}" target="_blank" style="color:#1F3FC4;text-decoration:none;">{{ .SiteURL }}</a></p>
+            <td class="px" style="padding:18px 32px 0;">
+              {{ if eq $l "ca" }}<p class="muted" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#4D5672;margin:0 0 6px;">Missatge automàtic de Reportia. Enviat a {{ .Email }}.</p>{{ else if eq $l "en" }}<p class="muted" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#4D5672;margin:0 0 6px;">Automatic message from Reportia. Sent to {{ .Email }}.</p>{{ else }}<p class="muted" style="margin:0 0 14px;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#4D5672;margin:0 0 6px;">Mensaje automático de Reportia. Enviado a {{ .Email }}.</p>{{ end }}
+              <p style="margin:0;font-family:Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;"><a class="link" href="{{ .SiteURL }}" target="_blank" style="color:#1F3FC4;text-decoration:none;">{{ .SiteURL }}</a></p>
             </td>
           </tr>
         </table>

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { ArrowRight, Compass } from 'lucide-react';
 import { translations } from '../../translations.js';
+import './texts.js'; // los textos de la web (src/translations-site.js)
 import { ICON, stableOf } from '../V2Layout.jsx';
 
 // Texto que reserva el espacio del idioma más largo: al cambiar de idioma, la pantalla no se mueve
@@ -22,7 +23,7 @@ export default function V2NotFound() {
         <S as="p" className="v2-lead" k="text" />
         <div className="v2-note is-quiet" role="note"><p>{t.reportTitle}<small><S k="reportText" /></small></p></div>
         <div className="v2-actions">
-          <Link className="v2-btn v2-btn-primary icon-trail" to="/"><S k="home" /><ArrowRight {...ICON} /></Link>
+          <Link className="v2-btn v2-btn-primary icon-trail" reloadDocument to={`/?lang=${lang}`}><S k="home" /><ArrowRight {...ICON} /></Link>
           <Link className="v2-btn v2-btn-secondary" to="/admin/login"><S k="login" /></Link>
         </div>
       </div>

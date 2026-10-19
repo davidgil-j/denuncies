@@ -1,22 +1,18 @@
 import { LOCALES } from '../../lib/format.js';
+import { PLANES, DIAS_PRUEBA, CORREO_CONTACTO } from '../config/producto.js';
+
 /**
- * Tarifas y datos comerciales de Reportia.
- *
- * PROPUESTA pendiente de validar por dirección. Son los únicos valores comerciales de la web:
- * al cambiarlos aquí se actualizan la portada (Precios) y la página de cuenta del panel.
+ * Tarifas y datos comerciales de Reportia. Los valores viven en src/v2/config/producto.js (las decisiones de negocio
+ * en un solo sitio; ver docs/DECISIONES_TOMADAS.md): aquí solo se adaptan para la portada y la cuenta del panel.
  * price: cuota anual en euros, sin IVA. null = a medida (se habla con la empresa).
  */
-export const PLANS = [
-  { id: 'essential', price: 390 },  // hasta 249 trabajadores
-  { id: 'business',  price: 790 },  // de 250 a 999 trabajadores
-  { id: 'corporate', price: null }, // 1.000 o más, y grupos de empresas
-];
+export const PLANS = PLANES.map(p => ({ id: p.id, price: p.precio }));
 
 /** Días de prueba de una cuenta nueva. Tiene que coincidir con la migración 009 (trial_ends_at). */
-export const TRIAL_DAYS = 30;
+export const TRIAL_DAYS = DIAS_PRUEBA;
 
 /** Correo de contacto comercial y de soporte. */
-export const CONTACT_EMAIL = 'info@reportia.es';
+export const CONTACT_EMAIL = CORREO_CONTACTO;
 
 const LOCALE = LOCALES;
 

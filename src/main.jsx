@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
-import { loadCanal, loadSite, loadLanding } from './entries.js';
+import { loadCanal, loadSite } from './entries.js';
 import { watchShareMeta } from './v2/site/origin.js';
 // Tipografía: Manrope variable, alojada en el mismo sitio. La carga V2Layout (la usan todas las páginas)
 
@@ -31,7 +31,7 @@ if (DSN && !window.location.pathname.startsWith('/canal')) {
   const path = window.location.pathname;
   const quiet = (p) => p.catch(() => {});
   if (path.startsWith('/canal/')) quiet(loadCanal());
-  else if (!path.startsWith('/admin') && !path.startsWith('/dev')) { quiet(loadSite()); if (path === '/') quiet(loadLanding()); }
+  else if (!path.startsWith('/admin') && !path.startsWith('/dev') && path !== '/') quiet(loadSite());
 }
 
 // La vista previa al compartir un enlace sigue el idioma y el título de la página

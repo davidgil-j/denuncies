@@ -7,6 +7,8 @@ import { sendPasswordReset, updatePassword, onAuthEvent, getPasswordLinkState } 
 import { fmt } from '../V2Layout.jsx';
 import { EMAIL_RE, authErrorKey } from '../site/fields.jsx';
 import { Button, Field, Skeleton } from '../ui/index.js';
+import Captcha, { captchaRequired } from '../ui/Captcha.jsx';
+import { IS_DEMO } from '../../lib/supabase.js';
 import PasswordField from './PasswordField.jsx';
 import { Tp } from './kit.jsx';
 
@@ -25,6 +27,10 @@ export function Recuperar() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const sentRef = useRef(null);
+  // La comprobación contra robots (n.º 71): con la clave puesta, el enlace no se pide sin ella
+  const needsCaptcha = captchaRequired(IS_DEMO);
+  const [token, setToken] = useState(null);
+  const [captchaRound, setCaptchaRound] = useState(0);
   const loginTo = `/admin/login${from ? `?from=${from}` : ''}`;
 
   useEffect(() => { document.title = `${t.fgTitle} · ${org?.name ?? 'Reportia'}`; }, [t, org]);
@@ -35,14 +41,16 @@ export function Recuperar() {
     if (loading) return;
     setSubmitError('');
     if (!EMAIL_RE.test(email.trim())) { setEmailError(true); document.getElementById('pw-email')?.focus(); return; }
+    if (needsCaptcha && !token) { setSubmitError(p.errCaptcha); return; }
     setLoading(true);
-    const { error } = await sendPasswordReset(email.trim());
+    const { error } = await sendPasswordReset(email.trim(), needsCaptcha ? token : undefined);
     setLoading(false);
     if (error) {
       // Solo se muestran errores que no revelan si el correo tiene cuenta (formato, límite, red)
       const key = authErrorKey(error);
+      if (needsCaptcha) setCaptchaRound(n => n + 1);
       if (key === 'errEmail') { setEmailError(true); document.getElementById('pw-email')?.focus(); return; }
-      setSubmitError(key === 'errRate' ? p.errRate : key === 'errNetwork' ? t.errNetwork : t.fgErr);
+      setSubmitError(key === 'errCaptcha' ? translations[lang].v2.captchaRejected : key === 'errRate' ? p.errRate : key === 'errNetwork' ? t.errNetwork : t.fgErr);
       return;
     }
     setSent(true);
@@ -73,8 +81,9 @@ export function Recuperar() {
           autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false}
           onChange={e => { setEmail(e.target.value); setEmailError(false); }}
         />
+        <Captcha lang={lang} demo={IS_DEMO} onToken={setToken} resetKey={captchaRound} className="ac-captcha" />
         {submitError && <p className="ac-error" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />{submitError}</p>}
-        <Button type="submit" variant="report" size="lg" full busy={loading}><Tp lang={lang} pick={x => (loading ? x.pw.fgSending : x.pw.fgSend)} /></Button>
+        <Button type="submit" variant="report" size="lg" full busy={loading} disabled={needsCaptcha && !token && !loading}><Tp lang={lang} pick={x => (loading ? x.pw.fgSending : x.pw.fgSend)} /></Button>
         <div className="ac-row"><Link className="ac-link" to={loginTo}>{t.back}</Link></div>
       </div>
     </form>

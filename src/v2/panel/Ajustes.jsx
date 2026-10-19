@@ -4,6 +4,7 @@ import { ArrowUpRight, Check, Circle, CircleAlert, ImageUp, LogOut, Mail } from 
 import { updatePassword } from '../../lib/supabase.js';
 import { AIPI_URL, ANTIFRAU_URL, LANGS, fmt } from '../V2Layout.jsx';
 import { translations } from '../../translations.js';
+import '../site/texts.js'; // los nombres de los planes (v2site.landing.plans, src/translations-site.js)
 import { planInfo, fLong } from '../admin/adminKit.jsx';
 import { PLANS, CONTACT_EMAIL, formatPrice } from '../site/plans.js';
 import { EMAIL_RE, authErrorKey } from '../site/fields.jsx';

@@ -132,7 +132,13 @@ ok('sin logo, el canal enseña solo el nombre', (await page.locator('.entry-bran
 // Al salir del canal y del panel, la web de Reportia no se queda con la marca ni con el modo oscuro
 await page.emulateMedia({ colorScheme: 'dark' });
 await go('/canal/demo?lang=es', '.ds-hero');
+// La portada es una página aparte (se carga entera): no lleva nada del canal
 await page.getByRole('link', { name: /Volver a Reportia/ }).click();
+await page.waitForSelector('.lp-hero');
+ok('la portada no se queda con la marca ni con el modo del canal', await page.evaluate(() => !document.documentElement.dataset.theme && !document.documentElement.getAttribute('style')));
+// Y la web que sí es de la aplicación (el alta, a la que se llega desde el canal de ejemplo sin recargar), tampoco
+await go('/canal/demo?lang=es', '.ds-hero');
+await page.getByRole('link', { name: 'Crear mi canal' }).click();
 await page.waitForSelector('.v2');
 ok('la web de Reportia no se queda con la marca ni con el modo oscuro', !(await page.evaluate(() => document.documentElement.dataset.theme)) && (await cssVar('--report')) === '#2F54EB');
 await page.emulateMedia({ colorScheme: 'light' });

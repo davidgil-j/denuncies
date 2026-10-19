@@ -19,12 +19,14 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FILE = path.join(ROOT, 'src', 'translations.js');
 // Los textos del panel viven aparte (solo se descargan al entrar en el panel)
 const PANEL_FILE = path.join(ROOT, 'src', 'translations-panel.js');
+// Y los de la web de Reportia (solo se descargan en la web)
+const SITE_FILE = path.join(ROOT, 'src', 'translations-site.js');
 const SELF = fileURLToPath(import.meta.url);
 const WRITE = process.argv.includes('--write');
 
 // ── 1. Todas las palabras del código ───────────────────────────────────
 const code = [];
-const read = (p) => { if (p !== FILE && p !== PANEL_FILE && p !== SELF) code.push(fs.readFileSync(p, 'utf8')); };
+const read = (p) => { if (p !== FILE && p !== PANEL_FILE && p !== SITE_FILE && p !== SELF) code.push(fs.readFileSync(p, 'utf8')); };
 (function walk(dir) {
   for (const f of fs.readdirSync(dir)) {
     const p = path.join(dir, f);
@@ -60,8 +62,9 @@ const used = (key) => words.has(key) || dynamic.some((re) => re.test(key)) || pi
 // ── 2. Qué se quita ────────────────────────────────────────────────────
 const { translations: base } = await import(`${pathToFileURL(FILE).href}?t=${Date.now()}`);
 const { panelTexts } = await import(`${pathToFileURL(PANEL_FILE).href}?t=${Date.now()}`);
-// Todos los textos juntos, como los ve la aplicación cuando el panel está cargado
-const translations = Object.fromEntries(Object.keys(base).map(l => [l, { ...base[l], ...panelTexts[l] }]));
+const { siteTexts } = await import(`${pathToFileURL(SITE_FILE).href}?t=${Date.now()}`);
+// Todos los textos juntos, como los ve la aplicación cuando el panel y la web están cargados
+const translations = Object.fromEntries(Object.keys(base).map(l => [l, { ...base[l], ...panelTexts[l], v2site: { ...base[l].v2site, ...siteTexts[l].v2site } }]));
 const LANGS = Object.keys(translations);
 const dead = new Map(); // apartado → [claves]
 for (const [key, value] of Object.entries(translations.es)) {
@@ -152,3 +155,4 @@ async function cut(file, anchor, exportName, object) {
 }
 await cut(FILE, 'translations', 'translations', base);
 await cut(PANEL_FILE, 'panelTexts', 'panelTexts', panelTexts);
+await cut(SITE_FILE, 'siteTexts', 'siteTexts', siteTexts);

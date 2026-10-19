@@ -297,6 +297,10 @@ body:has(> #root > .ds), body:has(> #root > .ds-page) { margin: 0; background: v
 .ds-brand-logo { flex: none; display: inline-flex; align-items: center; height: var(--logo-h, 32px); padding: var(--logo-pad, 0); border-radius: 6px; background: var(--logo-plate); }
 .ds-brand-logo img { display: block; height: 100%; width: auto; max-width: var(--logo-w, 140px); object-fit: contain; }
 .ds-brand-name { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+/* La marca de Reportia donde firma Reportia: el icono oficial y el nombre en tinta */
+.ds-rmark { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.ds-rmark img { flex: none; border-radius: 50%; }
+.ds-rmark b { font-weight: 700; color: var(--ink); }
 
 /* Iniciales (solo en la página de piezas del diseño) y avatar de la persona, en gris neutro */
 .ds-mark { width: 32px; height: 32px; flex: none; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: var(--mark-bg); color: var(--mark-ink); }

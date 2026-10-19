@@ -50,6 +50,8 @@ export function PwInput({ id, value, onChange, autoComplete, invalid, describedB
 export function authErrorKey(err) {
   const msg = (err?.message || '').toLowerCase();
   const code = (err?.code || '').toLowerCase();
+  // Supabase Auth con la protección contra robots encendida (n.º 71): sin token, o caducado
+  if (msg.includes('captcha') || code.includes('captcha')) return 'errCaptcha';
   if (msg.includes('already registered') || msg.includes('user already exists') || code === 'user_already_exists') return 'errInUse';
   if (msg.includes('email not confirmed') || code === 'email_not_confirmed') return 'errUnconfirmed';
   if (msg.includes('invalid login credentials') || code === 'invalid_credentials') return 'errCredentials';

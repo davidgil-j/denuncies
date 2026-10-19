@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { Turnstile } from '@marsidev/react-turnstile';
 import { ArrowRight, ArrowLeft, CalendarDays, Paperclip, Plus, Minus, Send, Shield, CircleAlert, Pencil } from 'lucide-react';
 import { translations } from '../../translations.js';
-import { saveComplaint, IS_DEMO } from '../../lib/supabase.js';
+import { saveComplaint } from '../../lib/supabase.js';
 import { cleanForAnonymous } from '../../lib/cleanImage.js';
 import { fmt } from '../V2Layout.jsx';
 import { EMAIL_RE } from '../site/fields.jsx';
@@ -13,8 +12,8 @@ import Enviada from './Enviada.jsx';
 import { CATEGORIES, EMPTY_DRAFT, CanalHead, FlowTop, Tc, ic } from './shared.jsx';
 
 const MIN_DESC = 20;
-// Verificación contra robots: solo con clave configurada y fuera de la demo
-const HAS_CAPTCHA = !IS_DEMO && !!import.meta.env.VITE_TURNSTILE_SITE_KEY;
+// Sin comprobación contra robots: denunciar nunca depende de que cargue un servicio de terceros (n.º 71). El canal se
+// protege en la base de datos: una denuncia por petición y un tope por hora y empresa (migración 014)
 
 const cut = (text, n = 90) => (text.length > n ? `${text.slice(0, n).replace(/\s+\S*$/, '')}…` : text);
 
@@ -23,8 +22,6 @@ export default function Denuncia() {
   const navigate = useNavigate();
   const T = translations[lang];
   const t = T.canal;
-  // El canal de ejemplo no envía nada a ningún servidor: no hace falta la comprobación contra robots
-  const needsCaptcha = HAS_CAPTCHA && !org.is_example;
   const [errors, setErrors] = useState({});
   const [open, setOpen] = useState({ known: false, proof: false }); // en el móvil, los apartados opcionales se abren con su fila
   const [submitting, setSubmitting] = useState(false);
@@ -32,7 +29,6 @@ export default function Denuncia() {
   // Código e id del primer intento de envío: si la red falla después de guardar, el reintento usa los
   // mismos y la base de datos no crea una denuncia repetida
   const attemptRef = useRef(null);
-  const [token, setToken] = useState(null);
   const headRef = useRef(null);
   const groupRef = useRef(null);
   const first = useRef(true);
@@ -95,7 +91,7 @@ export default function Denuncia() {
     if (Object.keys(errs).length) { focusError(errs); setErrors(errs); return; }
     setErrors(errs);
     if (step < 3) { set({ step: step + 1 }); return; }
-    if ((needsCaptcha && !token) || submitting) return;
+    if (submitting) return;
 
     setSubmitting(true);
     setSubmitError(null);
@@ -305,14 +301,6 @@ export default function Denuncia() {
               {errors.privacy && <p className="ds-field-error" id="dn-privacy-e" role="alert">{ic(CircleAlert, 16)}{t[errors.privacy]}</p>}
             </div>
 
-            {needsCaptcha && (
-              <div className="flow-captcha" aria-label={T.v2.verifying}>
-                <Turnstile
-                  siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY} options={{ language: lang }}
-                  onSuccess={setToken} onError={() => setToken(null)} onExpire={() => setToken(null)}
-                />
-              </div>
-            )}
             {submitError && <p className="flow-error" role="alert">{ic(CircleAlert, 18)}{submitError.clean ? fmt(t.cleanErr, { name: submitError.clean }) : t[submitError]}</p>}
           </>
         )}
@@ -327,7 +315,7 @@ export default function Denuncia() {
               <Tc lang={lang} k="next" />
             </Button>
           ) : (
-            <Button type="submit" variant="report" size="lg" className="flow-next" disabled={needsCaptcha && !token} busy={submitting} iconEnd={ic(Send, 18)}>
+            <Button type="submit" variant="report" size="lg" className="flow-next" busy={submitting} iconEnd={ic(Send, 18)}>
               <Tc lang={lang} k={submitting ? 'sending' : 'send'} />
             </Button>
           )}

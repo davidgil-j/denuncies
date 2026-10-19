@@ -260,8 +260,8 @@ export async function getOrganizationBySlug(slug) {
   if (channelDemo()) {
     if (!exampleChannel) return { organization: null, error: null };
     // El canal de ejemplo enseña el nombre, la autoridad autonómica y la marca que se pongan en «Equipo y ajustes» de la demo
-    const { name, regional_authority_name = null, regional_authority_url = null, brand_palette = 'azul', brand_logo = null } = (await demo()).getOrganization();
-    return { organization: { ...DEMO_ORG, name, regional_authority_name, regional_authority_url, brand_palette, brand_logo, is_example: true }, error: null };
+    const { name, regional_authority_name = null, regional_authority_url = null, brand_palette = 'azul', brand_logo = null, show_powered_by = true } = (await demo()).getOrganization();
+    return { organization: { ...DEMO_ORG, name, regional_authority_name, regional_authority_url, brand_palette, brand_logo, show_powered_by, is_example: true }, error: null };
   }
   const { data, error } = await supabase.rpc('get_organization_by_slug', { p_slug: slug });
   return { organization: data?.[0] ?? null, error };
@@ -650,12 +650,13 @@ export async function verifyLoginCode(code) {
 
 // ── Autenticación (panel) ──────────────────────────────────────────────
 
-export async function signInAdmin(email, password) {
+/** captchaToken: el de Turnstile (n.º 71), si el acceso lo pide; Supabase Auth lo comprueba con la protección encendida */
+export async function signInAdmin(email, password, captchaToken) {
   if (DEMO_MODE) {
     sessionStorage.setItem(DEMO_SESSION_KEY, '1');
     return { session: DEMO_SESSION, error: null };
   }
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password, ...(captchaToken ? { options: { captchaToken } } : {}) });
   return { session: data?.session, error };
 }
 
@@ -665,15 +666,17 @@ export async function signInAdmin(email, password) {
  * (migración 006) crea la organización y el perfil de superadmin.
  * Devuelve { user, needsConfirmation, error }.
  */
-export async function signUpOrganization({ companyName, fullName, email, password }) {
+export async function signUpOrganization({ companyName, fullName, email, password, lang, captchaToken }) {
   if (DEMO_MODE) return { user: { ...DEMO_USER, email }, needsConfirmation: true, error: null };
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       // Queda constancia de la aceptación de la política y de la fecha (se puede consultar en Supabase Auth)
-      data: { company_name: companyName, full_name: fullName, privacy_accepted_at: new Date().toISOString() },
+      // lang: el idioma de los correos de Supabase Auth (las plantillas lo leen: scripts/correos.mjs)
+      data: { company_name: companyName, full_name: fullName, privacy_accepted_at: new Date().toISOString(), ...(lang ? { lang } : {}) },
       emailRedirectTo: `${window.location.origin}/admin/login`,
+      ...(captchaToken ? { captchaToken } : {}),
     },
   });
 
@@ -713,10 +716,11 @@ export async function getAdminSession() {
   }
 }
 
-export async function sendPasswordReset(email) {
+export async function sendPasswordReset(email, captchaToken) {
   if (DEMO_MODE) return { error: null };
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${window.location.origin}/admin/reset-password`,
+    ...(captchaToken ? { captchaToken } : {}),
   });
   return { error };
 }
@@ -826,10 +830,10 @@ export async function setManagerPermissions(managerId, permissionsArray) {
   return { error };
 }
 
-export async function inviteManager(email, fullName) {
-  // Usa la función de servidor para enviar el correo de invitación de forma segura
+export async function inviteManager(email, fullName, lang) {
+  // Usa la función de servidor para enviar el correo de invitación de forma segura. lang: el idioma de sus correos
   if (DEMO_MODE) return (await demo()).inviteManager(email, fullName);
-  return callFunction('invite-manager', { email, full_name: fullName });
+  return callFunction('invite-manager', { email, full_name: fullName, ...(lang ? { lang } : {}) });
 }
 
 export async function updateProfile(userId, updates) {

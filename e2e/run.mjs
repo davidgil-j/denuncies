@@ -6,7 +6,8 @@
 //   npm run e2e -- --list           → lista las pruebas
 //
 // Arranca él mismo los servidores que hacen falta (o reutiliza los que ya estén en marcha en esos puertos):
-//   3111 demo · 3112 modo real contra una red simulada · 3113 demo con IA · 3114 red simulada con IA.
+//   3111 demo · 3112 modo real contra una red simulada · 3113 demo con IA · 3114 red simulada con IA ·
+//   3115 red simulada con la clave de pruebas de Turnstile (la comprobación contra robots).
 // Nada sale del ordenador: la «red simulada» es una dirección local que no existe (59999) y cada prueba
 // responde las peticiones como lo haría la base de datos. No se toca ningún Supabase.
 import { spawn } from 'node:child_process';
@@ -31,6 +32,8 @@ const SERVERS = {
   3112: { VITE_SUPABASE_URL: 'http://localhost:59999', VITE_SUPABASE_ANON_KEY: 'clave-falsa-de-prueba' },
   3113: { VITE_AI_ENABLED: '1' },
   3114: { VITE_SUPABASE_URL: 'http://localhost:59999', VITE_SUPABASE_ANON_KEY: 'clave-falsa-de-prueba', VITE_AI_ENABLED: '1' },
+  // La clave de pruebas de Cloudflare: siempre pasa (https://developers.cloudflare.com/turnstile/troubleshooting/testing/)
+  3115: { VITE_SUPABASE_URL: 'http://localhost:59999', VITE_SUPABASE_ANON_KEY: 'clave-falsa-de-prueba', VITE_TURNSTILE_SITE_KEY: '1x00000000000000000000AA' },
 };
 
 const out = (name) => { const d = path.join(OUT, name); fs.mkdirSync(d, { recursive: true }); return d; };
@@ -50,6 +53,10 @@ const SUITES = [
   ['red-ia-encendida', 'red-ia', (n) => [out(n), 'admin', '3114']],
   ['red-ia-gestor', 'red-ia', (n) => [out(n), 'gestor', '3114']],
   ['red-contrasena', 'red-contrasena', (n) => [out(n)]],
+  ['captcha', 'captcha', () => []],
+  // Contra una base de datos de verdad en el ordenador (Postgres + PostgREST de Homebrew), de la 015 a la 019 sobre los
+  // mismos datos; arranca sus propios servidores (3116 y 3117). Sin Homebrew, se salta y lo dice
+  ['base-real', 'base-real', () => []],
   ['endurecimiento', 'endurecimiento', (n) => [out(n)]],
   ['inactividad', 'inactividad', () => []],
   ['ia-demo-1440', 'ia-demo', (n) => [out(n), '1440']],
@@ -74,6 +81,8 @@ const SUITES = [
   ['pdf', 'pdf', (n) => [out(n)]],
   // Compila la web como en producción y la sirve con las cabeceras de vercel.json (puerto 4190)
   ['csp', 'csp', (n) => [out(n)]],
+  // La portada estática, compilada y servida con las reglas de vercel.json (puerto 4192); con Lighthouse si está instalado
+  ['portada', 'portada', (n) => [out(n)]],
 ];
 
 if (args.includes('--list')) { for (const [n] of SUITES) console.log(n); process.exit(0); }
@@ -86,7 +95,7 @@ const started = [];
 for (const [port, extra] of Object.entries(SERVERS)) {
   if (await up(port)) continue;
   const env = { ...process.env, VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', ...extra };
-  const child = spawn(process.execPath, [path.join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js'), '--port', port, '--strictPort', '--open', 'false'], { cwd: ROOT, env, stdio: 'ignore' });
+  const child = spawn(process.execPath, [path.join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js'), '--port', port, '--strictPort'], { cwd: ROOT, env, stdio: 'ignore' });
   started.push(child);
 }
 const stop = () => { for (const c of started) c.kill(); };

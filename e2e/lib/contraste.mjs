@@ -4,7 +4,38 @@
 export const audit = () => {
   const parse = (c) => { const m = c.match(/rgba?\(([^)]+)\)/); if (!m) return [0, 0, 0, 0]; const p = m[1].split(/[,\s/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1]; };
   const over = (top, bot) => { const a = top[3]; return [top[0] * a + bot[0] * (1 - a), top[1] * a + bot[1] * (1 - a), top[2] * a + bot[2] * (1 - a), 1]; };
-  const bgOf = (el) => { const stack = []; for (let e = el; e; e = e.parentElement) { const c = parse(getComputedStyle(e).backgroundColor); if (c[3] > 0) { stack.push(c); if (c[3] === 1) break; } } let out = [255, 255, 255, 1]; for (const c of stack.reverse()) out = over(c, out); return out; };
+  // El fondo: el de sus contenedores, componiendo transparencias. Si no hay ninguno con color hasta la página (<body>), puede
+  // estar encima de otra pieza que no lo contiene (una cabecera colocada sobre la foto del inicio): entonces cuenta lo que
+  // hay debajo de verdad en ese punto (si está a la vista)
+  const under = (el) => {
+    const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2; const y = r.top + r.height / 2;
+    if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) return null;
+    const stack = [];
+    for (const e of document.elementsFromPoint(x, y)) {
+      if (e === document.body || e === document.documentElement) break;
+      if (e === el || e.contains(el)) continue;
+      const c = parse(getComputedStyle(e).backgroundColor);
+      if (c[3] > 0) { stack.push(c); if (c[3] === 1) break; }
+    }
+    return stack.length && stack.at(-1)[3] === 1 ? stack : null;
+  };
+  const bgOf = (el) => {
+    const stack = []; // de arriba abajo
+    let pageBg = null;
+    for (let e = el; e; e = e.parentElement) {
+      const c = parse(getComputedStyle(e).backgroundColor);
+      if (c[3] === 0) continue;
+      if (e === document.body || e === document.documentElement) { pageBg = c; break; }
+      stack.push(c);
+      if (c[3] === 1) break;
+    }
+    if (!(stack.length && stack.at(-1)[3] === 1)) {
+      const u = under(el);
+      if (u) stack.push(...u); else if (pageBg) stack.push(pageBg);
+    }
+    let out = [255, 255, 255, 1]; for (const c of stack.reverse()) out = over(c, out); return out;
+  };
   const lum = (c) => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
   const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
   const vis = (el) => { const b = el.getBoundingClientRect(); const s = getComputedStyle(el); return b.width > 0 && b.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' && Number(s.opacity) > 0.05; };

@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { ArrowRight, Check, CircleAlert, MailCheck, UserRoundCog, Hourglass } from 'lucide-react';
 import { translations } from '../../translations.js';
-import { signUpOrganization } from '../../lib/supabase.js';
+import './texts.js'; // los textos de la web (src/translations-site.js)
+import { signUpOrganization, IS_DEMO } from '../../lib/supabase.js';
+import Captcha, { captchaRequired } from '../ui/Captcha.jsx';
 import { ICON, fmt, stableOf } from '../V2Layout.jsx';
 import { TRIAL_DAYS } from './plans.js';
 import { EMAIL_RE, FieldError, PwInput, authErrorKey } from './fields.jsx';
@@ -22,6 +24,10 @@ export default function V2Signup() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const doneRef = useRef(null);
+  // La comprobación contra robots (n.º 71): con la clave puesta, la cuenta no se crea sin ella
+  const needsCaptcha = captchaRequired(IS_DEMO);
+  const [token, setToken] = useState(null);
+  const [captchaRound, setCaptchaRound] = useState(0);
   const refs = { companyName: useRef(null), fullName: useRef(null), email: useRef(null), password: useRef(null), terms: useRef(null) };
 
   useEffect(() => { document.title = t.docTitle; }, [t]);
@@ -54,6 +60,7 @@ export default function V2Signup() {
     setSubmitError('');
     const first = Object.keys(EMPTY).find(k => er[k]);
     if (first) { refs[first].current?.focus(); return; }
+    if (needsCaptcha && !token) { setSubmitError(t.errCaptcha); return; }
 
     setLoading(true);
     const { needsConfirmation, error } = await signUpOrganization({
@@ -61,13 +68,16 @@ export default function V2Signup() {
       fullName: form.fullName.trim(),
       email: form.email.trim(),
       password: form.password,
+      lang,
+      captchaToken: needsCaptcha ? token : undefined,
     });
     setLoading(false);
 
     if (error) {
       const key = authErrorKey(error);
+      if (needsCaptcha) setCaptchaRound(n => n + 1);
       if (key === 'errEmail') { setErrors({ email: 'errEmail' }); refs.email.current?.focus(); return; }
-      setSubmitError(t[key] || t.errGeneric);
+      setSubmitError(key === 'errCaptcha' ? translations[lang].v2.captchaRejected : (t[key] || t.errGeneric));
       return;
     }
     if (needsConfirmation) setDone(true);
@@ -150,9 +160,11 @@ export default function V2Signup() {
 
                 <p className="v2-su-trial"><Hourglass {...ICON} /><S pick={x => fmt(x.trialNote, { days: TRIAL_DAYS })} /></p>
 
+                <Captcha lang={lang} demo={IS_DEMO} onToken={setToken} resetKey={captchaRound} />
+
                 {submitError && <div className="v2-note is-error" role="alert"><CircleAlert {...ICON} /><p>{submitError}</p></div>}
 
-                <button type="submit" className="v2-btn v2-btn-primary v2-auth-submit" aria-busy={loading}>
+                <button type="submit" className="v2-btn v2-btn-primary v2-auth-submit" aria-busy={loading} disabled={needsCaptcha && !token && !loading}>
                   <S k={loading ? 'submitting' : 'submit'} />
                 </button>
               </form>

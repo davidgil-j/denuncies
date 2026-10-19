@@ -31,7 +31,7 @@ function Tick({ checked, mixed = false, onChange, label, disabled }) {
  * Solo lo ve quien administra.
  */
 export default function Equipo() {
-  const { tr, p, profile, notify, setMembers } = usePanel();
+  const { lang, tr, p, profile, notify, setMembers } = usePanel();
   const s = p.set;
   const [params, setParams] = useSearchParams();
   const catName = (v) => tr.canal.cats[v]?.[0] ?? v;
@@ -178,7 +178,8 @@ export default function Equipo() {
     setSending(true);
     let res = {};
     // Un error de red o de sesión no debe dejar el botón para siempre en «Enviando…»
-    try { res = await inviteManager(email, name); } catch (err) { res = { error: err }; }
+    // Sus correos (la invitación y los siguientes) salen en el idioma del panel de quien invita
+    try { res = await inviteManager(email, name, lang); } catch (err) { res = { error: err }; }
     setSending(false);
     // Los errores de la función llegan sin traducir: se muestra siempre un texto propio
     if (res.error) { const m = res.error.message ?? ''; setInvErr({ form: m === 'invite-limit' ? s.inviteLimit : /already|exist|registered|ja existeix/i.test(m) ? s.inviteExists : s.inviteErr }); return; }
