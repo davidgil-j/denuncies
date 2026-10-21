@@ -109,8 +109,10 @@ for (const [w, h] of [[390, 844], [1440, 900]]) {
   await ctx.close();
 }
 
-// ── 4 · El vídeo: cada pantalla con su versión; se reproduce al verse y se para al salir ──
-for (const [w, h, file, poster] of [[1440, 900, '/landing/video/denuncia.mp4', '/landing/video/denuncia.webp'], [390, 844, '/landing/video/denuncia-movil.mp4', '/landing/video/denuncia-movil.webp']]) {
+// ── 4 · El vídeo: cada portada, los de su idioma; cada pantalla con su versión; se reproduce al verse y se para al salir ──
+for (const lang of ['es', 'ca', 'en']) for (const [w, h] of [[1440, 900], [390, 844]]) {
+  const file = `/landing/video/denuncia-${lang}${w < 700 ? '-movil' : ''}.mp4`;
+  const poster = file.replace(/\.mp4$/, '.webp');
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, locale: 'es-ES', reducedMotion: 'no-preference', isMobile: w < 700, hasTouch: w < 700 });
   await local(ctx);
   const page = await ctx.newPage();
@@ -119,30 +121,38 @@ for (const [w, h, file, poster] of [[1440, 900, '/landing/video/denuncia.mp4', '
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   const videoRequests = [];
   page.on('request', r => { if (/\/landing\/video\//.test(r.url())) videoRequests.push(new URL(r.url()).pathname); });
-  await page.goto(`${APP}/?lang=es`, { waitUntil: 'networkidle' });
-  ok(`vídeo (${w}): al cargar no se baja ningún vídeo`, !videoRequests.some(u => u.endsWith('.mp4')), videoRequests.join(' '));
+  await page.goto(`${APP}/?lang=${lang}`, { waitUntil: 'networkidle' });
+  ok(`vídeo (${lang}, ${w}): al cargar no se baja ningún vídeo`, !videoRequests.some(u => u.endsWith('.mp4')), videoRequests.join(' '));
+  // Los pósters no van en el HTML: si estuvieran, se pedirían a la vez que la foto del inicio (los pone landing.js)
+  ok(`vídeo (${lang}, ${w}): ningún póster en el HTML`, !/<video[^>]*\sposter=/.test((await get(`/?lang=${lang}`)).body));
   await bringIntoView(page, page.locator('#funciona .lp-video-stage'));
   await page.waitForTimeout(2000);
   const state = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('video[data-video]')].map(v => [v.dataset.video, { src: new URL(v.currentSrc || 'http://x/').pathname, paused: v.paused, t: v.currentTime }])));
   let s = await state();
-  ok(`vídeo (${w}): «Quien denuncia» se reproduce al verse, con su versión (${path.basename(file)})`, !s.report.paused && s.report.t > 0.5 && s.report.src === file, JSON.stringify(s.report));
+  ok(`vídeo (${lang}, ${w}): «Quien denuncia» se reproduce al verse, con su versión (${path.basename(file)})`, !s.report.paused && s.report.t > 0.5 && s.report.src === file, JSON.stringify(s.report));
   const posterSrc = await page.locator('.lp-video-report video').evaluate(v => new URL(v.poster).pathname);
-  ok(`vídeo (${w}): su póster es el de esa pantalla`, posterSrc === poster, posterSrc);
+  ok(`vídeo (${lang}, ${w}): su póster es el de esa pantalla`, posterSrc === poster, posterSrc);
   await page.locator('label[for="lp-v-manage"]').click();
   await page.waitForTimeout(1500);
   s = await state();
-  ok(`vídeo (${w}): la otra pestaña reproduce el otro y para el primero`, s.report.paused && !s.manage.paused && s.manage.t > 0.3, JSON.stringify(s));
+  ok(`vídeo (${lang}, ${w}): la otra pestaña reproduce el otro y para el primero`, s.report.paused && !s.manage.paused && s.manage.t > 0.3, JSON.stringify(s));
   await bringIntoView(page, page.locator('#precios .lp-plans'));
   await page.waitForTimeout(800);
   s = await state();
-  ok(`vídeo (${w}): al salir de la vista se para`, s.report.paused && s.manage.paused);
-  ok(`vídeo (${w}): sin errores en la página`, errors.length === 0, errors.join(' · '));
+  ok(`vídeo (${lang}, ${w}): al salir de la vista se para`, s.report.paused && s.manage.paused);
+  const mine = new RegExp(`^/landing/video/(denuncia|gestion)-${lang}(-movil)?\\.(mp4|webp)$`);
+  ok(`vídeo (${lang}, ${w}): solo baja los de su idioma`, videoRequests.length > 0 && videoRequests.every(u => mine.test(u)), videoRequests.join(' '));
+  ok(`vídeo (${lang}, ${w}): sin errores en la página`, errors.length === 0, errors.join(' · '));
   await ctx.close();
 }
-// Los archivos: H.264 en MP4 sin sonido, menos de 10 MB cada uno
-for (const f of fs.readdirSync(path.join(ROOT, 'public/landing/video')).filter(f => f.endsWith('.mp4'))) {
-  const size = fs.statSync(path.join(ROOT, 'public/landing/video', f)).size;
-  ok(`vídeo ${f}: menos de 10 MB`, size < 10 * 1024 * 1024, `${(size / 1048576).toFixed(2)} MB`);
+// Los archivos: los ocho de cada idioma (H.264 en MP4 sin sonido y su póster). Van en máxima calidad (CRF 18): el tope es
+// de aviso, 15 MB cada vídeo (solo se bajan al verse y el móvil baja su versión)
+const VID = path.join(ROOT, 'public/landing/video');
+const expected = ['es', 'ca', 'en'].flatMap(l => ['denuncia', 'gestion'].flatMap(n => ['', '-movil'].flatMap(m => [`${n}-${l}${m}.mp4`, `${n}-${l}${m}.webp`])));
+ok('vídeo: los de los tres idiomas, y ninguno más', fs.readdirSync(VID).sort().join() === [...expected].sort().join(), fs.readdirSync(VID).join(' '));
+for (const f of fs.readdirSync(VID).filter(f => f.endsWith('.mp4'))) {
+  const size = fs.statSync(path.join(VID, f)).size;
+  ok(`vídeo ${f}: menos de 15 MB`, size < 15_000_000, `${(size / 1048576).toFixed(2)} MB`);
 }
 
 // ── 5 · Con «reducir movimiento», nada se mueve ──

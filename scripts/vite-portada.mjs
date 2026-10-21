@@ -12,11 +12,12 @@ import { pathToFileURL } from 'node:url';
 const FONT = 'node_modules/@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2';
 const LANGS = ['es', 'ca', 'en'];
 /**
- * Los vídeos de la demo (public/landing/video, hechos con scripts/video-demo.mjs): el del ordenador (1920×1080) y la versión
- * ligera del móvil (720×1280, el producto en el móvil), cada uno con su primera imagen como póster
+ * Los vídeos de la demo (public/landing/video, hechos con scripts/video-demo.mjs), uno por idioma: el del ordenador
+ * (2560×1440) y la versión del móvil (1080×1920, el producto en el móvil), cada uno con su primera imagen como póster.
+ * Cada portada lleva solo los de su idioma (generar.js elige con VIDEOS[lang])
  */
-const video = (n) => ({ src: `/landing/video/${n}.mp4`, light: `/landing/video/${n}-movil.mp4`, poster: `/landing/video/${n}.webp`, posterLight: `/landing/video/${n}-movil.webp` });
-export const VIDEOS = { report: video('denuncia'), manage: video('gestion') };
+const video = (n, l) => ({ src: `/landing/video/${n}-${l}.mp4`, light: `/landing/video/${n}-${l}-movil.mp4`, poster: `/landing/video/${n}-${l}.webp`, posterLight: `/landing/video/${n}-${l}-movil.webp` });
+export const VIDEOS = Object.fromEntries(LANGS.map(l => [l, { report: video('denuncia', l), manage: video('gestion', l) }]));
 
 /** El idioma de la portada: el de ?lang= o, si no, el primero del navegador (castellano si no es ninguno de los tres) */
 export function landingLang(query, acceptLanguage = '') {

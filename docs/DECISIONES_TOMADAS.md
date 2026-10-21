@@ -107,13 +107,29 @@ Cada una lleva: **qué** he elegido, **por qué**, **la alternativa** y **dónde
 ### Vídeo
 - **Qué:** grabación **real** de la demo con Playwright, montada con ffmpeg (`scripts/video-demo.mjs`):
   - **«Quien denuncia»** (30 s): del canal a «Mi caso».
-  - **«Quien gestiona»** (44 s): acceso con verificación, tablero, acuse, respuesta e historial.
-  - **Formato:** sin sonido, con subtítulos en castellano en una banda propia debajo de la imagen (nunca tapan nada), en 1080p, con póster y el final fundido con el principio para que el bucle no salte.
-  - **Peso:** de 0,8 a 2,4 MB cada uno.
-  - **En el móvil:** una versión ligera **vertical** (720×1280) que enseña el producto en el móvil; una de ordenador encogida no se leería.
+  - **«Quien gestiona»** (42 s; 40 en el móvil): acceso con verificación, tablero, acuse, respuesta e historial.
+  - **Uno por idioma (es, ca, en):** el producto grabado en ese idioma (el canal, el panel y lo que se escribe en la demo) y los subtítulos también. Cada portada carga solo los de su idioma: `denuncia-ca.mp4`, `gestion-en-movil.mp4`…
+  - **Subtítulos:** escritos para cada idioma, no traducidos palabra por palabra. Usan las mismas palabras que el producto en ese idioma («costat», «tauler», «acusament de recepció»; «board», «two-step verification»).
+  - **El caso que se abre en «Quien gestiona»:** los datos de ejemplo de la demo están en castellano. En las versiones en catalán y en inglés, ese caso se graba traducido (la descripción, «Dónde», «Cuándo», las personas implicadas y el idioma del acuse). Solo en la grabación: la demo no cambia.
+  - **Formato, en máxima calidad:** H.264 con CRF 18 (preset slow, yuv420p, faststart), 30 fps y sin sonido.
+    - **Ordenador:** 2560×1440. Es la página a 1280×640 con densidad 2, más la banda de subtítulos.
+    - **Móvil:** 1080×1920, en **vertical**: enseña el producto en el móvil, porque una versión de ordenador encogida no se leería.
+    - **Nitidez:** el texto del producto y los subtítulos se leen nítidos al pausar a pantalla completa en una pantalla retina. Se ha comprobado con fotogramas ampliados.
+    - **Pósters:** la primera imagen de cada vídeo, a la misma resolución, en WebP de calidad 90. Ya llevan el primer subtítulo.
+    - **Subtítulos:** en una banda propia debajo de la imagen, para que nunca tapen nada.
+    - **Bucle:** el final se funde con el principio, así que no salta.
+  - **Peso:** sin tope. Hoy van de 2,1 a 5,6 MB los de ordenador y de 2,7 a 4,2 MB los de móvil. El guion avisa si un vídeo pasa de 15 MB, y la prueba `portada` falla en ese caso.
+  - **Carga:** con `preload="none"`, ningún vídeo se baja al abrir la página: solo cuando se ve. En pantallas de hasta 760 px se baja la versión del móvil.
+  - **Los pósters, tampoco al abrir:** no van en el HTML. Los pone `landing.js` cuando la página ha terminado de cargar y faltan menos de una pantalla para llegar a los vídeos (en el móvil, el vertical). A esta resolución pesan unos 125 KB; si se pidieran al abrir, competirían con la foto del inicio (Lighthouse móvil bajaba a 92). Sin JavaScript no hay póster: se ve el reproductor con su botón. Así, la portada da Lighthouse móvil ≥ 98 y CLS 0.
   - **Reproducción:** solo cuando se ve. Con «reducir movimiento» no se reproduce solo.
-- **Subtítulos en castellano también en las portadas en catalán e inglés:** lo pedía el encargo. La descripción del vídeo para lectores de pantalla va en el idioma de la página.
-- **Se cambia en:** los textos de los subtítulos, en `scripts/video-demo.mjs` (con la demo en marcha, `node scripts/video-demo.mjs` los vuelve a grabar).
+- **Por qué uno por idioma:** quien lee la portada en catalán o en inglés ve el producto como lo verá su equipo. Antes, las tres portadas llevaban el vídeo en castellano.
+- **Por qué máxima calidad:** lo pidió David (21 oct). Antes eran 1920×1080 y 720×1280, a menos de 2,5 MB cada uno. Además, la captura llegaba a la mitad de resolución y se ampliaba, así que el texto salía algo blando. Ahora Chromium (sin ventana) arranca con la densidad forzada y cada imagen se captura a la resolución final.
+- **Alternativa:** un solo vídeo con subtítulos aparte (WebVTT) en cada idioma. Habría menos archivos, pero el producto seguiría saliendo en castellano.
+- **Se cambia en:** `scripts/video-demo.mjs`.
+  - **Subtítulos y lo que se escribe:** en `GUION`.
+  - **Resolución y calidad:** en `FORMATS`.
+  - **Volver a grabarlos:** con la demo en marcha, `node scripts/video-demo.mjs` (`--lang=ca` para un solo idioma).
+  - **Las rutas:** en `VIDEOS` de `scripts/vite-portada.mjs`.
 
 ## Seguridad
 
@@ -160,3 +176,22 @@ Cada una lleva: **qué** he elegido, **por qué**, **la alternativa** y **dónde
 - **Qué:** **no las he sacado de git**.
 - **Por qué:** `docs/AUDITORIA.md` (F-31) dice que `.claude` es tu carpeta y no se toca sin preguntarte. Además, sacarlas de git las borra del disco de quien haga `pull` después: eso no es reversible para los demás.
 - **Dónde:** los comandos están en `QUE_TIENE_QUE_HACER_DAVID.md`.
+
+---
+
+## Seguridad · ronda 2 (21 de octubre de 2026)
+
+Decisiones por defecto de los arreglos de seguridad (`docs/seguridad/AUDITORIA_RONDA1.md`). Se pueden cambiar; aquí queda qué se hizo y por qué, para poder discutirlo.
+
+### C1 · Exclusión por caso
+- **Qué:** si una denuncia va contra alguien del panel, esa persona no la ve. Quien denuncia aparta a quien quiera al enviar (ve la lista del equipo). El Responsable o un administrador también puede apartar, pero **nunca** puede devolver el acceso a quien apartó quien denunció. Tiene que quedar al menos una persona; si quien denuncia aparta a todos, la denuncia entra igual y el navegador ofrece el canal externo (AIPI).
+- **Por qué así:** es lo que pide la confidencialidad del art. 32 (preservar la identidad frente a la persona afectada) sin inventar un flujo nuevo de aprobación.
+- **Dónde:** migración `020_exclusion_por_caso.sql`. ⚖️ Expone al público los nombres del equipo del canal (duda nueva en `REVISION_LEGAL.md`).
+
+### A1 y A2 · Código de seguimiento
+- **Qué:** la existencia de un código no se revela nunca (idempotencia por «id de envío», no por el código; error genérico que cuenta como intento). Se cierra la inserción directa de denuncias. Freno **por empresa**, no global, con una **prueba de trabajo** en el navegador que se endurece en vez de bloquear (sin terceros ni IP). Los códigos nuevos pasan a 16 caracteres; los de 8 siguen valiendo.
+- **Por qué así:** un freno global permitía bloquear a todos los clientes (A2); revelar la existencia de un código permitía adivinarlos (A1). La prueba de trabajo frena sin guardar IP (el canal promete anonimato) y sin bloquear a quien sí tiene su código.
+- **Dónde:** migración `021_codigo_freno_por_empresa.sql`. El camino nuevo convive con el de antes hasta que el navegador se cablee.
+
+### Pendiente de cablear en el navegador (no tocado aún)
+El 21 oct, mientras se escribía esto, otro chat estaba grabando los vídeos de la portada con la demo. Para no romperle la grabación, **no se tocó ningún archivo de `src/`**. Queda por cablear (cuando la demo esté libre): el selector de «apartar personas» del formulario, el panel de accesos de la ficha, la prueba de trabajo (worker) y el id de envío en el canal, los códigos de 16 caracteres, y la demo (`demoStore.js`). La capa de base de datos ya está hecha y probada (`npm run db:test`).

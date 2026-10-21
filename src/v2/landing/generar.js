@@ -1,8 +1,8 @@
 // La portada de Reportia (fase 5 de docs/PLAN_FASES.md), como página estática: una por idioma, generada al compilar
 // (y al vuelo con `npm run dev`) por el plugin de vite.config.js. Sin React: se lee sin JavaScript, pinta a la primera
 // y no se mueve nada mientras carga. Los textos salen de src/translations.js (v2site) y las decisiones de negocio
-// (nombre, precios, multa, dominio…) de src/v2/config/producto.js. El JavaScript (landing.js) solo añade lo opcional:
-// los vídeos se reproducen solos al verse, si la persona no ha pedido menos movimiento.
+// (nombre, precios, multa, dominio…) de src/v2/config/producto.js. El JavaScript (landing.js) solo añade lo opcional,
+// si la persona no ha pedido menos movimiento: los vídeos se reproducen solos al verse y cada apartado entra con un fundido.
 import { icono } from './iconos.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -27,7 +27,7 @@ const photo = (n) => ({
 /**
  * La página entera de un idioma.
  *   T: los textos de ese idioma (translations[lang]) · P: src/v2/config/producto.js
- *   assets: { css (texto), js (ruta), font (ruta), video: { report, manage } con { src, light, poster, posterLight }, origin }
+ *   assets: { css (texto), js (ruta), font (ruta), video: por idioma, { report, manage } con { src, light, poster, posterLight }, origin }
  *   origin: la dirección pública (VITE_PUBLIC_ORIGIN, la misma que usa la aplicación); si no llega, la de DOMINIO
  */
 export function generarPortada({ lang, T, P, assets }) {
@@ -104,17 +104,21 @@ export function generarPortada({ lang, T, P, assets }) {
   </section>`;
 
   // ── 2 · Cómo funciona: el vídeo real de la demo (quien denuncia y quien gestiona) y los cuatro pasos ──
-  // Las dos pestañas son un grupo de radio: funcionan sin JavaScript y no mueven nada al cargar
+  // Los vídeos van en el idioma de la página (producto y subtítulos). Las dos pestañas son un grupo de radio: funcionan sin
+  // JavaScript y no mueven nada al cargar
+  const vids = assets.video[lang];
   const video = (id, v, label, desc, checked) => `
         <input class="lp-vtab-in" type="radio" name="lp-video" id="lp-v-${id}"${checked ? ' checked' : ''}>
         <label class="lp-vtab" for="lp-v-${id}">${icono('circle-play', 18)}${esc(label)}</label>`;
-  // Hasta 760 px, la versión ligera (el producto en el móvil, en vertical). El póster es la primera imagen del vídeo (al
+  // Hasta 760 px, la versión del móvil (el producto en el móvil, en vertical). El póster es la primera imagen del vídeo (al
   // reproducir no cambia nada) y lo pinta el propio vídeo: si fuera una imagen aparte, el navegador la taparía con su
-  // recuadro gris mientras el vídeo no arranca. En el móvil, landing.js pone el póster vertical (data-poster-light)
+  // recuadro gris mientras el vídeo no arranca. Lo pone landing.js al acercarse a los vídeos (data-poster, o el vertical,
+  // data-poster-light, en el móvil): van a la resolución del vídeo y, si estuvieran en el HTML, se bajarían al cargar y
+  // competirían con la foto del inicio. Sin JavaScript no hay póster: se ve el reproductor con su botón
   const player = (id, v, desc) => `
         <figure class="lp-video lp-video-${id}">
           <div class="lp-video-box">
-            <video controls muted playsinline loop preload="none" poster="${v.poster}" data-poster-light="${v.posterLight}" aria-label="${esc(desc)}" data-video="${id}">
+            <video controls muted playsinline loop preload="none" data-poster="${v.poster}" data-poster-light="${v.posterLight}" aria-label="${esc(desc)}" data-video="${id}">
               <source src="${v.light}" type="video/mp4" media="(max-width: 760px)">
               <source src="${v.src}" type="video/mp4">
             </video>
@@ -129,11 +133,11 @@ export function generarPortada({ lang, T, P, assets }) {
         <p class="lp-lead">${esc(lp.howLead)}</p>
       </header>
       <div class="lp-videos" role="group" aria-label="${esc(lp.videoGroup)}">
-        ${video('report', assets.video.report, lp.videoReport, lp.videoReportDesc, true)}
-        ${video('manage', assets.video.manage, lp.videoManage, lp.videoManageDesc, false)}
+        ${video('report', vids.report, lp.videoReport, lp.videoReportDesc, true)}
+        ${video('manage', vids.manage, lp.videoManage, lp.videoManageDesc, false)}
         <div class="lp-video-stage">
-          ${player('report', assets.video.report, lp.videoReportDesc)}
-          ${player('manage', assets.video.manage, lp.videoManageDesc)}
+          ${player('report', vids.report, lp.videoReportDesc)}
+          ${player('manage', vids.manage, lp.videoManageDesc)}
         </div>
       </div>
       <ol class="lp-steps">

@@ -2,36 +2,168 @@
 // Graba los vídeos de la portada con la demo de verdad (Playwright) y los monta con ffmpeg (fase 5 de docs/PLAN_FASES.md).
 //
 //   1. Arranca la demo:  VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= npx vite --port 3111
-//   2. node scripts/video-demo.mjs                 (BASE=http://localhost:3111 por defecto; --only=denuncia para uno solo)
+//   2. node scripts/video-demo.mjs   (BASE=http://localhost:3111 por defecto; --only=denuncia para uno solo; --lang=ca,en para
+//      solo esos idiomas: por defecto, los tres)
 //
-// Escribe en public/landing/video, para «denuncia» (unos 30 s) y «gestion» (unos 45 s):
-//   <nombre>.mp4        1920×1080, el producto en el ordenador
-//   <nombre>-movil.mp4  720×1280, el producto en el móvil (la versión ligera que se ve en los teléfonos)
-//   <nombre>.webp y <nombre>-movil.webp: la primera imagen de cada uno, para enseñarla antes de reproducir
-// Sin sonido, con subtítulos en castellano grabados en la imagen (en una banda propia debajo de la página: nunca tapan nada),
-// y el final se funde con el principio para que el bucle no salte. Cada archivo pesa menos de 10 MB (si no, se vuelve a comprimir). Necesita ffmpeg (con libx264) y cwebp.
-// Los frames se capturan del propio navegador (CDP screencast) a la resolución final: el texto se lee nítido.
+// Una versión por idioma (es, ca, en): el producto grabado en ese idioma y los subtítulos también. Escribe en
+// public/landing/video, para «denuncia» (unos 30 s) y «gestion» (unos 45 s), en máxima calidad (H.264, CRF 18):
+//   <nombre>-<idioma>.mp4        2560×1440, el producto en el ordenador
+//   <nombre>-<idioma>-movil.mp4  1080×1920, el producto en el móvil (la versión que se ve en las pantallas pequeñas)
+//   <nombre>-<idioma>.webp y <nombre>-<idioma>-movil.webp: la primera imagen de cada uno, a la misma resolución, para
+//   enseñarla antes de reproducir
+// Sin sonido, con los subtítulos grabados en la imagen (en una banda propia debajo de la página: nunca tapan nada), y el
+// final se funde con el principio para que el bucle no salte. Avisa si un vídeo pasa de 15 MB. Necesita ffmpeg (con
+// libx264) y cwebp.
+// Los frames se capturan del propio navegador (CDP screencast) a la resolución final: el texto se lee nítido. Para eso
+// Chromium arranca con la densidad de pantalla forzada (--force-device-scale-factor): con solo la densidad emulada, la
+// captura llega a la mitad de resolución (en píxeles CSS) aunque la página se pinte a densidad 2.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '../e2e/lib/playwright.mjs';
+import { translations } from '../src/translations.js';
+import { panelTexts } from '../src/translations-panel.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'public/landing/video');
 const BASE = process.env.BASE ?? 'http://localhost:3111';
 const only = process.argv.find(a => a.startsWith('--only='))?.slice(7);
 const WORK = fs.mkdtempSync(path.join(os.tmpdir(), 'reportia-video-'));
-const MAX_BYTES = 10 * 1024 * 1024;
+const WARN_BYTES = 15_000_000;
 const FPS = 30;
+// La clave con la que la demo guarda sus datos en sessionStorage (src/lib/demoStore.js)
+const DEMO_KEY = /const KEY = '([^']+)'/.exec(fs.readFileSync(path.join(ROOT, 'src/lib/demoStore.js'), 'utf8'))[1];
 
-// El ordenador: la página a 1280×640 con densidad 1,5 (1920×960) y la banda de subtítulos de 120 px debajo = 1920×1080.
-// El móvil: la página a 360×580 con densidad 2 (720×1160) y la banda de 120 px = 720×1280
+// ── Lo que cambia con el idioma: los subtítulos, lo que se escribe y el caso de ejemplo que se abre en el panel ──
+// Los subtítulos se escriben para cada idioma (no se traducen palabra por palabra). Los botones que se pulsan salen de las
+// traducciones del producto (labels()), así que el guion sigue funcionando si cambia un texto.
+// caso: los datos de ejemplo de la demo están en castellano; en las otras versiones, el caso que se abre se graba traducido
+// (solo en la grabación: la demo no cambia)
+const GUION = {
+  es: {
+    locale: 'es-ES',
+    denuncia: {
+      caps: {
+        inicio: 'Tu canal: un lado para denunciar y otro para gestionar',
+        tema: 'Quien informa elige de qué se trata',
+        relato: 'Lo explica con sus palabras y puede adjuntar pruebas',
+        nombre: 'Decide si da su nombre. Por defecto, es anónima',
+        codigo: 'Recibe un código secreto para seguir su caso sin dar su nombre',
+        caso: 'Con el código ve cómo va su caso y habla con tu equipo',
+      },
+      texto: 'Un proveedor de transporte factura rutas que no aparecen en el registro de salidas.',
+      archivo: 'facturas-marzo.pdf',
+      mensaje: 'Puedo aportar las facturas de marzo.',
+    },
+    gestion: {
+      caps: {
+        acceso: 'Tu equipo entra con contraseña y verificación en dos pasos',
+        tablero: 'El tablero: nuevas, en curso y cerradas, con los plazos legales a la vista',
+        ficha: 'Cada caso dice cuál es el siguiente paso y cuántos días quedan',
+        acuse: 'El acuse de recibo sale con un clic',
+        respuesta: 'Respondes a quien informa, aunque no sepas quién es',
+        quien: 'Decides quién lo lleva y todo queda en el historial',
+        final: 'El caso ya está en curso, con su plazo de respuesta',
+      },
+      respuesta: 'Gracias por contarlo. Lo estamos revisando y te escribiremos esta semana.',
+      caso: null,
+    },
+  },
+  ca: {
+    locale: 'ca-ES',
+    denuncia: {
+      caps: {
+        inicio: 'El teu canal: un costat per denunciar i un altre per gestionar',
+        tema: 'Qui informa tria de què es tracta',
+        relato: 'Ho explica amb les seves paraules i pot adjuntar-hi proves',
+        nombre: 'Decideix si diu qui és. Per defecte, és anònima',
+        codigo: 'Rep un codi secret per seguir el cas sense identificar-se',
+        caso: 'Amb el codi veu com va el cas i parla amb el teu equip',
+      },
+      texto: 'Un proveïdor de transport factura rutes que no consten al registre de sortides.',
+      archivo: 'factures-marc.pdf',
+      mensaje: 'Puc aportar les factures de març.',
+    },
+    gestion: {
+      caps: {
+        acceso: 'El teu equip hi entra amb contrasenya i verificació en dos passos',
+        tablero: 'El tauler: noves, en curs i tancades, amb els terminis legals a la vista',
+        ficha: 'Cada cas et diu quin és el pas següent i quants dies queden',
+        acuse: 'L’acusament de recepció surt amb un clic',
+        respuesta: 'Respons a qui informa, encara que no sàpigues qui és',
+        quien: 'Tries qui el porta i tot queda a l’historial',
+        final: 'El cas ja és en curs, amb el seu termini per respondre',
+      },
+      respuesta: "Gràcies per explicar-nos-ho. Ho estem revisant i t'escriurem aquesta setmana.",
+      caso: {
+        description: 'Fa unes quantes setmanes que un dels responsables del torn de nit fa comentaris de caràcter sexual a diverses companyes i s’hi acosta més del compte quan són soles als passadissos de preparació de comandes. Algunes companyes han demanat canviar de torn per no coincidir-hi. Tinc captures dels missatges que va enviar al grup de missatgeria del torn.',
+        department: 'Magatzem central, torn de nit',
+        incident_when: 'Des del setembre',
+        involved_people: 'Un dels responsables del torn de nit',
+      },
+    },
+  },
+  en: {
+    locale: 'en-GB',
+    denuncia: {
+      caps: {
+        inicio: 'Your channel: one side to report, the other to manage',
+        tema: 'The person reporting picks what it’s about',
+        relato: 'They describe it in their own words and can attach evidence',
+        nombre: 'They choose whether to give their name. It’s anonymous by default',
+        codigo: 'They get a secret code to follow up without revealing who they are',
+        caso: 'With the code, they can track the case and talk to your team',
+      },
+      texto: "A transport supplier is billing for routes that don't appear in the dispatch log.",
+      archivo: 'march-invoices.pdf',
+      mensaje: 'I can send over the March invoices.',
+    },
+    gestion: {
+      caps: {
+        acceso: 'Your team signs in with a password and two-step verification',
+        tablero: 'The board: new, in progress and closed, with every legal deadline in view',
+        ficha: 'Each case tells you the next step and how many days you have left',
+        acuse: 'Acknowledging receipt takes one click',
+        respuesta: 'You can reply to the reporter, even if you don’t know who they are',
+        quien: 'Choose who handles it. Everything is logged in the case history',
+        final: 'The case is now in progress, with its reply deadline',
+      },
+      respuesta: "Thanks for letting us know. We're looking into it and will write back this week.",
+      caso: {
+        description: 'For several weeks now, one of the night-shift supervisors has been making sexual comments to several female colleagues and standing closer to them than he needs to when they are alone in the order-picking aisles. Some of them have asked to change shifts so they don’t have to work with him. I have screenshots of the messages he sent to the shift’s group chat.',
+        department: 'Main warehouse, night shift',
+        incident_when: 'Since September',
+        involved_people: 'One of the night-shift supervisors',
+      },
+    },
+  },
+};
+const LANGS = (process.argv.find(a => a.startsWith('--lang='))?.slice(7) ?? Object.keys(GUION).join(',')).split(',');
+if (!LANGS.every(l => GUION[l])) { console.error(`Idiomas: ${Object.keys(GUION).join(', ')}`); process.exit(1); }
+
+/** Los nombres de lo que se pulsa, en el idioma de la grabación (los mismos textos que enseña el producto) */
+function labels(lang) {
+  const t = translations[lang];
+  const p = panelTexts[lang].panel;
+  const re = (s) => new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return {
+    start: t.canal.start, fraud: re(t.canal.cats.fraud[0]), next: t.canal.next, send: re(t.canal.send), copy: t.canal.copy,
+    seeCase: t.canal.seeCase, chatSend: t.ds.chatSend, moreCase: t.canal.moreCase, leaveCase: t.canal.leaveCase,
+    email: p.email, enter: p.enter, nextStep: p.n1, ackSend: p.ackSend, ackSent: p.ackSent, send2: p.send, tabConv: p.tabConv,
+    tabManage: p.tabManage, owner: p.owner, assigned: re(p.aAssigned.replace('{who} ', '').replace('{to}', 'Núria Soler Vidal')),
+    board: p.back, colOpen: re(p.cols.open),
+  };
+}
+
+// El ordenador: la página a 1280×640 con densidad 2 (2560×1280) y la banda de subtítulos de 160 px debajo = 2560×1440.
+// El móvil: la página a 360×580 con densidad 3 (1080×1740) y la banda de 180 px = 1080×1920.
+// La banda y su letra, a la misma escala en los dos (la de antes, 120 px a densidad 1,5 y 2)
 const BAND = '#0B1230';
 const FORMATS = {
-  escritorio: { w: 1280, h: 640, dsf: 1.5, band: 120, mobile: false, suffix: '', crf: 24, cap: { font: 38, max: 1700 } },
-  movil: { w: 360, h: 580, dsf: 2, band: 120, mobile: true, suffix: '-movil', crf: 27, cap: { font: 28, max: 660 } },
+  escritorio: { w: 1280, h: 640, dsf: 2, band: 160, mobile: false, suffix: '', crf: 18, cap: { font: 51, max: 2260 } },
+  movil: { w: 360, h: 580, dsf: 3, band: 180, mobile: true, suffix: '-movil', crf: 18, cap: { font: 42, max: 990 } },
 };
 
 for (const bin of ['ffmpeg', 'cwebp']) {
@@ -44,8 +176,8 @@ const run = (bin, args) => {
 };
 
 // ── Lo que se inyecta en la página mientras se graba: el puntero (o el toque, en el móvil) y sin barras de desplazamiento ──
-function recorderInit({ mobile }) {
-  try { localStorage.setItem('reportia-panel-lang', 'es'); } catch { /* sin almacenamiento */ }
+function recorderInit({ mobile, lang }) {
+  try { localStorage.setItem('reportia-panel-lang', lang); } catch { /* sin almacenamiento */ }
   const add = () => {
     if (document.getElementById('rec-cursor')) return;
     const st = document.createElement('style');
@@ -70,21 +202,52 @@ function recorderInit({ mobile }) {
   else document.addEventListener('DOMContentLoaded', add);
 }
 
+/**
+ * Antes de grabar, el caso de ejemplo en el idioma de la grabación: se cambia en los datos de la demo (sessionStorage de
+ * esta pestaña) y se vuelve a cargar la página para que la demo los lea. Si la demo aún no los ha creado, se pasa antes
+ * por el canal de ejemplo, que los crea
+ */
+async function translateCase(page, lang, caso, startUrl, ready) {
+  const patch = ([key, id, data, language]) => {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    const c = s.complaints.find(x => x.id === id);
+    if (!c) return false;
+    Object.assign(c, data, { language });
+    s.audit.filter(a => a.complaint_id === id && a.action === 'created').forEach(a => { a.details.language = language; });
+    sessionStorage.setItem(key, JSON.stringify(s));
+    return true;
+  };
+  const args = [DEMO_KEY, 'c-vk7p2mqa', caso, lang];
+  if (!(await page.evaluate(patch, args))) {
+    await page.goto(`${BASE}/canal/demo?lang=${lang}`, { waitUntil: 'networkidle' });
+    await page.waitForSelector('.ds-hero');
+    if (!(await page.evaluate(patch, args))) throw new Error(`No encuentro el caso de ejemplo en ${DEMO_KEY}`);
+  }
+  await page.goto(startUrl, { waitUntil: 'networkidle' });
+  await page.waitForSelector(ready);
+}
+
 /** Una grabación: abre la página, captura cada frame del navegador y apunta cuándo empieza cada subtítulo */
-async function record(browser, format, startUrl, ready, flow) {
+async function record(browser, format, lang, video) {
   const F = FORMATS[format];
+  const G = GUION[lang];
+  const startUrl = video.url(lang);
   const ctx = await browser.newContext({
     viewport: { width: F.w, height: F.h }, deviceScaleFactor: F.dsf, isMobile: F.mobile, hasTouch: F.mobile,
-    locale: 'es-ES', colorScheme: 'light', reducedMotion: 'no-preference', permissions: ['clipboard-read', 'clipboard-write'],
+    locale: G.locale, colorScheme: 'light', reducedMotion: 'no-preference', permissions: ['clipboard-read', 'clipboard-write'],
   });
-  await ctx.addInitScript(recorderInit, { mobile: F.mobile });
+  await ctx.addInitScript(recorderInit, { mobile: F.mobile, lang });
   // Nada sale del ordenador
   await ctx.route(u => !/^https?:\/\/(localhost|127\.0\.0\.1)[:/]/.test(u.toString()) && !/^(data|blob):/.test(u.toString()), r => r.abort());
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.goto(startUrl, { waitUntil: 'networkidle' });
-  await page.waitForSelector(ready);
+  await page.waitForSelector(video.ready);
+  const caso = G[video.name].caso;
+  if (caso) await translateCase(page, lang, caso, startUrl, video.ready);
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(700);
 
@@ -99,7 +262,9 @@ async function record(browser, format, startUrl, ready, flow) {
     pending = pending.then(() => fs.promises.writeFile(file, Buffer.from(data, 'base64')));
     cdp.send('Page.screencastFrameAck', { sessionId }).catch(() => {});
   });
-  await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 94, maxWidth: Math.round(F.w * F.dsf), maxHeight: Math.round(F.h * F.dsf), everyNthFrame: 1 });
+  // Todos los frames (el navegador solo manda uno cuando algo cambia): con everyNthFrame 2 se perdía el primero y, si la
+  // página empieza quieta, la grabación empezaba tarde
+  await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 96, maxWidth: Math.round(F.w * F.dsf), maxHeight: Math.round(F.h * F.dsf), everyNthFrame: 1 });
   await page.waitForTimeout(150);
 
   // ── Las acciones, a ritmo de persona ──
@@ -146,12 +311,14 @@ async function record(browser, format, startUrl, ready, flow) {
     if (then) cue(then);
     await pause(after);
   };
+  // Si lo escrito no llega al campo (la página aún se estaba actualizando), se vuelve a escribir
   const type = async (loc, text, delay = 30) => {
     await click(loc, { after: 150 });
     await loc.pressSequentially(text, { delay });
+    if ((await loc.inputValue()) !== text) { await loc.fill(''); await loc.pressSequentially(text, { delay }); }
   };
 
-  await flow(page, { pause, cue, click, type, pointAt, reveal, mobile: F.mobile });
+  await video.flow(page, { pause, cue, click, type, pointAt, reveal, mobile: F.mobile, L: labels(lang), G: G[video.name] });
 
   const tEnd = Date.now() / 1000;
   await cdp.send('Page.stopScreencast');
@@ -163,6 +330,7 @@ async function record(browser, format, startUrl, ready, flow) {
 }
 
 // ── Los subtítulos: cada uno, una imagen con fondo transparente (Manrope, como el producto) ──
+// browser: uno sin la densidad forzada (la imagen sale al tamaño exacto de la banda)
 async function captionImages(browser, format, cues, dir) {
   const F = FORMATS[format];
   const font = fs.readFileSync(path.join(ROOT, 'node_modules/@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2')).toString('base64');
@@ -171,7 +339,7 @@ async function captionImages(browser, format, cues, dir) {
   await page.setContent(`<!doctype html><style>
     @font-face { font-family: Manrope; src: url(data:font/woff2;base64,${font}) format('woff2'); font-weight: 200 800; }
     html, body { margin: 0; }
-    #band { display: grid; place-items: center; width: ${W}px; height: ${F.band}px; padding: 0 24px; box-sizing: border-box; background: ${BAND}; }
+    #band { display: grid; place-items: center; width: ${W}px; height: ${F.band}px; padding: 0 ${F.band / 5}px; box-sizing: border-box; background: ${BAND}; }
     #cap { max-width: ${F.cap.max}px; color: #fff; font: 600 ${F.cap.font}px/1.28 Manrope, sans-serif; letter-spacing: -.005em; text-align: center; text-wrap: balance; }
   </style><div id="band"><div id="cap"></div></div>`);
   await page.evaluate(() => document.fonts.ready);
@@ -207,13 +375,16 @@ function assemble({ frames, cues, tEnd, dir }, capFiles, format, outName) {
   const inputs = ['-f', 'concat', '-safe', '0', '-i', path.join(dir, 'list.txt')];
   capFiles.forEach(f => inputs.push('-i', f));
   let graph = `[0:v]fps=${FPS},scale=${W}:${PH}:flags=lanczos,format=rgb24,pad=${W}:${H}:0:0:color=0x${BAND.slice(1)},setsar=1[v0]`;
+  // El primer subtítulo, desde la primera imagen: el póster lo lleva y el bucle no parpadea al volver al principio. Cada
+  // uno empieza justo donde acaba el anterior (con un hueco de 1 ms, a veces caía un frame sin subtítulo)
+  const at = cues.map((c, i) => (i === 0 ? 0 : Math.max(0, c.t - t0)).toFixed(3)).concat(total.toFixed(3));
   cues.forEach((c, i) => {
-    const a = Math.max(0, c.t - t0);
-    const b = i + 1 < cues.length ? cues[i + 1].t - t0 : total;
-    graph += `;[v${i}][${i + 1}:v]overlay=x=0:y=${PH}:format=rgb:enable='between(t,${a.toFixed(3)},${(b - 0.001).toFixed(3)})'[v${i + 1}]`;
+    graph += `;[v${i}][${i + 1}:v]overlay=x=0:y=${PH}:format=rgb:enable='gte(t,${at[i]})*lt(t,${at[i + 1]})'[v${i + 1}]`;
   });
+  // Cortado a la duración de la grabación: el concat de ffmpeg cuenta dos veces la última imagen (repetida en la lista para
+  // las versiones que no respetan su duración), y el final quedaba quieto y sin subtítulo
   const mid = path.join(dir, 'mid.mkv');
-  run('ffmpeg', ['-y', '-loglevel', 'error', ...inputs, '-filter_complex', `${graph};[v${cues.length}]format=rgb24[vo]`, '-map', '[vo]', '-c:v', 'libx264rgb', '-preset', 'ultrafast', '-crf', '0', mid]);
+  run('ffmpeg', ['-y', '-loglevel', 'error', ...inputs, '-filter_complex', `${graph};[v${cues.length}]format=rgb24[vo]`, '-map', '[vo]', '-t', total.toFixed(3), '-c:v', 'libx264rgb', '-preset', 'ultrafast', '-crf', '0', mid]);
 
   // 2 · La primera imagen (también el póster) y el fundido final hacia ella: el bucle no salta
   const first = path.join(dir, 'first.png');
@@ -221,63 +392,66 @@ function assemble({ frames, cues, tEnd, dir }, capFiles, format, outName) {
   const dur = Number(run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', mid]).stdout.trim());
   const fade = 0.7;
   const out = path.join(OUT, `${outName}${F.suffix}.mp4`);
-  let crf = F.crf;
-  for (;;) {
-    run('ffmpeg', ['-y', '-loglevel', 'error', '-i', mid, '-loop', '1', '-t', '1.2', '-i', first,
-      '-filter_complex', `[0:v]fps=${FPS},format=gbrp,settb=AVTB,setsar=1[a];[1:v]fps=${FPS},format=gbrp,settb=AVTB,setsar=1[b];[a][b]xfade=transition=fade:duration=${fade}:offset=${(dur - fade).toFixed(3)},scale=out_color_matrix=bt709:out_range=tv,format=yuv420p[v]`,
-      '-map', '[v]', '-an', '-c:v', 'libx264', '-preset', 'slow', '-tune', 'stillimage', '-crf', String(crf), '-profile:v', 'high', '-pix_fmt', 'yuv420p',
-      '-color_range', 'tv', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-movflags', '+faststart', out]);
-    if (fs.statSync(out).size <= MAX_BYTES || crf >= 36) break;
-    crf += 2;
-  }
+  run('ffmpeg', ['-y', '-loglevel', 'error', '-i', mid, '-loop', '1', '-t', '1.2', '-i', first,
+    '-filter_complex', `[0:v]fps=${FPS},format=gbrp,settb=AVTB,setsar=1[a];[1:v]fps=${FPS},format=gbrp,settb=AVTB,setsar=1[b];[a][b]xfade=transition=fade:duration=${fade}:offset=${(dur - fade).toFixed(3)},scale=out_color_matrix=bt709:out_range=tv,format=yuv420p[v]`,
+    '-map', '[v]', '-an', '-c:v', 'libx264', '-preset', 'slow', '-tune', 'stillimage', '-crf', String(F.crf), '-profile:v', 'high', '-pix_fmt', 'yuv420p',
+    '-color_range', 'tv', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-movflags', '+faststart', out]);
   const poster = path.join(OUT, `${outName}${F.suffix}.webp`);
-  run('cwebp', ['-quiet', '-q', F.mobile ? '78' : '80', '-m', '6', first, '-o', poster]);
+  run('cwebp', ['-quiet', '-q', '90', '-m', '6', first, '-o', poster]);
+  const size = fs.statSync(out).size;
   const secs = Number(run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', out]).stdout.trim());
-  console.log(`  ${path.relative(ROOT, out)}: ${W}×${H}, ${secs.toFixed(1)} s, ${(fs.statSync(out).size / 1048576).toFixed(2)} MB (crf ${crf}) · póster ${(fs.statSync(poster).size / 1024).toFixed(0)} KB`);
+  console.log(`  ${path.relative(ROOT, out)}: ${W}×${H}, ${secs.toFixed(1)} s, ${(size / 1048576).toFixed(2)} MB (crf ${F.crf}) · póster ${(fs.statSync(poster).size / 1024).toFixed(0)} KB`);
+  if (size > WARN_BYTES) console.log(`  AVISO: ${path.basename(out)} pasa de 15 MB`);
+  // Los frames de trabajo de esta grabación ya no hacen falta (a esta resolución ocupan cientos de MB)
+  fs.rmSync(dir, { recursive: true, force: true });
 }
 
 // ── Los dos recorridos ──
+// L: los nombres de lo que se pulsa (labels()) · G: los subtítulos y los textos del idioma (GUION)
 const VIDEOS = {
   // Quien denuncia: el canal de ejemplo, de la entrada a «Mi caso», y vuelta a la entrada (unos 30 s)
   denuncia: {
-    url: `${BASE}/canal/demo?lang=es`, ready: '.ds-hero',
-    async flow(page, { pause, cue, click, type, mobile }) {
-      cue('Tu canal: un lado para denunciar y otro para gestionar');
+    url: (lang) => `${BASE}/canal/demo?lang=${lang}`, ready: '.ds-hero',
+    async flow(page, { pause, cue, click, type, mobile, L, G }) {
+      cue(G.caps.inicio);
       await pause(2000);
-      await click(page.getByRole('link', { name: 'Presentar una denuncia' }), { then: 'Quien informa elige de qué se trata', after: 300 });
+      await click(page.getByRole('link', { name: L.start }), { then: G.caps.tema, after: 300 });
       await page.waitForSelector('.cats');
       await pause(700);
-      await click(page.getByRole('radio', { name: /Fraude o corrupción/ }), { after: 350 });
-      await click(page.getByRole('button', { name: 'Continuar' }), { then: 'Lo explica con sus palabras y puede adjuntar pruebas', after: 300 });
-      await type(page.locator('#dn-description'), 'Un proveedor de transporte factura rutas que no aparecen en el registro de salidas.', 24);
+      const fraud = page.getByRole('radio', { name: L.fraud });
+      await click(fraud, { after: 350 });
+      // Alguna vez el primer clic no llega a marcarlo (y «Continuar» sigue apagado): se marca antes de seguir
+      if (!(await fraud.isChecked())) { await fraud.check(); await pause(300); }
+      await click(page.getByRole('button', { name: L.next }), { then: G.caps.relato, after: 300 });
+      await type(page.locator('#dn-description'), G.texto, 24);
       if (!mobile) {
-        const pdf = path.join(WORK, 'facturas-marzo.pdf');
+        const pdf = path.join(WORK, G.archivo);
         fs.writeFileSync(pdf, '%PDF-1.4\n% ejemplo\n');
         await page.locator('input[type=file]').setInputFiles([pdf]);
         await page.locator('.proof-file').first().waitFor();
       }
       await pause(700);
-      await click(page.getByRole('button', { name: 'Continuar' }), { then: 'Decide si da su nombre. Por defecto, es anónima', after: 300 });
+      await click(page.getByRole('button', { name: L.next }), { then: G.caps.nombre, after: 300 });
       await page.waitForSelector('.opts');
       await pause(1300);
       await click(page.locator('#dn-privacy'), { after: 300 });
-      await click(page.getByRole('button', { name: /Enviar denuncia/ }), { after: 0 });
+      await click(page.getByRole('button', { name: L.send }), { after: 0 });
       await page.waitForSelector('.code-big', { timeout: 15000 });
-      cue('Recibe un código secreto para seguir su caso sin dar su nombre');
+      cue(G.caps.codigo);
       await pause(2200);
-      await click(page.getByRole('button', { name: 'Copiar' }), { after: 600 });
-      await click(page.getByRole('button', { name: 'Ver mi caso' }), { then: 'Con el código ve cómo va su caso y habla con tu equipo', after: 0 });
+      await click(page.getByRole('button', { name: L.copy }), { after: 600 });
+      await click(page.getByRole('button', { name: L.seeCase }), { then: G.caps.caso, after: 0 });
       await page.waitForSelector('.mc');
       await pause(900);
-      await type(page.locator('#mc-msg'), 'Puedo aportar las facturas de marzo.', 30);
-      await click(page.getByRole('button', { name: 'Enviar mensaje' }), { after: 0 });
+      await type(page.locator('#mc-msg'), G.mensaje, 30);
+      await click(page.getByRole('button', { name: L.chatSend }), { after: 0 });
       await page.locator('.ds-chat-msg.is-mine').first().waitFor();
       await pause(1700);
       if (mobile) {
-        await click(page.getByRole('button', { name: 'Más opciones' }), { after: 300 });
-        await click(page.getByRole('dialog').getByRole('button', { name: 'Salir de mi caso' }), { then: 'Tu canal: un lado para denunciar y otro para gestionar', after: 0 });
+        await click(page.getByRole('button', { name: L.moreCase }), { after: 300 });
+        await click(page.getByRole('dialog').getByRole('button', { name: L.leaveCase }), { then: G.caps.inicio, after: 0 });
       } else {
-        await click(page.getByRole('button', { name: 'Salir de mi caso' }), { then: 'Tu canal: un lado para denunciar y otro para gestionar', after: 0 });
+        await click(page.getByRole('button', { name: L.leaveCase }), { then: G.caps.inicio, after: 0 });
       }
       await page.waitForSelector('.ds-hero');
       await page.evaluate(() => window.scrollTo({ top: 0 }));
@@ -288,48 +462,50 @@ const VIDEOS = {
   },
   // Quien gestiona: acceso con verificación, tablero, el caso (acuse, respuesta, quién lo lleva) y vuelta al tablero (unos 45 s)
   gestion: {
-    url: `${BASE}/admin/login?from=demo&lang=es`, ready: '.ac-form',
-    async flow(page, { pause, cue, click, type, mobile }) {
-      cue('Tu equipo entra con contraseña y verificación en dos pasos');
+    url: (lang) => `${BASE}/admin/login?from=demo&lang=${lang}`, ready: '.ac-form',
+    async flow(page, { pause, cue, click, type, mobile, L, G }) {
+      cue(G.caps.acceso);
       await pause(1100);
-      await type(page.getByLabel('Correo'), 'laura.puig@empresa-demo.es', 20);
+      await type(page.getByLabel(L.email), 'laura.puig@empresa-demo.es', 20);
       await type(page.locator('#ac-pw'), 'contraseña-larga', 22);
-      await click(page.getByRole('button', { name: 'Entrar' }), { after: 0 });
+      await click(page.getByRole('button', { name: L.enter }), { after: 0 });
       await page.waitForSelector('.ds-otp');
       await pause(500);
       await click(page.locator('.ds-otp-box').first(), { after: 100 });
       await page.keyboard.type('481902', { delay: 130 });
       await page.waitForURL(/\/admin\/?(\?.*)?$/, { timeout: 10000 });
       await page.waitForSelector('.ds-case');
-      cue('El tablero: nuevas, en curso y cerradas, con los plazos legales a la vista');
+      cue(G.caps.tablero);
       await pause(4300);
       const card = page.locator('.ds-case', { hasText: 'REF-7P2MQA' }).first();
-      await click(card.getByRole('link').first(), { then: 'Cada caso dice cuál es el siguiente paso y cuántos días quedan', after: 0 });
+      await click(card.getByRole('link').first(), { then: G.caps.ficha, after: 0 });
       await page.waitForSelector('.cs');
       await pause(3800);
-      await click(page.locator('.cs-next').getByRole('button', { name: 'Enviar el acuse de recibo' }), { then: 'El acuse de recibo sale con un clic', after: 1300 });
-      await click(page.getByRole('dialog').getByRole('button', { name: 'Enviar el acuse', exact: true }), { after: 0 });
-      await page.getByText('Acuse enviado').first().waitFor({ timeout: 8000 });
+      await click(page.locator('.cs-next').getByRole('button', { name: L.nextStep }), { then: G.caps.acuse, after: 1300 });
+      await click(page.getByRole('dialog').getByRole('button', { name: L.ackSend, exact: true }), { after: 0 });
+      await page.getByText(L.ackSent).first().waitFor({ timeout: 8000 });
       await pause(1500);
-      if (mobile) await click(page.getByRole('tab', { name: 'Conversación', exact: true }), { then: 'Respondes a quien informa, aunque no sepas quién es', after: 400 });
-      else cue('Respondes a quien informa, aunque no sepas quién es');
-      await type(page.locator('#cs-msg'), 'Gracias por contarlo. Lo estamos revisando y te escribiremos esta semana.', 22);
-      await click(page.locator('.ds-compose').getByRole('button', { name: 'Enviar' }), { after: 0 });
-      await page.locator('.ds-chat-msg.is-mine', { hasText: 'Gracias por contarlo' }).waitFor();
+      if (mobile) await click(page.getByRole('tab', { name: L.tabConv, exact: true }), { then: G.caps.respuesta, after: 400 });
+      else cue(G.caps.respuesta);
+      // El acuse ya está en la conversación: la ficha ha terminado de actualizarse
+      await page.locator('.ds-chat-msg.is-mine').first().waitFor({ state: 'attached' });
+      await type(page.locator('#cs-msg'), G.respuesta, 22);
+      await click(page.locator('.ds-compose').getByRole('button', { name: L.send2 }), { after: 0 });
+      await page.locator('.ds-chat-msg.is-mine', { hasText: G.respuesta.slice(0, 20) }).waitFor();
       await pause(1800);
-      if (mobile) await click(page.getByRole('tab', { name: 'Gestión', exact: true }), { then: 'Decides quién lo lleva y todo queda en el historial', after: 400 });
-      else cue('Decides quién lo lleva y todo queda en el historial');
-      const who = page.getByLabel('Quién lo lleva');
+      if (mobile) await click(page.getByRole('tab', { name: L.tabManage, exact: true }), { then: G.caps.quien, after: 400 });
+      else cue(G.caps.quien);
+      const who = page.getByLabel(L.owner);
       await click(who, { after: 200 });
       await who.selectOption({ label: 'Núria Soler Vidal' });
-      await page.locator('.cs-hist').getByText(/asignado a Núria Soler Vidal/).waitFor();
+      await page.locator('.cs-hist').getByText(L.assigned).waitFor();
       await pause(400);
       await page.locator('.cs-hist').evaluate(el => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
       await pause(2400);
-      const back = mobile ? page.locator('.cs-bar').getByRole('link', { name: 'Tablero' }) : page.getByRole('link', { name: 'Tablero' }).first();
-      await click(back, { then: 'El caso ya está en curso, con su plazo de respuesta', after: 0 });
+      const back = mobile ? page.locator('.cs-bar').getByRole('link', { name: L.board }) : page.getByRole('link', { name: L.board }).first();
+      await click(back, { then: G.caps.final, after: 0 });
       await page.waitForSelector('.ds-case');
-      if (mobile) await click(page.getByRole('tab', { name: /En curso/ }), { after: 200 });
+      if (mobile) await click(page.getByRole('tab', { name: L.colOpen }), { after: 200 });
       await pause(600);
       await page.locator('.ds-case', { hasText: 'REF-7P2MQA' }).first().evaluate(el => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
       await pause(3300);
@@ -338,18 +514,33 @@ const VIDEOS = {
 };
 
 fs.mkdirSync(OUT, { recursive: true });
-const browser = await chromium.launch();
+// Un Chromium por formato, con su densidad forzada (ver arriba), y otro normal para los subtítulos
+const browsers = Object.fromEntries(await Promise.all(Object.entries(FORMATS).map(async ([format, F]) => [format, await chromium.launch({ args: [`--force-device-scale-factor=${F.dsf}`] })])));
+const plain = await chromium.launch();
 try {
-  for (const [name, v] of Object.entries(VIDEOS)) {
-    if (only && only !== name) continue;
-    for (const format of Object.keys(FORMATS)) {
-      console.log(`Grabando ${name} (${format})…`);
-      const rec = await record(browser, format, v.url, v.ready, v.flow);
-      const caps = await captionImages(browser, format, rec.cues, rec.dir);
-      assemble(rec, caps, format, name);
+  for (const lang of LANGS) {
+    for (const [name, v] of Object.entries(VIDEOS)) {
+      if (only && only !== name) continue;
+      for (const format of Object.keys(FORMATS)) {
+        console.log(`Grabando ${name} en ${lang} (${format})…`);
+        // A veces un clic o lo escrito no llega a la página (va cargada con la captura): se graba otra vez desde el principio
+        let rec;
+        for (let attempt = 1; !rec; attempt++) {
+          try {
+            rec = await record(browsers[format], format, lang, { ...v, name });
+          } catch (e) {
+            await Promise.all(browsers[format].contexts().map(c => c.close().catch(() => {})));
+            if (attempt >= 3) throw e;
+            console.log(`  falló (${e.message.split('\n')[0]}): se repite`);
+          }
+        }
+        const caps = await captionImages(plain, format, rec.cues, rec.dir);
+        assemble(rec, caps, format, `${name}-${lang}`);
+      }
     }
   }
 } finally {
-  await browser.close();
+  await Promise.all([...Object.values(browsers), plain].map(b => b.close()));
+  fs.rmSync(WORK, { recursive: true, force: true });
 }
-console.log(`Hecho. Frames de trabajo en ${WORK} (se pueden borrar).`);
+console.log('Hecho.');
