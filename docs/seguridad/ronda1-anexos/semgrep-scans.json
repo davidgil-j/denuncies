@@ -1,0 +1,117 @@
+{
+  "outputDir": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep",
+  "rawDir": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw",
+  "reposPath": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/repos",
+  "mode": "run-all",
+  "pro": false,
+  "excludePattern": "",
+  "maxTargetBytes": 20000000,
+  "scans": [
+    {
+      "lang": "all",
+      "ruleset": "p/secrets",
+      "json": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/all-secrets.json",
+      "sarif": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/all-secrets.sarif",
+      "findings": 0,
+      "filesScanned": 401,
+      "partial": false,
+      "exitCode": 0
+    },
+    {
+      "lang": "all",
+      "ruleset": "p/security-audit",
+      "json": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/all-security-audit.json",
+      "sarif": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/all-security-audit.sarif",
+      "findings": 28,
+      "filesScanned": 401,
+      "partial": false,
+      "exitCode": 0
+    },
+    {
+      "lang": "all",
+      "ruleset": "https://github.com/trailofbits/semgrep-rules",
+      "json": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/all-trailofbits-semgrep-rules.json",
+      "sarif": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/all-trailofbits-semgrep-rules.sarif",
+      "findings": 0,
+      "filesScanned": 401,
+      "partial": false,
+      "exitCode": 0
+    },
+    {
+      "lang": "all",
+      "ruleset": "https://github.com/elttam/semgrep-rules",
+      "json": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/all-elttam-semgrep-rules.json",
+      "sarif": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/all-elttam-semgrep-rules.sarif",
+      "findings": 0,
+      "filesScanned": 401,
+      "partial": false,
+      "exitCode": 0
+    },
+    {
+      "lang": "all",
+      "ruleset": "https://github.com/apiiro/malicious-code-ruleset",
+      "json": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/all-apiiro-malicious-code-ruleset.json",
+      "sarif": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/all-apiiro-malicious-code-ruleset.sarif",
+      "findings": 57,
+      "filesScanned": 144,
+      "partial": false,
+      "exitCode": 0
+    },
+    {
+      "lang": "github-actions",
+      "ruleset": "p/github-actions",
+      "json": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/github-actions-github-actions.json",
+      "sarif": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/github-actions-github-actions.sarif",
+      "findings": 5,
+      "filesScanned": 1,
+      "partial": false,
+      "exitCode": 0
+    },
+    {
+      "lang": "javascript",
+      "ruleset": "p/javascript",
+      "json": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/javascript-javascript.json",
+      "sarif": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/javascript-javascript.sarif",
+      "findings": 0,
+      "filesScanned": 142,
+      "partial": false,
+      "exitCode": 0
+    },
+    {
+      "lang": "javascript",
+      "ruleset": "p/nodejs",
+      "json": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/javascript-nodejs.json",
+      "sarif": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/javascript-nodejs.sarif",
+      "findings": 0,
+      "filesScanned": 142,
+      "partial": false,
+      "exitCode": 0
+    },
+    {
+      "lang": "javascript",
+      "ruleset": "p/react",
+      "json": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/javascript-react.json",
+      "sarif": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/javascript-react.sarif",
+      "findings": 0,
+      "filesScanned": 142,
+      "partial": false,
+      "exitCode": 0
+    },
+    {
+      "lang": "typescript",
+      "ruleset": "p/typescript",
+      "json": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/typescript-typescript.json",
+      "sarif": "/private/tmp/claude-501/-Users-davidgiljaques-Documents-GitHub-denuncies/4d822cde-61dc-43b8-bd7e-b2b8ad220ee8/scratchpad/semgrep/raw/typescript-typescript.sarif",
+      "findings": 0,
+      "filesScanned": 5,
+      "partial": false,
+      "exitCode": 0
+    }
+  ],
+  "failed": [],
+  "skipped": [],
+  "alsoShared": [],
+  "unscoped": [],
+  "coveredNothing": [],
+  "oversized": []
+}

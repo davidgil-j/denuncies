@@ -1,0 +1,122 @@
+schema.name(args) | definer | search_path | trigger | anon | authenticated
+public.audit_complaint_changes() | true | search_path=public | true | true | true
+public.audit_logs_set_context() | true | search_path=public | true | true | true
+public.audit_message_insert() | true | search_path=public | true | true | true
+public.can_access_category(p_category text, p_action text) | true | search_path=public | false | true | true
+public.complaint_folder_is_recent(p_name text) | true | search_path=public | false | true | true
+public.complaint_has_created_log(p_complaint_id uuid) | true | search_path=public | false | true | true
+public.complaint_is_recent(p_complaint_id uuid) | true | search_path=public | false | true | true
+public.current_org_id() | true | search_path=public | false | true | true
+public.get_complaint_by_tracking_code(p_code text) | true | search_path=public | false | true | true
+public.get_messages_by_tracking_code(p_code text) | true | search_path=public | false | true | true
+public.get_organization_by_slug(p_slug text) | true | search_path=public | false | true | true
+public.get_organization_slug_by_domain(p_host text) | true | search_path=public | false | true | true
+public.is_superadmin() | true | search_path=public | false | true | true
+public.manager_permissions_set_org() | true | search_path=public | true | true | true
+public.new_complaint_reference() | true | search_path=public | false | true | true
+public.protect_custom_domain() | true | search_path=public | true | true | true
+public.protect_powered_by() | true | search_path=public | true | true | true
+public.request_meeting_by_code(p_code text) | true | search_path=public | false | true | true
+public.send_reporter_message(p_code text, p_content text) | true | search_path=public | false | true | true
+public.submit_complaint(p_org uuid, p_hash text, p_category text, p_description text, p_is_anonymous boolean, p_name text, p_email text, p_phone text, p_department text, p_incident_date date, p_involved text, p_language text, p_meeting boolean, p_when text) | true | search_path=public | false | true | true
+public.anonymize_complaint(p_complaint uuid, p_reason text) | true | search_path=public | false | false | true
+public.code_attempt_failed() | true | search_path=public | false | false | false
+public.code_attempts_blocked() | true | search_path=public | false | false | false
+public.complaints_tracking_key() | true | search_path=public | true | false | false
+public.complaints_web_rate_limit() | true | search_path=public | true | false | false
+public.extend_response_deadline(p_complaint uuid, p_reason text) | true | search_path=public | false | false | true
+public.find_auth_user(p_email text) | true | search_path=public | false | false | false
+public.find_complaint_by_code(p_code text) | true | search_path=public | false | false | false
+public.get_reporter_identity(p_complaint uuid) | true | search_path=public | false | false | true
+public.handle_new_user() | true | search_path=public | true | false | false
+public.list_org_members() | true | search_path=public | false | false | true
+public.mark_fiscal_referral(p_complaint uuid, p_note text) | true | search_path=public | false | false | true
+public.mark_meeting_held(p_complaint uuid) | true | search_path=public | false | false | true
+public.register_complaint(p_category text, p_description text, p_channel text, p_received_at timestamp with time zone, p_is_anonymous boolean, p_reporter_name text, p_reporter_email text, p_reporter_phone text, p_department text, p_incident_date date, p_involved_people text, p_language text, p_code_hash text, p_incident_when text) | true | search_path=public | false | false | true
+public.register_complaint(p_category text, p_description text, p_channel text, p_received_at timestamp with time zone, p_is_anonymous boolean, p_reporter_name text, p_reporter_email text, p_reporter_phone text, p_department text, p_incident_date date, p_involved_people text, p_language text, p_code_hash text) | true | search_path=public | false | false | true
+public.retention_due() | true | search_path=public | false | false | true
+public.set_manager_permissions(p_manager uuid, p_permissions jsonb) | true | search_path=public | false | false | true
+public.store_ai_summary(p_complaint uuid, p_actor uuid, p_summary text, p_title text) | true | search_path=public | false | false | false
+public.tracking_key(p_hash text) | true | search_path=public | false | false | false
+private.tracking_pepper() | true | search_path="" | false | false | false
+public.api_role_is_client() | false | — | false | true | true
+public.audit_client_details() | false | search_path=public | true | true | true
+public.code_hash(p_code text) | false | — | false | true | true
+public.complaints_one_per_request() | false | search_path=public | true | true | true
+public.force_server_fields() | false | search_path=public | true | true | true
+public.is_aal2() | false | search_path=public | false | true | true
+public.is_client_request() | false | — | false | true | true
+public.protect_complaint_content() | false | search_path=public | true | true | true
+public.protect_erased_complaint() | false | search_path=public | true | true | true
+public.protect_message_fields() | false | search_path=public | true | true | true
+public.protect_organization_fields() | false | search_path=public | true | true | true
+public.protect_profile_fields() | false | search_path=public | true | true | true
+public.slugify(value text) | false | — | false | true | true
+public.track_complaint_milestones() | false | search_path=public | true | true | true
+public.update_updated_at() | false | — | true | true | true
+public.generate_unique_org_slug(company_name text) | false | — | false | false | false
+private.hmac_sha256(p_key bytea, p_msg bytea) | false | search_path="" | false | false | false
+public.zz_keep_updated_at_on_rehash() | false | search_path=public | true | false | false
+
+políticas: schema.tabla | nombre | permissive | roles | cmd
+public.attachments | public_insert_attachments | PERMISSIVE | {public} | INSERT
+public.attachments | mfa_required | RESTRICTIVE | {authenticated} | SELECT
+public.attachments | org_select_attachments | PERMISSIVE | {public} | SELECT
+public.audit_logs | mfa_required_insert | RESTRICTIVE | {authenticated} | INSERT
+public.audit_logs | org_insert_audit_logs | PERMISSIVE | {public} | INSERT
+public.audit_logs | public_insert_audit_created | PERMISSIVE | {public} | INSERT
+public.audit_logs | mfa_required | RESTRICTIVE | {authenticated} | SELECT
+public.audit_logs | org_read_audit_logs | PERMISSIVE | {public} | SELECT
+public.complaints | public_insert_complaints | PERMISSIVE | {public} | INSERT
+public.complaints | mfa_required | RESTRICTIVE | {authenticated} | SELECT
+public.complaints | org_select_complaints | PERMISSIVE | {public} | SELECT
+public.complaints | mfa_required_update | RESTRICTIVE | {authenticated} | UPDATE
+public.complaints | org_update_complaints | PERMISSIVE | {public} | UPDATE
+public.manager_permissions | mfa_required | RESTRICTIVE | {authenticated} | ALL
+public.manager_permissions | superadmin_manage_permissions | PERMISSIVE | {public} | ALL
+public.manager_permissions | org_read_permissions | PERMISSIVE | {public} | SELECT
+public.messages | mfa_required | RESTRICTIVE | {authenticated} | ALL
+public.messages | org_insert_messages | PERMISSIVE | {public} | INSERT
+public.messages | org_select_messages | PERMISSIVE | {public} | SELECT
+public.messages | org_update_messages | PERMISSIVE | {public} | UPDATE
+public.organizations | org_read_own_organization | PERMISSIVE | {public} | SELECT
+public.organizations | mfa_required_update | RESTRICTIVE | {authenticated} | UPDATE
+public.organizations | superadmin_update_own_organization | PERMISSIVE | {public} | UPDATE
+public.profiles | org_read_profiles | PERMISSIVE | {public} | SELECT
+public.profiles | mfa_required_update | RESTRICTIVE | {authenticated} | UPDATE
+public.profiles | own_profile_update | PERMISSIVE | {public} | UPDATE
+public.profiles | superadmin_update_profiles | PERMISSIVE | {public} | UPDATE
+storage.objects | mfa_required_delete | RESTRICTIVE | {authenticated} | DELETE
+storage.objects | org_delete_attachment_objects | PERMISSIVE | {public} | DELETE
+storage.objects | public_upload_attachments | PERMISSIVE | {anon,authenticated} | INSERT
+storage.objects | mfa_required | RESTRICTIVE | {authenticated} | SELECT
+storage.objects | org_read_attachment_objects | PERMISSIVE | {public} | SELECT
+
+tablas: RLS activado
+private.app_secrets | false
+public.attachments | true
+public.audit_logs | true
+public.code_attempts | true
+public.complaints | true
+public.manager_permissions | true
+public.messages | true
+public.organizations | true
+public.profiles | true
+storage.buckets | false
+storage.objects | true
+
+privilegios de tabla (anon / authenticated)
+public.attachments | anon | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+public.attachments | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+public.audit_logs | anon | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+public.audit_logs | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+public.complaints | anon | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+public.complaints | authenticated | DELETE,INSERT,REFERENCES,TRIGGER,TRUNCATE,UPDATE
+public.manager_permissions | anon | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+public.manager_permissions | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+public.messages | anon | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+public.messages | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+public.organizations | anon | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+public.organizations | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+public.profiles | anon | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+public.profiles | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE

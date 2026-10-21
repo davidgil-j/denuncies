@@ -769,6 +769,209 @@ if (upTo >= 19) {
   ok('sin la 014 se para al principio', await (async () => { const p14 = await newDb(13); try { await p14.exec(MIG19); return false; } catch (e) { return /014/.test(e.message); } })());
 }
 
+// ── Exclusión por caso (020, hallazgo C1) ───────────────────────────────
+if (upTo >= 20) {
+  console.log('\nExclusión por caso (020)');
+  const crypto = await import('node:crypto');
+  const sha = (c) => crypto.createHash('sha256').update(c.toUpperCase().replace(/[^A-Z0-9]/g, '')).digest('hex');
+  // Base de datos con TODAS las migraciones (estado de producción con la 019 ya ejecutada) + la 020
+  const pg = await newDb(20);
+  // Repetible
+  let again = null;
+  try { await pg.exec(fs.readFileSync(path.join(MIG, '020_exclusion_por_caso.sql'), 'utf8')); } catch (e) { again = e.message; }
+  ok('la 020 se puede ejecutar dos veces', again === null, again ?? '');
+  const q = async (sql, p) => (await pg.query(sql, p)).rows;
+  const an = (sql, p) => asOn(pg, 'anon', null, sql, p);
+  const au = (uid, sql, p) => asOn(pg, 'authenticated', uid, sql, p);
+  const au1 = (uid, sql, p) => asOn(pg, 'authenticated', uid, sql, p, 'aal1');
+  const err = (r) => String(r.error ?? '');
+
+  // Empresa con dos administradores, un gestor y otra persona que solo mira
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('a1@x.es', '{"company_name":"Empresa X","full_name":"Admin Uno"}')`);
+  const [{ organization_id: orgX }] = await q(`select p.organization_id from profiles p join auth.users u on u.id = p.id where u.email = 'a1@x.es'`);
+  const [{ id: a1 }] = await q(`select id from auth.users where email = 'a1@x.es'`);
+  const mk = async (email, name, role) => {
+    const [{ id }] = await q(`insert into auth.users (email, raw_user_meta_data) values ($1, $2) returning id`, [email, JSON.stringify({ full_name: name })]);
+    await q(`update profiles set organization_id = $1, role = $2 where id = $3`, [orgX, role, id]);
+    return id;
+  };
+  const a2 = await mk('a2@x.es', 'Admin Dos', 'superadmin');
+  const mg = await mk('m1@x.es', 'Gestor Mira-Responde', 'manager');
+  const vw = await mk('v1@x.es', 'Solo Mira', 'manager');
+  await q(`insert into manager_permissions (manager_id, organization_id, category, can_view, can_reply) values ($1, $2, 'fraud', true, true), ($3, $2, 'fraud', true, false)`, [mg, orgX, vw]);
+
+  // El canal puede preguntar quién gestiona, para apartar
+  const team = await an(`select * from get_channel_managers($1)`, [orgX]);
+  ok('el canal ve quién gestiona (para poder apartar)', team.rows.length === 4 && team.rows.every(r => r.full_name && r.role), JSON.stringify(team.rows?.map(r => r.full_name)));
+
+  // Quien denuncia aparta al Admin Uno
+  const sub = await an(`select submit_complaint($1, $2, 'fraud', 'Hechos para la prueba de exclusión', true, null, null, null, null, null, null, 'es', false, null, $3::uuid[]) as id`, [orgX, sha('EXCL-0001'), [a1]]);
+  const caseId = sub.rows[0]?.id;
+  ok('la denuncia entra apartando a quien pidió quien denuncia', !sub.error && !!caseId, err(sub));
+  ok('quien está apartado no ve el caso en el tauler', (await au(a1, `select id from complaints where id = $1`, [caseId])).rows.length === 0);
+  ok('…ni abriéndolo por id', (await au(a1, `select id from complaints where id = $1`, [caseId])).rows.length === 0);
+  ok('…ni cuenta para él aunque sea administrador', (await au(a1, `select count(*)::int n from complaints`)).rows[0].n === 0);
+  ok('otro administrador no apartado sí lo ve', (await au(a2, `select id from complaints where id = $1`, [caseId])).rows.length === 1);
+  ok('un gestor con acceso y no apartado también', (await au(mg, `select id from complaints where id = $1`, [caseId])).rows.length === 1);
+
+  // Mensajes, adjuntos y registro heredan la exclusión
+  await an(`select send_reporter_message('EXCL-0001', 'Un dato más de la prueba')`);
+  ok('quien está apartado no lee los mensajes del caso', (await au(a1, `select id from messages where complaint_id = $1`, [caseId])).rows.length === 0);
+  ok('…pero quien tiene acceso sí', (await au(a2, `select id from messages where complaint_id = $1`, [caseId])).rows.length === 1);
+  await q(`insert into attachments (complaint_id, filename, storage_path) values ($1, 'p.pdf', $2)`, [caseId, `${caseId}/p.pdf`]);
+  ok('quien está apartado no ve los adjuntos', (await au(a1, `select id from attachments where complaint_id = $1`, [caseId])).rows.length === 0);
+  ok('…ni el registro de actividad', (await au(a1, `select id from audit_logs where complaint_id = $1`, [caseId])).rows.length === 0);
+
+  // Las acciones del panel también
+  await q(`update complaints set is_anonymous = false, reporter_email = 'x@y.es' where id = $1`, [caseId]);
+  ok('quien está apartado no consulta la identidad', !!(await au(a1, `select * from get_reporter_identity($1)`, [caseId])).error);
+  ok('…no amplía el plazo', !!(await au(a1, `select extend_response_deadline($1, 'Caso con varios implicados y testigos')`, [caseId])).error);
+  ok('…no suprime el caso', !!(await au(a1, `select anonymize_complaint($1, 'Motivo de prueba largo para la supresión')`, [caseId])).error);
+  ok('…no cambia el estado', (await au(a1, `update complaints set status = 'reviewing' where id = $1 returning id`, [caseId])).rows.length === 0);
+
+  // Un administrador aparta al gestor (fuente 'manager'); se puede deshacer
+  ok('un administrador aparta a un gestor', !(await au(a2, `select exclude_from_complaint($1, $2)`, [caseId, mg])).error);
+  ok('el gestor apartado deja de ver el caso', (await au(mg, `select id from complaints where id = $1`, [caseId])).rows.length === 0);
+  ok('apartar queda en el registro', (await q(`select 1 from audit_logs where complaint_id = $1 and action = 'access_excluded'`, [caseId])).length === 1);
+  ok('un administrador devuelve el acceso a quien apartó otro administrador', !(await au(a2, `select include_in_complaint($1, $2)`, [caseId, mg])).error);
+  ok('el gestor vuelve a ver el caso', (await au(mg, `select id from complaints where id = $1`, [caseId])).rows.length === 1);
+  ok('pero NUNCA se puede devolver el acceso a quien apartó quien denunció', /reporter-exclusion/.test(err(await au(a2, `select include_in_complaint($1, $2)`, [caseId, a1]))));
+  ok('quien está apartado no puede apartar a otros', !!(await au(a1, `select exclude_from_complaint($1, $2)`, [caseId, a2])).error);
+  ok('sin el segundo paso no se aparta a nadie', !!(await au1(a2, `select exclude_from_complaint($1, $2)`, [caseId, vw])).error);
+  ok('un gestor no aparta a nadie', !!(await au(mg, `select exclude_from_complaint($1, $2)`, [caseId, vw])).error);
+
+  // No se puede dejar un caso sin nadie que lo vea
+  const solo = await an(`select submit_complaint($1, $2, 'fraud', 'Caso con un solo administrador con acceso', true, null, null, null, null, null, null, 'es', false, null, $3::uuid[]) as id`, [orgX, sha('EXCL-0002'), [a1, mg, vw]]);
+  const soloId = solo.rows[0]?.id;
+  ok('solo queda el Admin Dos con acceso', (await au(a2, `select complaint_access_count($1) n`, [soloId])).rows[0]?.n === 1);
+  ok('no se puede apartar a la última persona con acceso', /last-viewer/.test(err(await au(a2, `select exclude_from_complaint($1, $2)`, [soloId, a2]))));
+
+  // Quien denuncia puede apartar a todos: la denuncia entra igual (el aviso lo da el navegador)
+  const allOut = await an(`select submit_complaint($1, $2, 'fraud', 'Caso en el que se aparta a todo el equipo', true, null, null, null, null, null, null, 'es', false, null, $3::uuid[]) as id`, [orgX, sha('EXCL-0003'), [a1, a2, mg, vw]]);
+  ok('apartar a todos no rechaza la denuncia', !allOut.error && !!allOut.rows[0]?.id, err(allOut));
+  ok('…y entonces nadie del panel la ve', (await au(a2, `select id from complaints where id = $1`, [allOut.rows[0]?.id])).rows.length === 0
+    && (await au(a2, `select complaint_access_count($1) n`, [allOut.rows[0]?.id])).rows[0]?.n === 0);
+
+  // Apartar a quien no es del panel se ignora; la versión de 14 parámetros sigue valiendo
+  const ghost = crypto.randomUUID();
+  const safe = await an(`select submit_complaint($1, $2, 'fraud', 'Caso con un id de exclusión que no existe', true, null, null, null, null, null, null, 'es', false, null, $3::uuid[]) as id`, [orgX, sha('EXCL-0004'), [ghost]]);
+  ok('un id de exclusión que no es del panel se ignora', !safe.error && (await q(`select count(*)::int n from complaint_exclusions where complaint_id = $1`, [safe.rows[0]?.id]))[0].n === 0, err(safe));
+  const old = await an(`select submit_complaint($1, $2, 'fraud', 'Enviada con la versión de catorce parámetros', true, null, null, null, null, null, null, 'es', false, null) as id`, [orgX, sha('EXCL-0005')]);
+  ok('submit_complaint de 14 parámetros sigue funcionando', !old.error && !!old.rows[0]?.id, err(old));
+
+  // list_complaint_access: quien ve el caso ve quién está apartado; quien está apartado, nada
+  const acc = await au(a2, `select * from list_complaint_access($1)`, [caseId]);
+  ok('el panel ve quién gestiona el caso y quién está apartado', acc.rows.length === 4 && acc.rows.find(r => r.id === a1)?.excluded === true && acc.rows.find(r => r.id === a1)?.source === 'reporter', JSON.stringify(acc.rows));
+  ok('quien está apartado no puede listar los accesos del caso', !!(await au(a1, `select * from list_complaint_access($1)`, [caseId])).error);
+
+  // La tabla de exclusiones no se toca desde el navegador
+  ok('la tabla de exclusiones no se lee ni se escribe desde el navegador', (await an(`select * from complaint_exclusions`)).rows.length === 0
+    && (await au(a2, `select * from complaint_exclusions`)).rows.length === 0
+    && !!(await au(a1, `insert into complaint_exclusions (complaint_id, profile_id, source) values ($1, $2, 'manager')`, [caseId, a1])).error);
+
+  // Vuelta atrás
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '020_atras.sql'), 'utf8'));
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '020_atras.sql'), 'utf8'));
+  ok('vuelta atrás: se puede ejecutar dos veces', true);
+  ok('vuelta atrás: el caso vuelve a verse (sin exclusión), pero la tabla sigue ahí', (await au(a1, `select id from complaints where id = $1`, [caseId])).rows.length === 1
+    && (await q(`select count(*)::int n from complaint_exclusions`))[0].n >= 1);
+  ok('vuelta atrás: la función de apartar ya no existe', !!(await au(a2, `select exclude_from_complaint($1, $2)`, [caseId, mg])).error);
+}
+
+// ── Freno por empresa y prueba de trabajo (021, hallazgos A1 y A2) ───────
+if (upTo >= 21) {
+  console.log('\nFreno por empresa y prueba de trabajo (021)');
+  const crypto = await import('node:crypto');
+  const sha = (c) => crypto.createHash('sha256').update(c.toUpperCase().replace(/[^A-Z0-9]/g, '')).digest('hex');
+  // Resuelve la prueba de trabajo como lo haría el navegador: busca un nonce con «bits» ceros por delante
+  const solvePow = (token, bits) => {
+    const full = Math.floor(bits / 8), rem = bits % 8;
+    for (let n = 0; ; n++) {
+      const d = crypto.createHash('sha256').update(`${token}:${n}`).digest();
+      let good = true;
+      for (let i = 0; i < full; i++) if (d[i] !== 0) { good = false; break; }
+      if (good && rem !== 0 && (d[full] >> (8 - rem)) !== 0) good = false;
+      if (good) return String(n);
+    }
+  };
+  const pg = await newDb(21);
+  let again = null;
+  try { await pg.exec(fs.readFileSync(path.join(MIG, '021_codigo_freno_por_empresa.sql'), 'utf8')); } catch (e) { again = e.message; }
+  ok('la 021 se puede ejecutar dos veces', again === null, again ?? '');
+  const q = async (sql, p) => (await pg.query(sql, p)).rows;
+  const an = (sql, p) => asOn(pg, 'anon', null, sql, p);
+  const au = (uid, sql, p) => asOn(pg, 'authenticated', uid, sql, p);
+  const err = (r) => String(r.error ?? '');
+
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('aa@x.es', '{"company_name":"Empresa AA","full_name":"Admin AA"}'), ('bb@x.es', '{"company_name":"Empresa BB","full_name":"Admin BB"}')`);
+  const [{ organization_id: orgA }] = await q(`select p.organization_id from profiles p join auth.users u on u.id = p.id where u.email = 'aa@x.es'`);
+  const [{ organization_id: orgB }] = await q(`select p.organization_id from profiles p join auth.users u on u.id = p.id where u.email = 'bb@x.es'`);
+  const [{ id: adminA }] = await q(`select id from auth.users where email = 'aa@x.es'`);
+
+  // Crear una denuncia por la vía nueva (submit_complaint de 16 parámetros, con id de envío)
+  const sub1 = crypto.randomUUID();
+  const made = await an(`select submit_complaint($1, $2, $3, 'fraud', 'Hechos de prueba para el freno por empresa', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[]) as id`, [sub1, orgA, sha('AAAA-1111-2222-3333')]);
+  ok('submit_complaint nuevo crea la denuncia (con id de envío)', !made.error && !!made.rows[0]?.id, err(made));
+  ok('el mismo id de envío devuelve la misma denuncia (sin mirar el código)', (await an(`select submit_complaint($1, $2, $3, 'fraud', 'Otra cosa distinta', false, 'X', 'x@x.es', null, null, null, null, 'es', false, null, '{}'::uuid[]) as id`, [sub1, orgA, sha('ZZZZ-9999-9999-9999')])).rows[0]?.id === made.rows[0].id);
+  ok('sin id de envío no se puede enviar', /submission-id-required/.test(err(await an(`select submit_complaint(null, $1, $2, 'fraud', 'Hechos de prueba suficientemente largos', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[])`, [orgA, sha('QQQQ-0000-0000-0000')]))));
+  const dupHash = await an(`select submit_complaint($1, $2, $3, 'fraud', 'Hechos de prueba suficientemente largos', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[])`, [crypto.randomUUID(), orgA, sha('AAAA-1111-2222-3333')]);
+  ok('un código que ya existe da error genérico (no «ya existe») y cuenta como intento', /submit-failed/.test(err(dupHash)) && !/conflict|exist|duplicate/i.test(err(dupHash)), err(dupHash));
+
+  // La inserción directa de denuncias está cerrada
+  ok('sin sesión ya no se puede insertar una denuncia directamente', !!(await an(`insert into complaints (tracking_hash, organization_id, category, description) values ($1, $2, 'fraud', 'x')`, [sha('DIRE-0001-0000-0000'), orgA])).error);
+  ok('con sesión tampoco (solo las funciones)', !!(await au(adminA, `insert into complaints (tracking_hash, organization_id, category, description) values ($1, $2, 'fraud', 'x')`, [sha('DIRE-0002-0000-0000'), orgA])).error);
+
+  // El portal nuevo exige la prueba de trabajo
+  ok('consultar sin prueba de trabajo se rechaza', /proof-required/.test(err(await an(`select * from consult_complaint($1, 'AAAA-1111-2222-3333', 'no', 'no')`, [orgA]))));
+  const ch1 = (await an(`select * from issue_pow_challenge($1)`, [orgA])).rows[0];
+  ok('el reto empieza en 12 bits', ch1?.bits === 12, JSON.stringify(ch1));
+  const ok1 = await an(`select * from consult_complaint($1, 'aaaa-1111-2222-3333', $2, $3)`, [orgA, ch1.token, solvePow(ch1.token, ch1.bits)]);
+  ok('con la prueba resuelta, el código bueno se consulta', ok1.rows.length === 1 && ok1.rows[0].category === 'fraud', err(ok1) || JSON.stringify(ok1.rows));
+  ok('un reto no se puede reutilizar', /proof-required/.test(err(await an(`select * from consult_complaint($1, 'aaaa-1111-2222-3333', $2, $3)`, [orgA, ch1.token, solvePow(ch1.token, ch1.bits)]))));
+
+  // Un código que no existe: no dice nada y cuenta como intento de esa empresa
+  const before = (await q(`select coalesce(sum(failures),0)::int n from code_attempts_by_org where org_id = $1`, [orgA]))[0].n;
+  const ch2 = (await an(`select * from issue_pow_challenge($1)`, [orgA])).rows[0];
+  const miss = await an(`select * from consult_complaint($1, 'NOPE-0000-0000-0000', $2, $3)`, [orgA, ch2.token, solvePow(ch2.token, ch2.bits)]);
+  ok('un código que no existe devuelve vacío y cuenta como intento', miss.rows.length === 0 && (await q(`select coalesce(sum(failures),0)::int n from code_attempts_by_org where org_id = $1`, [orgA]))[0].n === before + 1);
+
+  // Mensajes, enviar y reunión por la vía nueva
+  const chM = (await an(`select * from issue_pow_challenge($1)`, [orgA])).rows[0];
+  const sm = await an(`select send_message_by_code($1, 'AAAA-1111-2222-3333', 'Un dato más', $2, $3) as id`, [orgA, chM.token, solvePow(chM.token, chM.bits)]);
+  ok('enviar un mensaje con la prueba de trabajo funciona', !sm.error && !!sm.rows[0]?.id, err(sm));
+  const chR = (await an(`select * from issue_pow_challenge($1)`, [orgA])).rows[0];
+  ok('leer mensajes con la prueba de trabajo funciona', (await an(`select * from messages_by_code($1, 'AAAA-1111-2222-3333', $2, $3)`, [orgA, chR.token, solvePow(chR.token, chR.bits)])).rows.length === 1);
+  const chT = (await an(`select * from issue_pow_challenge($1)`, [orgA])).rows[0];
+  ok('pedir reunión con la prueba de trabajo funciona', !(await an(`select request_meeting_in_org($1, 'AAAA-1111-2222-3333', $2, $3)`, [orgA, chT.token, solvePow(chT.token, chT.bits)])).error);
+
+  // El freno es POR EMPRESA: muchos fallos en A no afectan a B
+  await q(`insert into code_attempts_by_org (window_start, org_id, failures) values (date_trunc('minute', now()), $1, 600) on conflict (window_start, org_id) do update set failures = 600`, [orgA]);
+  const bitsA = (await q(`select pow_bits_required($1) b`, [orgA]))[0].b;
+  const bitsB = (await q(`select pow_bits_required($1) b`, [orgB]))[0].b;
+  ok('con muchos fallos en una empresa, su prueba de trabajo cuesta más', bitsA > 12 && bitsA <= 22, `A=${bitsA}`);
+  ok('…pero la de otra empresa no cambia (freno por empresa, no global)', bitsB === 12, `B=${bitsB}`);
+  ok('aun con muchos fallos nunca se bloquea: se puede pedir un reto', (await an(`select * from issue_pow_challenge($1)`, [orgA])).rows[0]?.bits === bitsA);
+
+  // El panel sigue registrando con sesión (register_complaint es «security definer», no le afecta el cierre)
+  const reg = await au(adminA, `select register_complaint('safety', 'Comunicación recibida por teléfono con hechos concretos.', 'phone', now(), true, null, null, null, null, null, null, 'es', $1, null) as id`, [sha('REGI-2222-0000-0000')]);
+  ok('el registro manual desde el panel sigue funcionando', !reg.error && !!reg.rows[0]?.id, err(reg));
+
+  // Las exclusiones (C1) siguen valiendo por la vía nueva de envío
+  const subX = crypto.randomUUID();
+  const exc = await an(`select submit_complaint($1, $2, $3, 'fraud', 'Hechos de prueba apartando al administrador', true, null, null, null, null, null, null, 'es', false, null, $4::uuid[]) as id`, [subX, orgA, sha('EXCL-7777-0000-0000'), [adminA]]);
+  ok('submit nuevo aparta a quien pide quien denuncia', !exc.error && (await au(adminA, `select id from complaints where id = $1`, [exc.rows[0]?.id])).rows.length === 0, err(exc));
+
+  // Las funciones de antes siguen existiendo (la web actual no se rompe)
+  ok('la función de consulta de antes sigue funcionando', (await an(`select * from get_complaint_by_tracking_code('AAAA-1111-2222-3333')`)).rows.length === 1);
+
+  // Vuelta atrás
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '021_atras.sql'), 'utf8'));
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '021_atras.sql'), 'utf8'));
+  ok('vuelta atrás: se puede ejecutar dos veces', true);
+  ok('vuelta atrás: se vuelve a poder insertar directamente', !(await an(`insert into complaints (tracking_hash, organization_id, category, description) values ($1, $2, 'fraud', 'tras volver atrás')`, [sha('BACK-0001-0000-0000'), orgA])).error);
+  ok('vuelta atrás: la consulta endurecida ya no existe', !!(await an(`select * from consult_complaint($1, 'x', 'y', 'z')`, [orgA])).error);
+}
+
 // ── Vueltas atrás de la 018, la 017 y la 016 ────────────────────────────
 if (upTo >= 18) {
   console.log('\nVueltas atrás (018, 017, 016)');

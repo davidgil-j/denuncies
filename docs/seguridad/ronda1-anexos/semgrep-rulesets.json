@@ -1,0 +1,7 @@
+{
+  "baseline": ["p/security-audit", "p/secrets"],
+  "javascript": ["p/javascript", "p/react", "p/nodejs"],
+  "typescript": ["p/typescript"],
+  "github-actions": ["p/github-actions"],
+  "third_party": ["https://github.com/trailofbits/semgrep-rules", "https://github.com/elttam/semgrep-rules", "https://github.com/apiiro/malicious-code-ruleset"]
+}

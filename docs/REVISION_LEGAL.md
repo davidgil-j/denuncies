@@ -69,6 +69,12 @@ Ninguna ha cambiado ningún texto: son propuestas.
 28. **Frase corta sobre los archivos adjuntos (paso 2).** El párrafo actual pasaría a: «De las fotos se quitan la ubicación y los datos del dispositivo. Los demás archivos se envían tal cual: revísalos si quieres mantener el anonimato.», con el detalle (no se guarda el nombre del archivo en una denuncia anónima) en «Qué guardamos y qué no». ¿Es suficiente como información previa?
 29. **«Los datos se guardan cifrados en el servidor»** (portada, «Seguridad y privacidad»). Es una afirmación técnica sobre el proveedor: conviene confirmarla con él antes de mantenerla en una web pública.
 
+### Dudas nuevas de la ronda 2 de seguridad (21 de octubre de 2026)
+
+30. **Exclusión por caso (C1).** Para que una denuncia no la pueda ver la persona denunciada que gestiona el canal, quien denuncia puede apartar a personas del equipo al enviarla. Para eso, el canal (público) enseña los **nombres del equipo** de esa empresa. ¿Es aceptable exponer esos nombres a cualquiera que abra el canal? ¿O hay que enseñar solo cargos/roles, o pedir que quien denuncia escriba a quién teme en texto libre?
+31. **Apartar a todo el equipo.** Si quien denuncia aparta a todas las personas con acceso, la denuncia entra igual (la ley obliga) pero nadie la puede leer dentro de la empresa, y se le ofrece la autoridad externa (AIPI). ¿Es correcto este comportamiento, o la denuncia no debería poder quedarse sin ningún gestor interno?
+32. **«Responsable del Sistema» frente a administrador.** Hoy el Responsable se guarda como un dato de texto (nombre y cargo), no como un usuario del panel. En la exclusión por caso, «el Responsable o un administrador puede apartar» se ha implementado como «cualquier administrador». ¿Hace falta que el Responsable sea un usuario concreto con permisos propios?
+
 ## 4. Lo que no se ha revisado
 
 - La portada comercial, `/crear-compte` y `/privacitat` (fuera de este trabajo).
