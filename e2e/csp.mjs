@@ -77,6 +77,15 @@ const mockApi = async (route) => {
   if (['/rest/v1/attachments', '/rest/v1/audit_logs', '/rest/v1/messages'].includes(p) && req.method() === 'POST') return route.fulfill({ status: 201, headers: cors, body: '' });
   if (p === '/rest/v1/rpc/get_complaint_by_tracking_code') return json(route, [{ tracking_code: 'ABCD-EFGH', status: 'investigating', category: 'fraud', created_at: CASE.created_at, updated_at: CASE.updated_at, acknowledged_at: CASE.acknowledged_at, answered_at: null, extended_until: null, meeting_requested: false, meeting_requested_at: null }]);
   if (p === '/rest/v1/rpc/get_messages_by_tracking_code') return json(route, []);
+  // Ronda 2: el camino endurecido. El reto con bits 0 hace que el worker de la prueba de trabajo lo
+  // resuelva al instante; que se cargue y corra bajo la CSP (worker-src 'self' blob:) es parte del test.
+  if (p === '/rest/v1/rpc/get_channel_managers') return json(route, []);
+  if (p === '/rest/v1/rpc/issue_pow_challenge') return json(route, [{ token: `tok-${Math.random().toString(16).slice(2)}`, bits: 0 }]);
+  if (p === '/rest/v1/rpc/consult_complaint') return json(route, [{ tracking_code: 'ABCD-EFGH', status: 'investigating', category: 'fraud', created_at: CASE.created_at, updated_at: CASE.updated_at, acknowledged_at: CASE.acknowledged_at, answered_at: null, extended_until: null, meeting_requested: false, meeting_requested_at: null }]);
+  if (p === '/rest/v1/rpc/messages_by_code') return json(route, []);
+  if (p === '/rest/v1/rpc/send_message_by_code') return json(route, 'cccccccc-0000-4000-8000-000000000001');
+  if (p === '/rest/v1/rpc/request_meeting_in_org') return json(route, new Date().toISOString());
+  if (p === '/rest/v1/rpc/list_complaint_access') return json(route, []);
   if (p === '/auth/v1/token') return json(route, { access_token: JWT, token_type: 'bearer', expires_in: 3600, expires_at: now + 3600, refresh_token: 'r1', user: USER });
   if (p === '/auth/v1/user') return json(route, USER);
   if (p === '/auth/v1/factors') return json(route, USER.factors);
