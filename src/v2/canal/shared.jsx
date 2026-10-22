@@ -13,6 +13,8 @@ export const CATEGORIES = ['harassment', 'fraud', 'discrimination', 'safety', 'd
 export const EMPTY_DRAFT = {
   step: 1, category: '', description: '', when: '', department: '', involvedPeople: '', files: [],
   isAnonymous: true, name: '', email: '', phone: '', meeting: false, privacy: false,
+  // Personas del panel que quien denuncia aparta del caso (C1). Ids de perfil.
+  excluded: [],
 };
 export const isDirty = (d) => !!(d.category || d.description.trim() || d.when.trim() || d.department.trim() || d.involvedPeople.trim()
   || d.files.length || d.name.trim() || d.email.trim() || d.phone.trim());

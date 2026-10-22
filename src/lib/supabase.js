@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { insertWithWhen, withWhen, isMissingSchema } from './whenFallback.js';
+import { solveProofOfWork } from './pow.js';
 
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -87,28 +88,36 @@ const channelDemo = () => DEMO_MODE || exampleChannel;
 export async function saveComplaint({ formData, files, organizationId, attempt }) {
   const id           = attempt?.id ?? crypto.randomUUID();
   const trackingCode = attempt?.trackingCode ?? generateTrackingCode();
-  const next = { id, trackingCode };
+  // El «id de envío» (A1): la idempotencia va por aquí, no por el código. Se reutiliza al reintentar.
+  const submissionId = attempt?.submissionId ?? crypto.randomUUID();
+  const next = { id, trackingCode, submissionId };
+  // Personas del panel que quien denuncia aparta del caso (C1, migración 020)
+  const excluded = Array.isArray(formData.excluded) ? formData.excluded.filter(Boolean) : [];
 
   if (channelDemo()) {
     // En la demo, la denuncia enviada aparece en el panel y se puede consultar con su código
-    (await demo()).addComplaint({ id, trackingCode, formData, files: files ?? [] });
+    (await demo()).addComplaint({ id, trackingCode, formData, files: files ?? [], excluded });
     return { trackingCode, complaintId: id, attempt: next, error: null };
   }
 
   const anon = formData.isAnonymous;
-  // 1. Con la migración 014: una sola llamada, que también escribe la entrada «created» del registro
+  // 1. Con la migración 021: una sola llamada, con el id de envío y las personas apartadas. Escribe
+  // también la entrada «created» del registro y nunca revela si un código ya existe.
   const viaFunction = await supabase.rpc('submit_complaint', {
+    p_submission_id: submissionId,
     p_org: organizationId, p_hash: await codeHash(trackingCode), p_category: formData.category,
     p_description: formData.description.trim(), p_is_anonymous: anon,
     p_name: anon ? null : clean(formData.name), p_email: anon ? null : clean(formData.email), p_phone: anon ? null : clean(formData.phone),
     p_department: clean(formData.department), p_incident_date: formData.incidentDate || null,
     p_involved: clean(formData.involvedPeople), p_language: formData.language ?? 'ca',
     p_meeting: !!formData.meetingRequested, p_when: clean(formData.when),
+    p_excluded: excluded,
   });
   if (!viaFunction.error) return { trackingCode, complaintId: viaFunction.data, attempt: next, error: null };
-  // El código ya es de otra denuncia (casi imposible): uno nuevo, una sola vez
-  if (/code-conflict/.test(viaFunction.error.message ?? '') && !attempt?.retried) {
-    return saveComplaint({ formData, files, organizationId, attempt: { id: crypto.randomUUID(), trackingCode: generateTrackingCode(), retried: true } });
+  // El código ya es de otra denuncia (casi imposible): uno nuevo, una sola vez. «submit-failed» es el
+  // error genérico de la 021 (no revela que el código existe); «code-conflict», el de antes.
+  if (/code-conflict|submit-failed/.test(viaFunction.error.message ?? '') && !attempt?.retried) {
+    return saveComplaint({ formData, files, organizationId, attempt: { id: crypto.randomUUID(), trackingCode: generateTrackingCode(), submissionId: crypto.randomUUID(), retried: true } });
   }
   if (!isMissingSchema(viaFunction.error)) return { trackingCode: null, complaintId: null, attempt: next, error: viaFunction.error };
 
@@ -229,15 +238,22 @@ async function codeHash(code) {
  * Estado de una denuncia a partir del código de seguimiento.
  * Devuelve { complaint, error }
  */
-export async function getComplaintByCode(trackingCode) {
+export async function getComplaintByCode(trackingCode, orgId) {
   if (channelDemo()) {
     // Un código que no existe se trata igual que en producción: no hay ninguna denuncia
     return { complaint: (await demo()).findByCode(trackingCode) ?? null, error: null };
   }
-  // La función devuelve estado, categoría y fechas; nunca el id interno ni la organización
-  const { data, error } = await supabase.rpc('get_complaint_by_tracking_code', {
-    p_code: trackingCode.toUpperCase(),
-  });
+  const code = trackingCode.toUpperCase();
+  // Camino endurecido (freno por empresa + prueba de trabajo, sin revelar si el código existe).
+  const proof = await solveProof(orgId);
+  if (proof.failed) return { complaint: null, error: new Error('proof-failed') };
+  if (proof.token) {
+    const { data, error } = await supabase.rpc('consult_complaint', { p_org: orgId, p_code: code, p_pow_token: proof.token, p_pow_nonce: proof.nonce });
+    if (!error) return { complaint: data?.[0] ?? null, error: null };
+    if (!isMissingSchema(error)) return { complaint: null, error };
+  }
+  // Solo si la base de datos aún no tiene la 021 (no pasa en producción): la función de antes.
+  const { data, error } = await supabase.rpc('get_complaint_by_tracking_code', { p_code: code });
   return { complaint: data?.[0] ?? null, error };
 }
 
@@ -246,12 +262,32 @@ export async function getComplaintByCode(trackingCode) {
  * La función de la base de datos llega con la migración 012; hasta entonces, el portal no ofrece
  * el botón (get_complaint_by_tracking_code aún no devuelve meeting_requested). Devuelve { error }
  */
-export async function requestMeetingByCode(trackingCode) {
+export async function requestMeetingByCode(trackingCode, orgId) {
   if (channelDemo()) return (await demo()).requestMeetingByCode(trackingCode);
+  const proof = await solveProof(orgId);
+  if (proof.failed) return { error: new Error('proof-failed') };
+  if (proof.token) {
+    const { data, error } = await supabase.rpc('request_meeting_in_org', { p_org: orgId, p_code: trackingCode, p_pow_token: proof.token, p_pow_nonce: proof.nonce });
+    if (!error) return data == null ? { error: new Error('complaint-not-found') } : { error: null };
+    if (!isMissingSchema(error)) return { error };
+  }
   const { data, error } = await supabase.rpc('request_meeting_by_code', { p_code: trackingCode });
   // Con la migración 014, un código que no existe no da error: devuelve vacío (ver 014_endurecimiento.sql)
   if (!error && data == null) return { error: new Error('complaint-not-found') };
   return { error };
+}
+
+/**
+ * Quién gestiona el canal de una empresa, para que quien denuncia pueda apartar a personas del caso (C1,
+ * migración 020). Devuelve { people: [{ id, full_name, role }], error }. Si la base de datos aún no lo
+ * ofrece (sin la 020), devuelve una lista vacía y el formulario no enseña la sección.
+ */
+export async function getChannelManagers(orgId) {
+  if (channelDemo()) return (await demo()).getChannelManagers();
+  if (!orgId) return { people: [], error: null };
+  const { data, error } = await supabase.rpc('get_channel_managers', { p_org: orgId });
+  if (error) return { people: [], error: isMissingSchema(error) ? null : error };
+  return { people: data ?? [], error: null };
 }
 
 export async function getOrganizationBySlug(slug) {
@@ -377,15 +413,29 @@ export async function sendMessage(complaintId, content, sender = 'reporter', act
  * Pasa por una función de la base de datos; la tabla de mensajes no se puede leer sin sesión.
  * Devuelve { messages, error }
  */
-export async function getReporterMessages(trackingCode) {
+export async function getReporterMessages(trackingCode, orgId) {
   if (channelDemo()) return (await demo()).getMessagesByCode(trackingCode);
+  const proof = await solveProof(orgId);
+  if (proof.failed) return { messages: [], error: new Error('proof-failed') };
+  if (proof.token) {
+    const { data, error } = await supabase.rpc('messages_by_code', { p_org: orgId, p_code: trackingCode, p_pow_token: proof.token, p_pow_nonce: proof.nonce });
+    if (!error) return { messages: data ?? [], error: null };
+    if (!isMissingSchema(error)) return { messages: [], error };
+  }
   const { data, error } = await supabase.rpc('get_messages_by_tracking_code', { p_code: trackingCode });
   return { messages: data ?? [], error };
 }
 
 /** Portal de seguimiento: quien denuncia envía un mensaje con su código. Devuelve { error } */
-export async function sendReporterMessage(trackingCode, content) {
+export async function sendReporterMessage(trackingCode, content, orgId) {
   if (channelDemo()) return (await demo()).sendReporterMessage(trackingCode, content);
+  const proof = await solveProof(orgId);
+  if (proof.failed) return { error: new Error('proof-failed') };
+  if (proof.token) {
+    const { data, error } = await supabase.rpc('send_message_by_code', { p_org: orgId, p_code: trackingCode, p_content: content, p_pow_token: proof.token, p_pow_nonce: proof.nonce });
+    if (!error) return data == null ? { error: new Error('complaint-not-found') } : { error: null };
+    if (!isMissingSchema(error)) return { error };
+  }
   const { data, error } = await supabase.rpc('send_reporter_message', { p_code: trackingCode, p_content: content });
   if (!error && data == null) return { error: new Error('complaint-not-found') };
   return { error };
@@ -486,6 +536,31 @@ export async function getReporterIdentity(complaintId) {
   if (DEMO_MODE) return (await demo()).getReporterIdentity(complaintId);
   const { data, error } = await supabase.rpc('get_reporter_identity', { p_complaint: complaintId });
   return { identity: error ? null : (data?.[0] ?? null), error };
+}
+
+/**
+ * Quién gestiona el caso y quién está apartado (C1, migración 020). Devuelve { people, missing, error }.
+ * people: [{ id, full_name, role, excluded, source }]. missing: true si la base de datos aún no lo ofrece.
+ */
+export async function listComplaintAccess(complaintId) {
+  if (DEMO_MODE) return (await demo()).listComplaintAccess(complaintId);
+  const { data, error } = await supabase.rpc('list_complaint_access', { p_complaint: complaintId });
+  if (error) return { people: [], missing: isMissingSchema(error), error: isMissingSchema(error) ? null : error };
+  return { people: data ?? [], missing: false, error: null };
+}
+
+/** Aparta a una persona del caso (solo administrador). Devuelve { error } */
+export async function excludeFromComplaint(complaintId, profileId) {
+  if (DEMO_MODE) return (await demo()).excludeFromComplaint(complaintId, profileId);
+  const { error } = await supabase.rpc('exclude_from_complaint', { p_complaint: complaintId, p_profile: profileId });
+  return { error };
+}
+
+/** Devuelve el acceso a quien apartó un administrador (nunca a quien apartó quien denunció). Devuelve { error } */
+export async function includeInComplaint(complaintId, profileId) {
+  if (DEMO_MODE) return (await demo()).includeInComplaint(complaintId, profileId);
+  const { error } = await supabase.rpc('include_in_complaint', { p_complaint: complaintId, p_profile: profileId });
+  return { error };
 }
 
 // ── Acciones de la ficha (migraciones 011 y 012) ──────────────────────
@@ -900,13 +975,57 @@ async function callFunction(name, body) {
 // ── Utilidades ─────────────────────────────────────────────────────────
 
 function generateTrackingCode() {
+  // 16 caracteres (80 bits), en cuatro grupos de cuatro (hallazgo A1). Los códigos de 8 de antes siguen
+  // valiendo: la huella se calcula igual (code_hash normaliza y no mira la longitud).
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const bytes = new Uint8Array(8);
+  const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
   let code = '';
-  for (let i = 0; i < 8; i++) {
-    if (i === 4) code += '-';
+  for (let i = 0; i < 16; i++) {
+    if (i > 0 && i % 4 === 0) code += '-';
     code += chars[bytes[i] % chars.length]; // 256 % 32 === 0: sin sesgo al hacer el módulo
   }
-  return code; // por ejemplo "A3B7-C9X2"
+  return code; // por ejemplo "A3B7-C9X2-K4M8-PQ2R"
+}
+
+// ── Prueba de trabajo del portal de seguimiento (A2, migración 021) ─────
+// El servidor da un reto y el navegador lo resuelve en un worker (sin bloquear la interfaz). Si no se
+// puede (no está la 021, o el navegador no tiene worker ni sha-256), se devuelve null y se usa el camino
+// de antes. Nunca sale nada del ordenador ni se guarda ninguna IP.
+function runPow(token, bits) {
+  return new Promise((resolve) => {
+    let worker;
+    try {
+      worker = new Worker(new URL('../v2/canal/powWorker.js', import.meta.url), { type: 'module' });
+    } catch {
+      solveProofOfWork(token, bits).then(resolve, () => resolve(null));
+      return;
+    }
+    const finish = (v) => { try { worker.terminate(); } catch { /* nada */ } resolve(v); };
+    const timer = setTimeout(() => finish(null), 60000);
+    worker.onmessage = (e) => { clearTimeout(timer); finish(e.data?.nonce ?? null); };
+    worker.onerror = () => { clearTimeout(timer); solveProofOfWork(token, bits).then(resolve, () => resolve(null)); };
+    worker.postMessage({ token, bits });
+  });
+}
+
+/**
+ * Resuelve una prueba de trabajo para una empresa. Devuelve:
+ *   { token, nonce }  resuelta (usar el camino endurecido)
+ *   { missing: true } la base de datos no tiene la 021 (usar el camino de antes; no pasa en producción)
+ *   { failed: true }  hay 021 pero la prueba no se pudo resolver (el navegador no puede): error claro, nunca el camino viejo
+ */
+async function solveProof(orgId) {
+  if (!orgId) return { missing: true };
+  let res;
+  try {
+    res = await supabase.rpc('issue_pow_challenge', { p_org: orgId });
+  } catch {
+    return { failed: true };
+  }
+  if (res.error) return isMissingSchema(res.error) ? { missing: true } : { failed: true };
+  const row = res.data?.[0];
+  if (!row?.token) return { failed: true };
+  const nonce = await runPow(row.token, row.bits);
+  return nonce == null ? { failed: true } : { token: row.token, nonce };
 }

@@ -76,5 +76,7 @@ export function auditText(t, log) {
   if (log.action === 'meeting_held') return who ? fmt(t.aMeeting, { who }) : t.aMeetingAnon;
   if (log.action === 'fiscal_referral') return who ? fmt(t.aFiscal, { who }) : t.aFiscalAnon;
   if (log.action === 'outcome_set') return who ? fmt(t.aOutcome, { who }) : t.aOutcomeAnon;
+  if (log.action === 'access_excluded') return who ? fmt(t.aExcluded, { who }) : t.aExcludedAnon;
+  if (log.action === 'access_restored') return who ? fmt(t.aRestored, { who }) : t.aRestoredAnon;
   return t.aOther;
 }

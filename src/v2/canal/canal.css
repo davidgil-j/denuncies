@@ -361,3 +361,21 @@
   #print-area .code-actions { display: none !important; }
   #print-area .print-only { display: block; font-size: 14px; line-height: 1.5; }
 }
+
+/* Apartar a alguien del equipo del caso (C1). Cerrado por defecto: solo la fila, para no alargar el paso */
+.exclude { border: 1px solid var(--line); border-radius: 10px; }
+.exclude-toggle { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 8px 14px; border: 0; background: none; color: var(--ink); text-align: left; cursor: pointer; font: inherit; }
+.exclude-toggle > svg:first-child { color: var(--report); flex: none; }
+.exclude-toggle > svg:last-child { color: var(--muted); flex: none; margin-left: auto; }
+.exclude-toggle-txt { display: flex; flex-direction: column; min-width: 0; }
+.exclude-toggle-t { font-size: 15px; font-weight: 600; }
+.exclude-toggle-s { font-size: 13px; color: var(--muted); }
+.exclude-body { border: 0; margin: 0; padding: 0 14px 14px; min-inline-size: 0; }
+.exclude-d { margin: 0 0 10px; color: var(--muted); font-size: 14px; line-height: 1.45; }
+.exclude-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.exclude-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; }
+.exclude-row input { width: 18px; height: 18px; flex: none; }
+.exclude-who { display: flex; flex-direction: column; line-height: 1.3; }
+.exclude-who small { color: var(--muted); font-size: 12.5px; }
+.exclude-all { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 0; color: var(--danger); font-size: 13.5px; line-height: 1.45; }
+.exclude-all svg { flex: none; margin-top: 2px; }

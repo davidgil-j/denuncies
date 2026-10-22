@@ -98,6 +98,8 @@ await page.route(`${API}/**`, async (route) => {
     return json(route, { user_id: m.id });
   }
   if (path === '/functions/v1/delete-manager') { const i = MEMBERS.findIndex(x => x.id === body.user_id); if (i > 0) MEMBERS.splice(i, 1); return json(route, { ok: true }); }
+  // Ficha del caso: quién gestiona y quién está apartado (C1). Vacío = nadie apartado.
+  if (path === '/rest/v1/rpc/list_complaint_access') return json(route, []);
   unexpected.push(`${method} ${path}`);
   return json(route, { message: 'sin simular' }, 500);
 });

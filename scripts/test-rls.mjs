@@ -948,9 +948,16 @@ if (upTo >= 21) {
   await q(`insert into code_attempts_by_org (window_start, org_id, failures) values (date_trunc('minute', now()), $1, 600) on conflict (window_start, org_id) do update set failures = 600`, [orgA]);
   const bitsA = (await q(`select pow_bits_required($1) b`, [orgA]))[0].b;
   const bitsB = (await q(`select pow_bits_required($1) b`, [orgB]))[0].b;
-  ok('con muchos fallos en una empresa, su prueba de trabajo cuesta más', bitsA > 12 && bitsA <= 22, `A=${bitsA}`);
+  ok('con muchos fallos en una empresa, su prueba de trabajo cuesta más (tope de 18 bits)', bitsA > 12 && bitsA <= 18, `A=${bitsA}`);
   ok('…pero la de otra empresa no cambia (freno por empresa, no global)', bitsB === 12, `B=${bitsB}`);
   ok('aun con muchos fallos nunca se bloquea: se puede pedir un reto', (await an(`select * from issue_pow_challenge($1)`, [orgA])).rows[0]?.bits === bitsA);
+
+  // Los retos están acotados por empresa: anon no puede llenar la tabla pidiéndolos sin parar
+  for (let i = 0; i < 55; i++) await an(`select * from issue_pow_challenge($1)`, [orgB]);
+  ok('el número de retos vivos por empresa está acotado', (await q(`select count(*)::int n from pow_challenges where org_id = $1`, [orgB]))[0].n <= 51, `vivos: ${(await q(`select count(*)::int n from pow_challenges where org_id = $1`, [orgB]))[0].n}`);
+  await q(`update pow_challenges set created_at = now() - interval '10 minutes' where org_id = $1`, [orgB]);
+  await an(`select * from issue_pow_challenge($1)`, [orgB]);
+  ok('los retos caducados se borran al pedir otro', (await q(`select count(*)::int n from pow_challenges where created_at < now() - interval '5 minutes'`))[0].n === 0);
 
   // El panel sigue registrando con sesión (register_complaint es «security definer», no le afecta el cierre)
   const reg = await au(adminA, `select register_complaint('safety', 'Comunicación recibida por teléfono con hechos concretos.', 'phone', now(), true, null, null, null, null, null, null, 'es', $1, null) as id`, [sha('REGI-2222-0000-0000')]);
@@ -970,6 +977,52 @@ if (upTo >= 21) {
   ok('vuelta atrás: se puede ejecutar dos veces', true);
   ok('vuelta atrás: se vuelve a poder insertar directamente', !(await an(`insert into complaints (tracking_hash, organization_id, category, description) values ($1, $2, 'fraud', 'tras volver atrás')`, [sha('BACK-0001-0000-0000'), orgA])).error);
   ok('vuelta atrás: la consulta endurecida ya no existe', !!(await an(`select * from consult_complaint($1, 'x', 'y', 'z')`, [orgA])).error);
+}
+
+// ── Cerrar las funciones antiguas (022, A1 y A2) ────────────────────────
+if (upTo >= 22) {
+  console.log('\nCerrar las funciones antiguas (022)');
+  const crypto = await import('node:crypto');
+  const sha = (c) => crypto.createHash('sha256').update(c.toUpperCase().replace(/[^A-Z0-9]/g, '')).digest('hex');
+  const solvePow = (token, bits) => {
+    const full = Math.floor(bits / 8), rem = bits % 8;
+    for (let n = 0; ; n++) {
+      const d = crypto.createHash('sha256').update(`${token}:${n}`).digest();
+      let good = true;
+      for (let i = 0; i < full; i++) if (d[i] !== 0) { good = false; break; }
+      if (good && rem !== 0 && (d[full] >> (8 - rem)) !== 0) good = false;
+      if (good) return String(n);
+    }
+  };
+  const pg = await newDb(22);
+  let again = null;
+  try { await pg.exec(fs.readFileSync(path.join(MIG, '022_cerrar_funciones_antiguas.sql'), 'utf8')); } catch (e) { again = e.message; }
+  ok('la 022 se puede ejecutar dos veces', again === null, again ?? '');
+  const q = async (sql, p) => (await pg.query(sql, p)).rows;
+  const an = (sql, p) => asOn(pg, 'anon', null, sql, p);
+  const err = (r) => String(r.error ?? '');
+
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('cc@x.es', '{"company_name":"Empresa CC","full_name":"Admin CC"}')`);
+  const [{ organization_id: orgC }] = await q(`select p.organization_id from profiles p join auth.users u on u.id = p.id where u.email = 'cc@x.es'`);
+  await an(`select submit_complaint($1, $2, $3, 'fraud', 'Hechos de prueba tras cerrar las funciones antiguas', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[])`, [crypto.randomUUID(), orgC, sha('CLOS-0001-0000-0000')]);
+
+  // Las funciones de antes ya no se pueden llamar sin sesión
+  ok('consulta antigua cerrada', !!(await an(`select * from get_complaint_by_tracking_code('CLOS-0001-0000-0000')`)).error);
+  ok('mensajes antiguos cerrados', !!(await an(`select * from get_messages_by_tracking_code('CLOS-0001-0000-0000')`)).error);
+  ok('enviar mensaje antiguo cerrado', !!(await an(`select send_reporter_message('CLOS-0001-0000-0000', 'hola')`)).error);
+  ok('pedir reunión antigua cerrada', !!(await an(`select request_meeting_by_code('CLOS-0001-0000-0000')`)).error);
+  ok('envío antiguo (14 parámetros) cerrado', !!(await an(`select submit_complaint($1, $2, 'fraud', 'x'.repeat(30), true, null, null, null, null, null, null, 'es', false, null)`, [orgC, sha('CLOS-9999-0000-0000')])).error);
+  ok('envío de la 020 (15 parámetros) cerrado', !!(await an(`select submit_complaint($1, $2, 'fraud', 'x'.repeat(30), true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[])`, [orgC, sha('CLOS-8888-0000-0000')])).error);
+
+  // El camino endurecido sigue funcionando
+  const ch = (await an(`select * from issue_pow_challenge($1)`, [orgC])).rows[0];
+  ok('la consulta endurecida sí funciona', (await an(`select * from consult_complaint($1, 'CLOS-0001-0000-0000', $2, $3)`, [orgC, ch.token, solvePow(ch.token, ch.bits)])).rows.length === 1);
+  ok('el envío nuevo (16 parámetros) sigue funcionando', !(await an(`select submit_complaint($1, $2, $3, 'fraud', 'Otra denuncia por el camino nuevo', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[])`, [crypto.randomUUID(), orgC, sha('CLOS-0002-0000-0000')])).error);
+
+  // Vuelta atrás: vuelven a abrirse
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '022_atras.sql'), 'utf8'));
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '022_atras.sql'), 'utf8'));
+  ok('vuelta atrás: la consulta de antes vuelve a funcionar', (await an(`select * from get_complaint_by_tracking_code('CLOS-0001-0000-0000')`)).rows.length === 1);
 }
 
 // ── Vueltas atrás de la 018, la 017 y la 016 ────────────────────────────

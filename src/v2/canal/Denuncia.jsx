@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, CalendarDays, Paperclip, Plus, Minus, Send, Shield, CircleAlert, Pencil } from 'lucide-react';
 import { translations } from '../../translations.js';
-import { saveComplaint } from '../../lib/supabase.js';
+import { saveComplaint, getChannelManagers } from '../../lib/supabase.js';
 import { cleanForAnonymous } from '../../lib/cleanImage.js';
 import { fmt } from '../V2Layout.jsx';
 import { EMAIL_RE } from '../site/fields.jsx';
@@ -23,9 +23,11 @@ export default function Denuncia() {
   const T = translations[lang];
   const t = T.canal;
   const [errors, setErrors] = useState({});
-  const [open, setOpen] = useState({ known: false, proof: false }); // en el móvil, los apartados opcionales se abren con su fila
+  const [open, setOpen] = useState({ known: false, proof: false, exclude: false }); // apartados que se abren con su fila
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null); // sendErr | sendLimit | { clean: nombre del archivo }
+  // Quién gestiona el canal, para que quien denuncia pueda apartar a alguien del caso (C1). null = aún no se sabe
+  const [managers, setManagers] = useState(null);
   // Código e id del primer intento de envío: si la red falla después de guardar, el reintento usa los
   // mismos y la base de datos no crea una denuncia repetida
   const attemptRef = useRef(null);
@@ -39,6 +41,14 @@ export default function Denuncia() {
   // Título neutro: el historial del navegador no debe decir que se está enviando una denuncia
   // (cada paso con su título, para quien usa lector de pantalla; «Enviada» pone el suyo)
   useEffect(() => { if (!sent) document.title = `${fmt(T.ds.stepOf, { n: step, total: 3 })} · ${t.ethics} · ${org.name}`; }, [t, org, step, sent]);
+
+  // Quién gestiona el canal (para poder apartar a alguien). Si la base de datos aún no lo ofrece, la lista
+  // queda vacía y el paso 3 no enseña la sección.
+  useEffect(() => {
+    let alive = true;
+    getChannelManagers(org.id).then(({ people }) => { if (alive) setManagers(people ?? []); }).catch(() => { if (alive) setManagers([]); });
+    return () => { alive = false; };
+  }, [org.id]);
 
   // Al cambiar de paso: arriba y con el foco en el título
   useEffect(() => {
@@ -112,6 +122,7 @@ export default function Denuncia() {
           category: draft.category, department: draft.department, description: draft.description.trim(), incidentDate: '',
           when: draft.when, whenLabel: t.when,
           involvedPeople: draft.involvedPeople, language: lang, meetingRequested: draft.meeting,
+          excluded: draft.excluded,
         },
         files,
         organizationId: org.id,
@@ -151,6 +162,7 @@ export default function Denuncia() {
   // Un apartado opcional con algo dentro no se puede plegar: lo escrito nunca queda escondido
   const knownOpen = open.known || !!(draft.when || draft.department || draft.involvedPeople);
   const proofOpen = open.proof || nFiles > 0;
+  const excludeOpen = open.exclude || draft.excluded.length > 0;
   const toggle = (k) => setOpen(o => ({ ...o, [k]: !o[k] }));
 
   return (
@@ -270,6 +282,49 @@ export default function Denuncia() {
                   <input type="checkbox" checked={draft.meeting} onChange={e => set({ meeting: e.target.checked })} />
                   <span><b><Tc lang={lang} k="meetB" /></b> <Tc lang={lang} k="meetD" className="meet-d" /></span>
                 </label>
+
+                {/* Apartar a alguien del equipo que no debería ver el caso (C1). Solo si hay equipo que mostrar. */}
+                {/* Apartar a alguien del equipo (C1). Cerrado por defecto para no alargar el paso en portátiles. */}
+                {managers && managers.length > 0 && (
+                  <div className={cx('exclude', excludeOpen && 'is-open')}>
+                    <button
+                      type="button" className="exclude-toggle" aria-expanded={excludeOpen} aria-controls="dn-exclude"
+                      onClick={() => toggle('exclude')}
+                    >
+                      {ic(Shield, 17)}
+                      <span className="exclude-toggle-txt">
+                        <Tc lang={lang} k="excludeB" className="exclude-toggle-t" />
+                        {draft.excluded.length > 0 && <Tc lang={lang} k="excludeCount" vars={{ n: draft.excluded.length }} className="exclude-toggle-s" />}
+                      </span>
+                      {ic(excludeOpen ? Minus : Plus, 18)}
+                    </button>
+                    {excludeOpen && (
+                      <fieldset className="exclude-body" id="dn-exclude">
+                        <legend className="ds-vh"><Tc lang={lang} k="excludeB" /></legend>
+                        <Tc as="p" lang={lang} k="excludeD" className="exclude-d" />
+                        <ul className="exclude-list">
+                          {managers.map(m => (
+                            <li key={m.id}>
+                              <label className="exclude-row">
+                                <input
+                                  type="checkbox" checked={draft.excluded.includes(m.id)}
+                                  onChange={e => set({ excluded: e.target.checked ? [...draft.excluded, m.id] : draft.excluded.filter(x => x !== m.id) })}
+                                />
+                                <span className="exclude-who">
+                                  <b>{m.full_name?.trim() || t.excludeNoName}</b>
+                                  <small>{m.role === 'superadmin' ? t.excludeAdmin : t.excludeManager}</small>
+                                </span>
+                              </label>
+                            </li>
+                          ))}
+                        </ul>
+                        {draft.excluded.length >= managers.length && (
+                          <p className="exclude-all" role="note">{ic(CircleAlert, 16)}<span><Tc lang={lang} k="excludeAll" /></span></p>
+                        )}
+                      </fieldset>
+                    )}
+                  </div>
+                )}
               </div>
 
               <Card className="ident-side">

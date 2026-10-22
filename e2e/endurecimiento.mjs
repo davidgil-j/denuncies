@@ -114,6 +114,13 @@ async function api(route) {
   if (p === '/rest/v1/rpc/retention_due') return json(route, []);
   if (p === '/rest/v1/rpc/list_org_members') return json(route, [{ id: USER.id, full_name: 'Laura Puig Ferrer', role: 'superadmin', email: USER.email, created_at: '2026-01-01T00:00:00Z', last_sign_in_at: day(0) }]);
   if (p === '/rest/v1/manager_permissions') return json(route, []);
+  // Ronda 2 de seguridad: C1 (quién gestiona) y A2 (prueba de trabajo + portal por empresa).
+  if (p === '/rest/v1/rpc/get_channel_managers') return json(route, []);
+  if (p === '/rest/v1/rpc/list_complaint_access') return json(route, []);
+  // Reto de prueba de trabajo con bits 0: el worker lo resuelve al instante (cualquier nonce vale)
+  if (p === '/rest/v1/rpc/issue_pow_challenge') return json(route, [{ token: `tok-${Math.random().toString(16).slice(2)}`, bits: 0 }]);
+  // La consulta endurecida: aquí siempre con un código que no existe (devuelve vacío)
+  if (p === '/rest/v1/rpc/consult_complaint') return json(route, []);
   unexpected.push(`${method} ${p}`);
   return json(route, { message: 'sin simular' }, 500);
 }
@@ -252,16 +259,15 @@ const sendBtn = (page) => page.getByRole('button', { name: /Enviar denuncia/ });
   await page.close();
 }
 
-// 014 · Freno de intentos en la consulta por código
+// A2 · Consulta por el camino endurecido (prueba de trabajo + por empresa). Un código que no existe no da
+// pistas: el mismo mensaje «no hemos podido abrir ningún caso», sin revelar si existe o no.
 {
   const page = await newPage();
-  S.tooMany = true;
   await page.goto(`${APP}/canal/acme/consulta?lang=es`, { waitUntil: 'networkidle' });
-  await page.getByPlaceholder('XXXX-XXXX').fill('ABCD-EFGH');
+  await page.getByPlaceholder('XXXX-XXXX-XXXX-XXXX').fill('ABCD-EFGH-JKLM-NPQR');
   await page.getByRole('button', { name: 'Ver mi caso' }).click();
-  await page.getByText(/demasiados intentos/).waitFor({ timeout: 10000 });
-  ok('014 · con demasiados intentos fallidos se pide esperar unos minutos', true);
-  S.tooMany = false;
+  await page.getByText('No hemos podido abrir ningún caso con ese código').waitFor({ timeout: 10000 });
+  ok('A2 · la consulta pide la prueba de trabajo y un código que no existe no da pistas', calls('/rest/v1/rpc/issue_pow_challenge').length >= 1 && calls('/rest/v1/rpc/consult_complaint').length >= 1);
   await page.close();
 }
 

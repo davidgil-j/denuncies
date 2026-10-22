@@ -193,5 +193,7 @@ Decisiones por defecto de los arreglos de seguridad (`docs/seguridad/AUDITORIA_R
 - **Por qué así:** un freno global permitía bloquear a todos los clientes (A2); revelar la existencia de un código permitía adivinarlos (A1). La prueba de trabajo frena sin guardar IP (el canal promete anonimato) y sin bloquear a quien sí tiene su código.
 - **Dónde:** migración `021_codigo_freno_por_empresa.sql`. El camino nuevo convive con el de antes hasta que el navegador se cablee.
 
-### Pendiente de cablear en el navegador (no tocado aún)
-El 21 oct, mientras se escribía esto, otro chat estaba grabando los vídeos de la portada con la demo. Para no romperle la grabación, **no se tocó ningún archivo de `src/`**. Queda por cablear (cuando la demo esté libre): el selector de «apartar personas» del formulario, el panel de accesos de la ficha, la prueba de trabajo (worker) y el id de envío en el canal, los códigos de 16 caracteres, y la demo (`demoStore.js`). La capa de base de datos ya está hecha y probada (`npm run db:test`).
+### Navegador: cableado y probado
+C1, A1 y A2 están hechos de punta a punta (base de datos + navegador + demo) y con las pruebas en verde (`npm run db:test`, `npm run test:logic`, `npm run e2e`). En el canal: el selector de «apartar personas» del formulario, los códigos de 16 caracteres, la prueba de trabajo en un Web Worker (`src/lib/pow.js`, `src/v2/canal/powWorker.js`) y el id de envío. En el panel: la sección «Quién gestiona este caso» de la ficha. Hay una suite nueva, `e2e/seguridad-ronda2.mjs`.
+
+**Regrabar al final:** el paso 3 del formulario de denuncia ahora tiene la sección de «apartar personas», que sale en el vídeo «Quien denuncia» de la portada.

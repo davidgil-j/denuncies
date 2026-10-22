@@ -51,7 +51,7 @@ process.on('uncaughtException', async (e) => { console.log(`FALLA ${e.message.sp
 process.on('unhandledRejection', async (e) => { console.log(`FALLA ${String(e?.message ?? e).split('\n')[0]}`); await shutdown(); process.exit(1); });
 const FAKE_TURNSTILE = `window.turnstile = { render(el, o) { setTimeout(() => o.callback('XXXX.DUMMY.TOKEN.XXXX'), 200); return 'w1'; }, reset() {}, remove() {} };
   (function () { const cb = new URL(document.currentScript.src).searchParams.get('onload'); if (cb && window[cb]) window[cb](); })();`;
-async function newPage({ w = 1280 } = {}) {
+async function newPage({ w = 1280, blockWorker = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: 900 }, locale: 'es-ES' });
   const page = await ctx.newPage();
   const errors = [];
@@ -61,6 +61,16 @@ async function newPage({ w = 1280 } = {}) {
   await ctx.route('https://challenges.cloudflare.com/**', r => r.fulfill({ status: 200, contentType: 'text/javascript', body: FAKE_TURNSTILE }));
   await ctx.route(u => !/^https?:\/\/localhost[:/]/.test(u.toString()) && !u.toString().startsWith('https://challenges.cloudflare.com') && !/^(data|blob):/.test(u.toString()), r => r.abort());
   await page.addInitScript(() => { try { localStorage.setItem('reportia-panel-lang', 'es'); } catch { /* sin almacenamiento */ } });
+  // Simula un navegador donde la prueba de trabajo no puede ejecutarse (A2): 'worker' tira el Worker (debe
+  // recaer en el hilo principal y seguir funcionando); 'all' tira también sha-256 (no se puede: error claro).
+  if (blockWorker === 'worker' || blockWorker === 'all') {
+    await page.addInitScript((mode) => {
+      try { window.Worker = function () { throw new Error('worker bloqueado en la prueba'); }; } catch { /* nada */ }
+      if (mode === 'all' && window.crypto?.subtle) {
+        try { window.crypto.subtle.digest = () => Promise.reject(new Error('sha bloqueado en la prueba')); } catch { /* nada */ }
+      }
+    }, blockWorker);
+  }
   return { page, ctx, errors };
 }
 
@@ -80,20 +90,30 @@ async function report(text) {
   await ctx.close();
   return { code, errors };
 }
-/** Quien informa: abre su caso con el código (y, si se pide, escribe un mensaje) */
-async function lookup(code, message) {
-  const { page, ctx, errors } = await newPage();
+/** Quien informa: abre su caso con el código (y, si se pide, escribe un mensaje o pide una reunión) */
+async function lookup(code, message, { meeting = false, blockWorker = false } = {}) {
+  const { page, ctx, errors } = await newPage({ blockWorker });
   await page.goto(`${APP}/canal/${slug}/consulta?lang=es`, { waitUntil: 'networkidle' });
   await page.getByLabel('Tu código').fill(code);
   await page.getByRole('button', { name: 'Ver mi caso' }).click();
-  const opened = await page.waitForSelector('.mc', { timeout: 10000 }).then(() => true).catch(() => false);
+  const opened = await page.waitForSelector('.mc', { timeout: 15000 }).then(() => true).catch(() => false);
+  let meetingAsked = false;
   if (opened && message) {
     await page.fill('#mc-msg', message);
     await page.getByRole('button', { name: 'Enviar mensaje' }).click();
-    await page.locator('.ds-chat-msg.is-mine', { hasText: message }).waitFor({ timeout: 8000 });
+    await page.locator('.ds-chat-msg.is-mine', { hasText: message }).waitFor({ timeout: 10000 });
   }
+  if (opened && meeting) {
+    const btn = page.getByRole('button', { name: 'Pide una reunión' });
+    if (await btn.count()) {
+      await btn.first().click();
+      meetingAsked = await page.getByText('Has pedido una reunión en persona').first().waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
+    }
+  }
+  // Si quedó bloqueada la prueba de trabajo, el canal lo dice con claridad y un botón para reintentar
+  const proofError = !opened && await page.getByText('No se ha podido hacer la comprobación de seguridad en este dispositivo').count() > 0;
   await ctx.close();
-  return { opened, errors };
+  return { opened, errors, meetingAsked, proofError };
 }
 /** Quien gestiona: entra (contraseña y código de 6 cifras) y devuelve la página en el tablero */
 async function login(base = APP) {
@@ -118,7 +138,7 @@ const solid = (page) => page.evaluate(() => getComputedStyle(document.documentEl
 
 // ── 1 · Hasta la 015 ──
 const a = await report('Un proveedor de transporte factura rutas que no aparecen en el registro de salidas del almacén.');
-ok('015 · el canal envía una denuncia y da su código', /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(a.code) && a.errors.length === 0, `${a.code} ${a.errors.join(' · ')}`);
+ok('015 · el canal envía una denuncia y da su código', /^[A-Z0-9]{4}(-[A-Z0-9]{4}){1,3}$/.test(a.code) && a.errors.length === 0, `${a.code} ${a.errors.join(' · ')}`);
 ok('015 · la huella guardada es la de siempre (sin secreto)', q(`select count(*) from complaints where tracking_hash = '${sha(a.code)}'`) === '1');
 ok('015 · con el código se abre el caso', (await lookup(a.code)).opened);
 {
@@ -208,6 +228,34 @@ db.setCaptcha(true);
 }
 db.setCaptcha(false);
 
+// ── 6 · Las migraciones de la ronda 2 (020 exclusión, 021 freno + prueba de trabajo, 022 cierre) ──
+db.migrate(22);
+ok('020-022 · las funciones de antes quedan cerradas y las nuevas abiertas',
+  q(`select has_function_privilege('anon', 'public.get_complaint_by_tracking_code(text)', 'execute')`) === 'f'
+  && q(`select has_function_privilege('anon', 'public.consult_complaint(uuid, text, text, text)', 'execute')`) === 't');
+// Un caso antiguo con código de 8 caracteres y huella plana (como si se hubiera guardado antes de la 019 y
+// nadie lo hubiera consultado): se inserta con el disparador apagado para que la huella NO se reescriba aún.
+const orgId = q(`select id from organizations where slug = '${slug}'`);
+const old8 = 'ABCD-EFGH';
+q(`alter table complaints disable trigger complaints_tracking_key`);
+q(`insert into complaints (tracking_hash, organization_id, category, description, status, priority, channel) values ('${sha(old8)}', '${orgId}', 'safety', 'Caso antiguo con un codigo de ocho caracteres para comprobar que sigue valiendo.', 'received', 'normal', 'web')`);
+q(`alter table complaints enable trigger complaints_tracking_key`);
+
+ok('022 · el código de 16 abre su caso y deja escribir por el camino nuevo (prueba de trabajo)', (await lookup(a.code, 'Un mensaje más, ya por el camino nuevo.')).opened);
+ok('022 · pedir una reunión por el camino nuevo', (await lookup(b.code, null, { meeting: true })).meetingAsked);
+ok('022 · un código antiguo de 8 caracteres (huella plana) sigue abriendo su caso', (await lookup(old8)).opened);
+ok('022 · …y al usarlo se reescribe con el secreto', q(`select count(*) from complaints where tracking_hash = '${sha(old8)}'`) === '0'
+  && q(`select count(*) from complaints where tracking_hash = public.tracking_key('${sha(old8)}')`) === '1');
+const c = await report('Una denuncia nueva enviada después de cerrar las funciones de antes.');
+ok('022 · enviar una denuncia nueva sigue funcionando (código de 16 con secreto)', c.errors.length === 0
+  && q(`select count(*) from complaints where tracking_hash = public.tracking_key('${sha(c.code)}')`) === '1', c.errors.join(' · '));
+ok('022 · un código inventado no abre nada y no dice si existe', !(await lookup('ZZZZ-9999-9999-9999')).opened);
+
+// Item 3 · Qué ve quien denuncia si la prueba de trabajo no puede ejecutarse
+ok('022 · con el Worker bloqueado, la prueba se resuelve en el hilo principal y el caso abre igual', (await lookup(a.code, null, { blockWorker: 'worker' })).opened);
+const noProof = await lookup(a.code, null, { blockWorker: 'all' });
+ok('022 · sin forma de resolver la prueba, el canal lo dice con claridad y no abre en silencio', !noProof.opened && noProof.proofError);
+
 await shutdown();
-console.log(problems.length ? `PROBLEMAS: ${problems.join(' · ')}` : 'Base de datos real: la web funciona hasta la 015, con la 016-017, con la 018 y con la 019 sobre los mismos datos');
+console.log(problems.length ? `PROBLEMAS: ${problems.join(' · ')}` : 'Base de datos real: la web funciona hasta la 015, con la 016-017, la 018, la 019 y la ronda 2 (020-022: portal endurecido, códigos de 16 y 8, worker bloqueado) sobre los mismos datos');
 process.exit(problems.length ? 1 : 0);

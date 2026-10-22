@@ -393,11 +393,17 @@ const pick = (c) => Object.fromEntries(LIST_FIELDS.map(k => [k, c[k] ?? null]));
 const byDateDesc = (a, b) => new Date(b.created_at) - new Date(a.created_at);
 
 // ── Denuncias ───────────────────────────────────────────────────────────
+// Quien entra en la demo es siempre la administradora (demo-user). Un caso que la aparte (C1) no lo ve.
+const CURRENT_USER = 'demo-user';
+const exclusionsOf = (c) => c.exclusions ?? [];
+const hiddenFor = (c, uid) => exclusionsOf(c).some(e => e.profile_id === uid);
+
 export async function listComplaints({ categories = null } = {}) {
   await wait(380);
   const s = db();
   const rows = s.complaints
     .filter(c => !categories || categories.includes(c.category))
+    .filter(c => !hiddenFor(c, CURRENT_USER))
     .sort(byDateDesc)
     .map(c => ({ ...pick(c), unread: (s.messages[c.id] ?? []).filter(m => m.sender === 'reporter' && !m.is_read).length }));
   return { complaints: rows, error: null };
@@ -406,7 +412,7 @@ export async function listComplaints({ categories = null } = {}) {
 export async function getComplaintById(id) {
   await wait(300);
   const c = db().complaints.find(x => x.id === id);
-  if (!c) return { complaint: null, error: { message: 'not-found' } };
+  if (!c || hiddenFor(c, CURRENT_USER)) return { complaint: null, error: { message: 'not-found' } };
   // Como en el servidor: la identidad no viaja con la denuncia, se pide aparte (getReporterIdentity)
   const { reporter_name, reporter_email, reporter_phone, ...rest } = clone(c);
   return { complaint: rest, error: null };
@@ -421,6 +427,57 @@ export async function getReporterIdentity(id) {
   s.audit.push({ id: `a${++s.seq}`, complaint_id: id, action: 'identity_viewed', details: { actor_name: PEOPLE.admin.full_name }, created_at: new Date().toISOString() });
   save(s);
   return { identity: { reporter_name: c.reporter_name ?? null, reporter_email: c.reporter_email ?? null, reporter_phone: c.reporter_phone ?? null }, error: null };
+}
+
+// ── Exclusión por caso (C1) ─────────────────────────────────────────────
+export async function getChannelManagers() {
+  await wait(120);
+  const people = db().profiles.filter(p => ['superadmin', 'manager'].includes(p.role)).map(p => ({ id: p.id, full_name: p.full_name, role: p.role }));
+  return { people, error: null };
+}
+
+export async function listComplaintAccess(complaintId) {
+  await wait(150);
+  const s = db();
+  const c = s.complaints.find(x => x.id === complaintId);
+  if (!c) return { people: [], missing: false, error: { message: 'not-allowed' } };
+  const ex = exclusionsOf(c);
+  const people = s.profiles.filter(p => ['superadmin', 'manager'].includes(p.role)).map(p => {
+    const e = ex.find(y => y.profile_id === p.id);
+    return { id: p.id, full_name: p.full_name, role: p.role, excluded: !!e, source: e?.source ?? null };
+  });
+  return { people, missing: false, error: null };
+}
+
+export async function excludeFromComplaint(complaintId, profileId) {
+  await wait(260);
+  const s = db();
+  const c = s.complaints.find(x => x.id === complaintId);
+  if (!c) return { error: { message: 'not-allowed' } };
+  c.exclusions = exclusionsOf(c);
+  if (!c.exclusions.some(e => e.profile_id === profileId)) c.exclusions.push({ profile_id: profileId, source: 'manager' });
+  // Al menos una persona del equipo tiene que quedar con acceso
+  const team = s.profiles.filter(p => ['superadmin', 'manager'].includes(p.role));
+  if (team.filter(p => !c.exclusions.some(e => e.profile_id === p.id)).length < 1) {
+    c.exclusions = c.exclusions.filter(e => e.profile_id !== profileId);
+    return { error: { message: 'last-viewer' } };
+  }
+  s.audit.push({ id: `a${++s.seq}`, complaint_id: complaintId, action: 'access_excluded', details: { profile: profileId }, created_at: new Date().toISOString() });
+  save(s);
+  return { error: null };
+}
+
+export async function includeInComplaint(complaintId, profileId) {
+  await wait(260);
+  const s = db();
+  const c = s.complaints.find(x => x.id === complaintId);
+  if (!c) return { error: { message: 'not-allowed' } };
+  const e = exclusionsOf(c).find(y => y.profile_id === profileId);
+  if (e?.source === 'reporter') return { error: { message: 'reporter-exclusion' } };
+  c.exclusions = exclusionsOf(c).filter(y => y.profile_id !== profileId);
+  s.audit.push({ id: `a${++s.seq}`, complaint_id: complaintId, action: 'access_restored', details: { profile: profileId }, created_at: new Date().toISOString() });
+  save(s);
+  return { error: null };
 }
 
 export async function getAuditLogs(complaintId) {
@@ -524,7 +581,7 @@ export async function registerComplaint(form, actorName = '') {
   const anon = form.isAnonymous !== false;
   const received = form.receivedAt ? new Date(form.receivedAt).toISOString() : new Date().toISOString();
   s.complaints.push({
-    id, tracking_code: form.trackingCode, reference: `REF-${form.trackingCode.replace('-', '').slice(2)}`, organization_id: 'demo-org',
+    id, tracking_code: form.trackingCode, reference: `REF-${form.trackingCode.replace(/-/g, '').slice(2, 8)}`, organization_id: 'demo-org',
     acknowledged_at: null, answered_at: null, extended_until: null, extension_reason: null, anonymized_at: null,
     is_anonymous: anon,
     reporter_name: anon ? null : form.name?.trim() || null, reporter_email: anon ? null : form.email?.trim() || null, reporter_phone: anon ? null : form.phone?.trim() || null,
@@ -605,7 +662,8 @@ export async function retentionDue() {
 // ── Portal de seguimiento por código ────────────────────────────────────
 const byCode = (code) => {
   const norm = String(code).toUpperCase().replace(/[^A-Z0-9]/g, '');
-  return db().complaints.find(x => !x.anonymized_at && x.tracking_code.replace('-', '') === norm);
+  // replace(/-/g,…): los códigos de 16 caracteres llevan tres guiones, no uno
+  return db().complaints.find(x => !x.anonymized_at && x.tracking_code.replace(/-/g, '') === norm);
 };
 
 export async function getMessagesByCode(code) {
@@ -641,12 +699,13 @@ export function resetAal() {
 
 // ── Canal público enlazado con el panel (solo demo) ─────────────────────
 // Una denuncia enviada desde el canal v2 aparece en el panel; con su código se puede consultar.
-export function addComplaint({ id, trackingCode, formData, files = [] }) {
+export function addComplaint({ id, trackingCode, formData, files = [], excluded = [] }) {
   const s = db();
   const now = new Date().toISOString();
   const anon = formData.isAnonymous !== false;
   s.complaints.push({
-    id, tracking_code: trackingCode, reference: `REF-${trackingCode.replace('-', '').slice(2)}`, organization_id: 'demo-org',
+    exclusions: (excluded ?? []).map(pid => ({ profile_id: pid, source: 'reporter' })),
+    id, tracking_code: trackingCode, reference: `REF-${trackingCode.replace(/-/g, '').slice(2, 8)}`, organization_id: 'demo-org',
     acknowledged_at: null, answered_at: null, extended_until: null, extension_reason: null, anonymized_at: null,
     is_anonymous: anon,
     reporter_name: anon ? null : formData.name || null,

@@ -2,11 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Ellipsis, Pencil, Check, X, Paperclip, Download, CircleAlert, LockKeyhole, Archive, Eraser, CalendarPlus,
-  MessageSquareReply, RotateCcw, Search, Eye, Scale, Flag, FileText, FileDown, MessageSquare, Send, SlidersHorizontal, CalendarDays, CircleCheck, User, History,
+  MessageSquareReply, RotateCcw, Search, Eye, Scale, Flag, FileText, FileDown, MessageSquare, Send, SlidersHorizontal, CalendarDays, CircleCheck, User, Users, History,
 } from 'lucide-react';
 import {
   getComplaintById, getReporterIdentity, getMessages, sendMessage, getAuditLogs, updateComplaint, addComplaintNote,
   markMessagesRead, extendDeadline, anonymizeComplaint, getAttachmentUrl, markMeetingHeld, markFiscalReferral, listAssignees, hasRedesign, AI_ENABLED,
+  listComplaintAccess, excludeFromComplaint, includeInComplaint,
 } from '../../lib/supabase.js';
 import { translations } from '../../translations.js';
 import './texts.js'; // textos del panel (lado Gestionar)
@@ -40,6 +41,9 @@ export default function Caso() {
   const [messages, setMessages] = useState([]);
   const [logs, setLogs] = useState([]);
   const [people, setPeople] = useState([]);
+  const [access, setAccess] = useState(null); // null: cargando · false: la base de datos no lo ofrece · []: lista
+  const [accessBusy, setAccessBusy] = useState(null); // id de la persona que se está apartando/devolviendo
+  const [accessErr, setAccessErr] = useState('');
   const [identity, setIdentity] = useState(null);
   const [loadErr, setLoadErr] = useState(false);
   const [dialog, setDialog] = useState(null); // ack | close | extend | suppress | fiscal
@@ -83,6 +87,13 @@ export default function Caso() {
   // Al abrir otro caso la ficha vuelve a «Resumen», con la descripción plegada y el campo de la nota cerrado
   useEffect(() => { setTab('summary'); setFullDesc(false); setNoteOpen(false); loadAll(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
   useEffect(() => { listAssignees().then(({ people: list }) => setPeople(list ?? [])); }, []);
+  // Quién gestiona el caso y quién está apartado (C1). false si la base de datos aún no lo ofrece (sin la 020)
+  useEffect(() => {
+    let alive = true;
+    setAccess(null); setAccessErr('');
+    listComplaintAccess(id).then(({ people: list, missing }) => { if (alive) setAccess(missing ? false : (list ?? [])); }).catch(() => { if (alive) setAccess(false); });
+    return () => { alive = false; };
+  }, [id]);
   useEffect(() => { if (c) document.title = `${c.reference} · ${org?.name ?? ''}`; }, [c, org]);
   // En el móvil la descripción se corta a unas líneas: «Leer entero» solo aparece si de verdad hay más texto
   useEffect(() => { const el = descRef.current; if (el && !fullDesc) setCutDesc(el.scrollHeight > el.clientHeight + 1); }, [c?.description, fullDesc, tab]);
@@ -136,6 +147,7 @@ export default function Caso() {
   const canEdit = can('edit', c.category) && !erased;
   const canReply = can('reply', c.category) && !erased;
   const canDelete = can('delete', c.category) && !erased;
+  const isAdmin = profile?.role === 'superadmin';
   const s = caseState(c);
   const info = deadlineInfo(c);
   const answered = CLOSED.includes(c.status);
@@ -263,6 +275,19 @@ export default function Caso() {
     setIdBusy(false);
     if (error || !found) { setIdErr(true); return; }
     setIdentity(found);
+    const { logs: l } = await getAuditLogs(id);
+    setLogs(l ?? []);
+  }
+  // Apartar a alguien del caso o devolverle el acceso (C1). Al acabar, se recarga la lista y el historial.
+  async function toggleAccess(person, restore) {
+    if (accessBusy) return;
+    setAccessBusy(person.id);
+    setAccessErr('');
+    const { error } = restore ? await includeInComplaint(c.id, person.id) : await excludeFromComplaint(c.id, person.id);
+    setAccessBusy(null);
+    if (error) { setAccessErr(/last-viewer/.test(error.message ?? '') ? p.accessLast : p.accessErr); return; }
+    const { people: list, missing } = await listComplaintAccess(id);
+    if (!missing) setAccess(list ?? []);
     const { logs: l } = await getAuditLogs(id);
     setLogs(l ?? []);
   }
@@ -567,6 +592,33 @@ export default function Caso() {
                   <p className="cs-p">{p.identWarn}</p>
                   <Button variant="soft" size="xs" className="cs-sec-btn" busy={idBusy} onClick={reveal} icon={<Eye size={14} strokeWidth={1.8} aria-hidden="true" />}>{p.identShow}</Button>
                   {idErr && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />{p.identErr}</p>}
+                </>
+              )}
+            </section>
+          )}
+
+          {!erased && access !== false && (
+            <section className="cs-sec" aria-labelledby="cs-access">
+              <h2 className="pn-sec-t" id="cs-access">{ti(Users)}{p.accessT}</h2>
+              {access === null ? <Skeleton width="100%" height={48} /> : (
+                <>
+                  <p className="cs-p">{p.accessD}</p>
+                  <ul className="cs-access">
+                    {access.map(x => (
+                      <li key={x.id} className={cx('cs-access-row', x.excluded && 'is-excluded')}>
+                        <span className="cs-access-who">
+                          <b>{x.full_name?.trim() || p.accessNoName}</b>
+                          <small>{x.role === 'superadmin' ? p.roleAdmin : p.roleManager}{x.excluded ? ` · ${x.source === 'reporter' ? p.accessByReporter : p.accessByManager}` : ''}</small>
+                        </span>
+                        {isAdmin && x.id !== profile?.id && (x.excluded
+                          ? (x.source === 'manager'
+                              ? <Button variant="soft" size="xs" busy={accessBusy === x.id} onClick={() => toggleAccess(x, true)}>{p.accessRestore}</Button>
+                              : <span className="cs-access-locked" title={p.accessLockedWhy}>{p.accessLocked}</span>)
+                          : <Button variant="soft" size="xs" busy={accessBusy === x.id} onClick={() => toggleAccess(x, false)}>{p.accessRemove}</Button>)}
+                      </li>
+                    ))}
+                  </ul>
+                  {accessErr && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />{accessErr}</p>}
                 </>
               )}
             </section>

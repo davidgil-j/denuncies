@@ -286,7 +286,7 @@ await shot('G7-registrar');
 await page.getByRole('button', { name: 'Registrar y obtener el código' }).click();
 await page.waitForSelector('.rg-code');
 const code = (await page.locator('.rg-code .code-big').textContent()).trim();
-ok('registrada: código para entregar, con aviso de que no se vuelve a mostrar', /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code) && await page.getByText('No se volverá a mostrar').isVisible(), code);
+ok('registrada: código para entregar, con aviso de que no se vuelve a mostrar', /^[A-Z0-9]{4}(-[A-Z0-9]{4}){3}$/.test(code) && await page.getByText('No se volverá a mostrar').isVisible(), code);
 await shot('G7-registrada');
 await page.getByRole('link', { name: 'Abrir el caso' }).click();
 await page.waitForSelector('.cs');

@@ -58,6 +58,7 @@ const SUITES = [
   // mismos datos; arranca sus propios servidores (3116 y 3117). Sin Homebrew, se salta y lo dice
   ['base-real', 'base-real', () => []],
   ['endurecimiento', 'endurecimiento', (n) => [out(n)]],
+  ['seguridad-ronda2', 'seguridad-ronda2', (n) => [out(n)]],
   ['inactividad', 'inactividad', () => []],
   ['ia-demo-1440', 'ia-demo', (n) => [out(n), '1440']],
   ['ia-demo-375', 'ia-demo', (n) => [out(n), '375']],

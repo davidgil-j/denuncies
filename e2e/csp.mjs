@@ -138,7 +138,7 @@ await page.waitForSelector('.code-big', { timeout: 15000 });
 ok('canal: el justificante se descarga', (await save(() => page.getByRole('button', { name: 'Descargar justificante' }).click())).endsWith('.pdf'));
 await violations('canal (enviar, foto y justificante)');
 await page.goto(`${APP}/canal/acme/consulta?lang=es`, { waitUntil: 'networkidle' });
-await page.getByPlaceholder('XXXX-XXXX').fill('ABCD-EFGH');
+await page.getByPlaceholder('XXXX-XXXX-XXXX-XXXX').fill('ABCD-EFGH');
 await page.getByRole('button', { name: 'Ver mi caso' }).click();
 await page.waitForSelector('.mc', { timeout: 15000 });
 await violations('consulta y «Mi caso»');

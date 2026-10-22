@@ -122,7 +122,7 @@ await page.getByRole('button', { name: 'Enviar denuncia' }).click();
 // 5 · Enviada
 await page.waitForSelector('.code-big');
 const code = (await page.locator('.code-big').textContent()).trim();
-ok('código con formato XXXX-XXXX', /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code), code);
+ok('código con formato de 16 caracteres (XXXX-XXXX-XXXX-XXXX)', /^[A-Z0-9]{4}(-[A-Z0-9]{4}){3}$/.test(code), code);
 await shot('D4-enviada');
 await page.getByRole('button', { name: 'Ver mi caso' }).click();
 ok('salir sin guardar el código: pregunta una vez', await page.getByRole('dialog').getByText('¿Has guardado el código?').isVisible());

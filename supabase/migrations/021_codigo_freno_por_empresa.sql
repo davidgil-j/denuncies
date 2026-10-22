@@ -78,13 +78,15 @@ $$;
 revoke all on function code_failures_recent(uuid) from public, anon, authenticated;
 
 -- Bits de dificultad de la prueba de trabajo: parte de 12 y sube con los fallos de la empresa y, más
--- despacio, con los globales. Nunca bloquea; como mucho, cuesta más (tope de 22 bits).
+-- despacio, con los globales. Nunca bloquea; como mucho, cuesta más. Tope de 18 bits: medido en un móvil
+-- lento (CPU x6) con sha-256 del navegador, 18 bits se resuelven en ~1-2 s; a partir de 20 ya son >10 s,
+-- que para quien denuncia equivale a un bloqueo. La defensa de verdad es el código de 16 caracteres (80 bits).
 create or replace function pow_bits_required(p_org uuid)
 returns integer
 language sql stable security definer
 set search_path = public
 as $$
-  select least(22, greatest(12, 12 + (code_failures_recent(p_org) / 25) + (code_failures_recent('00000000-0000-0000-0000-000000000000') / 250)))::int;
+  select least(18, greatest(12, 12 + (code_failures_recent(p_org) / 25) + (code_failures_recent('00000000-0000-0000-0000-000000000000') / 250)))::int;
 $$;
 revoke all on function pow_bits_required(uuid) from public, anon;
 grant execute on function pow_bits_required(uuid) to anon, authenticated;
@@ -108,6 +110,7 @@ begin
 exception when undefined_object then null;
 end $$;
 
+-- Un tope de retos vivos por empresa, para que anon no pueda llenar la tabla pidiendo retos sin parar.
 create or replace function issue_pow_challenge(p_org uuid)
 returns table (token text, bits int)
 language plpgsql volatile security definer
@@ -117,8 +120,14 @@ declare
   v_token text := replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
   v_bits  int := pow_bits_required(p_org);
 begin
+  -- Fuera los caducados (de cualquier empresa): un reto vale 5 minutos
+  delete from pow_challenges where created_at < now() - interval '5 minutes';
+  -- Y, de esta empresa, deja solo los 50 más nuevos (los demás, fuera): así la tabla queda acotada
+  delete from pow_challenges where ctid in (
+    select ctid from pow_challenges where org_id is not distinct from p_org
+    order by created_at desc offset 50
+  );
   insert into pow_challenges (token, org_id, bits) values (v_token, p_org, v_bits);
-  delete from pow_challenges where created_at < now() - interval '15 minutes';
   return query select v_token, v_bits;
 end;
 $$;

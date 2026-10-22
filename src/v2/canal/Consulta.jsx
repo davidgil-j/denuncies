@@ -8,15 +8,17 @@ import { Button, IconButton, ChatThread, ChatComposer, Dialog, Field, StepBar, c
 import { CanalHead, FlowTop, Tc, ic, respDue, dayMonth, dayShort } from './shared.jsx';
 import { LOCALES } from '../../lib/format.js';
 
-// Formato real del código: 8 caracteres con guion en medio (A3B7-C9X2). Se acepta pegado con o sin
-// guion, con espacios, o dentro de un texto como la línea del justificante.
-const CODE_CHARS = 8;
+// Los códigos nuevos tienen 16 caracteres (A3B7-C9X2-K4M8-PQ2R); los de antes, 8 (A3B7-C9X2). Los dos
+// valen. Se acepta pegado con o sin guiones, con espacios, o dentro de un texto como la línea del
+// justificante. Se agrupa de cuatro en cuatro.
+const CODE_MAX = 16;
 function formatCode(v) {
   const up = v.toUpperCase();
-  const found = up.match(/[A-Z0-9]{4}\s*[-–]\s*[A-Z0-9]{4}/g);
-  const clean = (found ? found[found.length - 1] : up).replace(/[^A-Z0-9]/g, '').slice(0, CODE_CHARS);
-  return clean.length > 4 ? `${clean.slice(0, 4)}-${clean.slice(4)}` : clean;
+  const found = up.match(/[A-Z0-9]{4}(?:\s*[-–]\s*[A-Z0-9]{4}){1,3}/g);
+  const clean = (found ? found[found.length - 1] : up).replace(/[^A-Z0-9]/g, '').slice(0, CODE_MAX);
+  return clean.replace(/(.{4})(?=.)/g, '$1-');
 }
+const codeLen = (v) => formatCode(v).replace(/-/g, '').length;
 
 // Los 7 estados internos, contados en 4 pasos para quien informa
 function progress(c) {
@@ -43,13 +45,16 @@ export default function Consulta() {
   async function search(e, override) {
     e?.preventDefault();
     const q = formatCode(override ?? code);
-    if (q.replace('-', '').length < CODE_CHARS) { setError('codeShort'); inputRef.current?.focus(); return; }
+    const n = codeLen(q);
+    if (n !== 8 && n !== 16) { setError('codeShort'); inputRef.current?.focus(); return; }
     setError(null);
     setLoading(true);
-    const { complaint, error: err } = await getComplaintByCode(q);
+    const { complaint, error: err } = await getComplaintByCode(q, org.id);
     setLoading(false);
     // El mismo mensaje exista o no el código: no se dan pistas
-    // Demasiados intentos con códigos que no existen (migración 014): se dice, sin dar pistas del código
+    // La comprobación de seguridad (prueba de trabajo) no se pudo hacer: se dice y el botón reintenta
+    if (/proof-failed/.test(err?.message ?? '')) { setError('codeProof'); inputRef.current?.focus(); return; }
+    // Demasiados intentos con códigos que no existen (camino de antes, migración 014): se dice, sin pistas
     if (/too-many-attempts/.test(err?.message ?? '')) { setError('codeBusy'); inputRef.current?.focus(); return; }
     if (err || !complaint) { setError('codeErr'); inputRef.current?.focus(); return; }
     setResult(complaint);
@@ -69,7 +74,7 @@ export default function Consulta() {
     return (
       <MiCaso
         lang={lang} setLang={setLang} org={org} c={result}
-        onRefresh={async () => { const { complaint } = await getComplaintByCode(result.tracking_code); if (complaint) setResult(complaint); }}
+        onRefresh={async () => { const { complaint } = await getComplaintByCode(result.tracking_code, org.id); if (complaint) setResult(complaint); }}
         onLeave={() => { setResult(null); setCode(''); navigate(base, { replace: true }); }}
       />
     );
@@ -87,7 +92,7 @@ export default function Consulta() {
         {/* El campo y su botón, a la misma altura */}
         <div className="codebox">
           <Field
-            ref={inputRef} code label={<Tc lang={lang} k="code" />} value={code} placeholder="XXXX-XXXX"
+            ref={inputRef} code label={<Tc lang={lang} k="code" />} value={code} placeholder="XXXX-XXXX-XXXX-XXXX"
             autoComplete="off" autoCapitalize="characters" autoCorrect="off" spellCheck={false} enterKeyHint="search" inputMode="text"
             error={error && t[error]}
             onChange={e => { setCode(formatCode(e.target.value)); setError(null); }}
@@ -170,7 +175,7 @@ function MiCaso({ lang, setLang, org, c, onRefresh, onLeave }) {
   useEffect(() => {
     let alive = true;
     setMsgErr(false);
-    getReporterMessages(code)
+    getReporterMessages(code, org.id)
       .then(({ messages: m, error }) => { if (!alive) return; setMsgErr(!!error); setMessages(error ? [] : (m ?? [])); })
       .catch(() => { if (alive) { setMsgErr(true); setMessages([]); } });
     return () => { alive = false; };
@@ -179,10 +184,10 @@ function MiCaso({ lang, setLang, org, c, onRefresh, onLeave }) {
   async function send(text) {
     setSending(true);
     setSendErr(false);
-    const { error } = await sendReporterMessage(code, text);
+    const { error } = await sendReporterMessage(code, text, org.id);
     if (error) { setSending(false); setSendErr(true); return; }
     setDraft('');
-    const { messages: m } = await getReporterMessages(code);
+    const { messages: m } = await getReporterMessages(code, org.id);
     setMessages(m ?? []);
     setSending(false);
     onRefresh(); // si esperaban su respuesta, el caso vuelve a «investigando»
@@ -193,7 +198,7 @@ function MiCaso({ lang, setLang, org, c, onRefresh, onLeave }) {
     if (meetBusy) return;
     setMeetBusy(true);
     setMeetErr(false);
-    const { error } = await requestMeetingByCode(code);
+    const { error } = await requestMeetingByCode(code, org.id);
     setMeetBusy(false);
     if (error) { setMeetErr(true); return; }
     onRefresh();
