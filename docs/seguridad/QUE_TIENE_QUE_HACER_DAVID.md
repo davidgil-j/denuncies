@@ -6,13 +6,15 @@ Todo lo del código de esta ronda está hecho y probado en local (`npm run db:te
 
 ## 0 · Orden de puesta en producción (resumen)
 
-1. **Publica la web** (los commits de la ronda; tú haces `git push origin main`).
+1. **Publica la web** (`git push origin main`; hecho el 28 oct con el commit `f35b046`). Comprueba en Vercel › Deployments que el despliegue de Production de ese commit está «Ready».
 2. **Comprueba el canal y el panel** en producción (enviar una denuncia, consultarla, escribir un mensaje; en el panel, abrir el caso, exportar, ver que no sale la hora).
-3. **Ejecuta las migraciones 023 → 029 en orden** (apartado 2), cada una con su comprobación. Son aditivas y repetibles; la web ya funciona con y sin ellas.
-4. **Despliega las funciones de servidor** (apartado 6): `notify`, `invite-manager`, `delete-manager`.
-5. **Activa pg_cron** y pon el interruptor del retraso de avisos (2.4.1), si lo quieres.
+3. **Ejecuta las migraciones 023 → 029 en orden** (apartados 2.4 a 2.10), cada una con su comprobación. Son aditivas y repetibles; la web ya funciona con y sin ellas. La 020, la 021 y la 022 (apartados 2.0 a 2.3) **ya están hechas**: no las repitas.
+4. **Despliega las funciones de servidor** (apartado 6): `invite-manager`, `delete-manager` y, si ya la tienes desplegada, `notify`.
+5. **Activa pg_cron** y pon el interruptor del retraso de avisos (2.4.1), solo si ya te llegan los correos de aviso.
 6. **Ajustes de Supabase y Vercel** (apartado 4): Auth (B12), separar Preview (M9), Turnstile (M4), `ALLOWED_ORIGINS`, autoridades (M3), texto de la IP (M10).
-7. **Después y con margen:** borra la copia `private.complaints_copia_019` (M2).
+7. **Después y con margen:** borra la copia `private.complaints_copia_019` (M2), si existe.
+
+> **Pendiente (no rompe nada):** la 026 deja abierto el camino de envío de 16 parámetros (sin prueba de trabajo), igual que la 021 dejó abiertas las funciones viejas hasta la 022. Mientras siga abierto, la prueba de trabajo al enviar no es obligatoria; el canal sigue protegido porque nunca se cierra (lo que pasa de 50/hora va a «Posible spam»). Cerrarlo es una migración 030 que aún no está escrita.
 
 ---
 
@@ -30,7 +32,11 @@ Las migraciones se prueban en memoria (PGlite) una encima de otra, desde la 001 
 
 ## 2 · El SQL, en Supabase › SQL Editor
 
-**EL ORDEN IMPORTA** (la 022 va al final, después de publicar el navegador nuevo):
+> **Del 2.0 al 2.3 (020, 021 y 022) ya está hecho en producción desde el 22 oct.** Se deja como registro. Lo que falta empieza en el **2.4**.
+
+Cómo ejecutar cada migración: abre el archivo en VS Code, selecciónalo entero (Cmd+A), cópialo (Cmd+C), pégalo en una pestaña nueva del SQL Editor y pulsa **Run**. Si Supabase avisa de «destructive operation», es normal (las migraciones llevan `drop policy if exists` y algún `update`): confirma. Si sale un error en rojo, no se ha aplicado nada (todo o nada): para y no sigas con la siguiente.
+
+**Orden que se siguió para la 020-022** (la 022 va al final, después de publicar el navegador nuevo):
 
 1. Ejecutar la **020** y la **021** (pasos 2.1 y 2.2).
 2. **Publicar el navegador nuevo** (commits del navegador): usa el camino endurecido.
@@ -74,17 +80,17 @@ select to_regprocedure('public.madrid_day_start(timestamptz)') is not null as ti
        has_column_privilege('authenticated', 'complaints', 'received_at', 'select') as panel_ve_la_hora; -- debe ser false
 ```
 `tiene_023 = true`, `retraso_avisos = false` y `panel_ve_la_hora = false`. Comprueba una denuncia web: en el panel, el PDF y «El meu cas» solo debe verse el día, nunca la hora.
-Un aviso del disparador de Storage es normal si tu rol no puede crear disparadores en `storage.objects`: en ese caso, créalo tú con el rol adecuado (o deja el resto; los metadatos de Storage solo los puede leer Reportia, no la empresa). Para comprobarlo:
+Un aviso (en gris, «NOTICE») del disparador de Storage es posible si Supabase no deja crear disparadores en `storage.objects` desde el SQL Editor: el resto de la 023 se aplica igual. Lo que quedaría sin cerrar: la hora de subida de un adjunto sigue en los datos de Storage; el panel no la enseña, pero alguien de la empresa con conocimientos técnicos podría verla listando los archivos de un caso. Para comprobarlo:
 ```sql
 select tgname from pg_trigger where tgrelid = 'storage.objects'::regclass and tgname = 'zz_round_storage_ts';
 ```
-Si no sale ninguna fila, ejecuta a mano, como propietario de `storage.objects`:
+Si no sale ninguna fila, prueba a crearlo a mano (si da «must be owner of table objects», no insistas: anótalo y se resolverá de otra forma):
 ```sql
 create trigger zz_round_storage_ts before insert on storage.objects
   for each row execute function public.round_storage_object_ts();
 ```
 
-**2.4.1 · Encender el retraso de los avisos (1-3 h) — opcional, cuando quieras.** Hasta que lo enciendas, los avisos por correo salen al instante y la denuncia se ve al momento, **como hoy** (solo que ya sin la hora). El retraso añade que el aviso y la aparición en el panel se repartan 1-3 h, para que nadie cruce la hora con los registros de la empresa. Pasos, **en este orden**:
+**2.4.1 · Encender el retraso de los avisos (1-3 h) — opcional, y solo si ya te llegan los correos de aviso** (la función `notify` desplegada, con Resend y los dos webhooks configurados; si los avisos aún no funcionan, sáltate este paso). Hasta que lo enciendas, los avisos por correo salen al instante y la denuncia se ve al momento, **como hoy** (solo que ya sin la hora). El retraso añade que el aviso y la aparición en el panel se repartan 1-3 h, para que nadie cruce la hora con los registros de la empresa. Pasos, **en este orden**:
 1. En Supabase, **Database › Extensions**, activa `pg_cron` y `pg_net`.
 2. En **Vault** (Project Settings › Vault), guarda dos secretos:
    - `project_url` → `https://sxasgssisuisdldbcotu.supabase.co`
@@ -131,10 +137,34 @@ select to_regprocedure('public.submit_complaint(uuid,uuid,text,text,text,boolean
 **2.8 · `supabase/migrations/027_medios.sql`** (medios M1, M5, M6, M11). Aditiva, repetible. **Reescribe de golpe las huellas antiguas de los códigos con el secreto** (M1, usando la copia `private.complaints_copia_019`), hace que **ver la identidad sea un permiso propio** (M6: por defecto solo los administradores; los gestores necesitan que les actives «Ver identidad» en Equipo), hace que **subir un adjunto exija el id de envío** (M5) y añade la **baja de empresa** (M11, solo Reportia). Comprobación:
 ```sql
 select to_regprocedure('public.offboard_organization(uuid)') is not null as tiene_027,
-       (select count(*) from complaints c join private.complaints_copia_019 b on b.id = c.id
-        where c.tracking_hash = b.tracking_hash) as huellas_planas_sin_reescribir; -- debe ser 0
+       to_regclass('private.complaints_copia_019') is not null as hay_copia_019;
 ```
-`tiene_027 = true` y `huellas_planas_sin_reescribir = 0` (M1 ya reescribió todas). **Publica el navegador nuevo antes o a la vez que la 027**: la subida de adjuntos nueva pone el id de envío en la ruta, y la 027 lo exige.
+`tiene_027 = true`. Si `hay_copia_019 = true`, comprueba también M1:
+```sql
+select count(*) as huellas_planas_sin_reescribir   -- debe ser 0
+from complaints c join private.complaints_copia_019 b on b.id = c.id
+where c.tracking_hash = b.tracking_hash and c.anonymized_at is null;
+```
+Si `hay_copia_019 = false`, M1 no hace nada (no se hizo la copia antes de la 019): las huellas antiguas se reescriben solas al consultarlas, como hasta ahora; sin clientes reales no hay más que hacer. **Publica el navegador nuevo antes que la 027** (ya hecho): la subida de adjuntos nueva pone el id de envío en la ruta, y la 027 lo exige. Después de la 027, envía una denuncia de prueba **con un adjunto**.
+
+**2.9 · `supabase/migrations/028_bajos.sql`** (B1, B2, B13). Aditiva, repetible. Comprobación:
+```sql
+select has_table_privilege('anon', 'complaints', 'select')  as anon_lee_denuncias,   -- debe ser false
+       has_table_privilege('anon', 'attachments', 'insert') as anon_sube_adjuntos,   -- debe ser true
+       exists (select 1 from pg_policies where tablename = 'organizations'
+               and policyname = 'mfa_required_select_org') as b1;                    -- debe ser true
+```
+Después: cierra sesión en el panel y vuelve a entrar (contraseña + código); abre el canal, envía una denuncia de prueba y consúltala con su código. A partir de aquí, con solo la contraseña (sin el código) no se leen los datos de la empresa ni del equipo.
+
+**2.10 · `supabase/migrations/029_modo_claro.sql`** (8b, modo claro). Aditiva, repetible. Comprobación:
+```sql
+select (select column_default from information_schema.columns
+        where table_schema = 'public' and table_name = 'profiles' and column_name = 'appearance') as por_defecto, -- 'light'::text
+       (select count(*) from profiles where appearance = 'system') as en_sistema;                             -- 0
+```
+`por_defecto = 'light'::text` y `en_sistema = 0`. Los perfiles que tenían «Como el sistema» pasan a «Claro» (no hay clientes reales todavía); quien tenía «Oscuro» lo conserva.
+
+**Si algo falla después de una migración:** ejecuta su vuelta atrás (`supabase/rollback/0XX_atras.sql`, de la más nueva a la más vieja) igual que la migración. Ninguna borra datos.
 
 **M2 · Borrar la copia de seguridad de la 019** (después de la 027 y con unos días de margen, cuando estés tranquilo de que todo va bien):
 ```sql
@@ -142,11 +172,7 @@ drop table if exists private.complaints_copia_019;
 ```
 Comprobación: `select to_regclass('private.complaints_copia_019') is null as borrada;` → `true`.
 
-**M8 · `deno.lock` de las funciones de servidor.** Las funciones ya fijan la versión exacta (`npm:@supabase/supabase-js@2.105.4`). Para fijar también los hashes, genera el lock y añádelo al repositorio (desde `~/Documents/GitHub/denuncies`):
-```bash
-deno cache --lock=supabase/functions/deno.lock --lock-write supabase/functions/*/index.ts
-```
-(o lo escribe la CLI de Supabase al desplegar). El `.gitignore` ya no lo excluye.
+**M8 · `deno.lock` de las funciones de servidor — de momento, NO lo generes.** Las funciones ya fijan la versión exacta (`npm:@supabase/supabase-js@2.105.4`), que es la protección principal. El comando que había aquí (`--lock-write`) ya no existe en Deno 2, y un lock escrito con un Deno más nuevo que el de Supabase (tu Mac tiene el 2.9) puede hacer que Supabase rechace el despliegue. Queda para más adelante, con la versión de Deno que use Supabase. El `.gitignore` ya no lo excluye.
 
 **M3 · Comprobar las direcciones de las autoridades autonómicas.** La lista cerrada está en `src/v2/config/producto.js` (`AUTORIDADES_EXTERNAS`). La Oficina Antifrau de Catalunya ya está verificada; las demás están marcadas con `verificar: true` y **no se ofrecen** en los ajustes hasta que confirmes su dirección oficial y les quites la marca. Añade las que falten de tu lista de clientes.
 
@@ -214,13 +240,20 @@ C1, A1 y A2 (020-022) **ya están en producción**. Esto es lo nuevo de esta tan
 
 ## 6 · Desplegar las funciones de servidor
 
-Cambian `notify` (avisos con retraso y resumen de spam, compare en tiempo constante), `invite-manager` (tope global) y `delete-manager` (no borra administradores); `ai-assist` solo fija la versión (sigue sin desplegarse). Desde `~/Documents/GitHub/denuncies`, con tu sesión de la CLI de Supabase:
+Cambian `notify` (avisos con retraso y resumen de spam, compare en tiempo constante), `invite-manager` (tope global) y `delete-manager` (no borra administradores); `ai-assist` solo fija la versión (sigue sin desplegarse). Las tres funcionan con la base de datos en la 022 y en la 029, así que el orden respecto a las migraciones da igual.
+
+La CLI de Supabase no está instalada en tu Mac. Una sola vez:
 ```bash
-supabase functions deploy notify         --project-ref sxasgssisuisdldbcotu --use-api
+brew install supabase/tap/supabase
+supabase login        # abre el navegador para entrar con tu cuenta de Supabase
+```
+Después, desde `~/Documents/GitHub/denuncies`:
+```bash
 supabase functions deploy invite-manager --project-ref sxasgssisuisdldbcotu --use-api
 supabase functions deploy delete-manager --project-ref sxasgssisuisdldbcotu --use-api
+supabase functions deploy notify         --project-ref sxasgssisuisdldbcotu --use-api   # solo si ya aparece en Supabase › Edge Functions
 ```
-Antes, genera `deno.lock` (M8) y añádelo al repositorio: `deno cache --lock=supabase/functions/deno.lock --lock-write supabase/functions/*/index.ts`.
+Cada una tiene que acabar con «Deployed Functions … invite-manager» (o la que sea). No generes `deno.lock` antes (ver M8).
 
 ## 7 · Regrabar los vídeos de la portada
 
