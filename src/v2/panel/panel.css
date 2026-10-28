@@ -691,6 +691,13 @@ button.sh-step:disabled { cursor: progress; }
 .tm-tick input:checked + span, .tm-tick input:indeterminate + span { border-color: var(--report); background: var(--report); color: var(--on-report); }
 .tm-tick input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
 .tm-tick input:disabled + span { opacity: .5; }
+/* Con «Ver identidad» (M6) son cinco columnas: en el móvil, casillas más estrechas para que la tabla quepa a lo ancho */
+@media (max-width: 480px) {
+  .tm-perms th, .tm-perms td { padding: 2px 0; }
+  .tm-perms tbody th { padding-right: 6px; font-size: 13px; }
+  .tm-perms thead th { font-size: 11px; }
+  .tm-tick { width: 34px; }
+}
 .tm-hint { font-size: 13px; }
 .tm-more { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 14px; border-top: 1px solid var(--line); }
 .ds .ds-btn.tm-remove { color: var(--danger-ink); }

@@ -267,6 +267,11 @@ await page.waitForSelector('.cs');
 await part('Gestión');
 if (await page.getByRole('button', { name: 'Ver la identidad' }).count()) {
   await page.getByRole('button', { name: 'Ver la identidad' }).click();
+  // M6: pide un motivo (mínimo 10 caracteres), que queda en el historial
+  await page.locator('dialog[open] .ds-dialog-actions button').last().click();
+  ok('ver la identidad sin motivo no deja', await page.getByText('Escribe el motivo (mínimo 10 caracteres).').isVisible() && await page.locator('.cs-ident').count() === 0);
+  await page.locator('dialog[open] textarea').fill('Hay que contactar con quien denuncia para aclarar una fecha.');
+  await page.locator('dialog[open] .ds-dialog-actions button').last().click();
   await page.locator('.cs-ident').waitFor();
   ok('ver la identidad queda anotado en el historial', await page.locator('.cs-hist').getByText(/ha consultado la identidad/).first().waitFor({ timeout: 5000 }).then(() => true, () => false));
   await shot('G3-caso-con-datos');

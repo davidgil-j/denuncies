@@ -5,15 +5,22 @@
 //   3. con la 018: el pie «Con Reportia», que Reportia apaga por empresa;
 //   4. con la copia y la 019 (huella con secreto): el código de antes sigue valiendo y se reescribe al usarlo; el nuevo se
 //      guarda con secreto; los dos casos siguen en el panel;
-//   5. con la protección contra robots encendida en Auth: sin clave en la web, el acceso lo dice; con la clave, entra.
+//   5. con la protección contra robots encendida en Auth: sin clave en la web, el acceso lo dice; con la clave, entra;
+//   6. la 020-022 (ronda 2: exclusión, freno y prueba de trabajo, cierre de las funciones de antes);
+//   7. la 023-029, como producción desde el 28 oct: la web entera (enviar con adjunto, consultar, mensajes, reunión,
+//      panel, descarga, exportar, «Accesos», supresión con el almacén fallando y sin fallar), el alta de una empresa
+//      nueva hasta el panel cargado con el segundo paso (B1, 028) y el acceso de quien aún no lo ha activado;
+//   8. la 030: enviar exige siempre la prueba de trabajo; la web sigue enviando y, si no puede resolverla, lo dice.
 // Necesita Postgres 16 y PostgREST de Homebrew (brew install postgresql@16 postgrest). Si no están, se salta y lo dice.
 // Arranca sus propios servidores de la web (3116 sin clave de Turnstile, 3117 con la de pruebas). No sale nada del ordenador.
 import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from './lib/playwright.mjs';
-import { available, startLocalSupabase, ANON_KEY } from './lib/supabase-local.mjs';
+import { available, startLocalSupabase, ANON_KEY, jwt } from './lib/supabase-local.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 if (!available()) {
@@ -74,21 +81,36 @@ async function newPage({ w = 1280, blockWorker = false } = {}) {
   return { page, ctx, errors };
 }
 
-/** Quien informa: envía una denuncia anónima y devuelve su código */
-async function report(text) {
-  const { page, ctx, errors } = await newPage();
+/** Quien informa: envía una denuncia anónima (con adjuntos, si se dan) y devuelve su código */
+async function report(text, { files = [], blockWorker = false } = {}) {
+  const { page, ctx, errors } = await newPage({ blockWorker });
   await page.goto(`${APP}/canal/${slug}?lang=es`, { waitUntil: 'networkidle' });
   await page.getByRole('link', { name: 'Presentar una denuncia' }).click();
   await page.getByRole('radio', { name: /Fraude o corrupción/ }).click();
   await page.getByRole('button', { name: 'Continuar' }).click();
   await page.fill('#dn-description', text);
+  if (files.length) await page.locator('input[type=file]').setInputFiles(files);
   await page.getByRole('button', { name: 'Continuar' }).click();
   await page.locator('#dn-privacy').check();
   await page.getByRole('button', { name: /Enviar denuncia/ }).click();
-  await page.waitForSelector('.code-big', { timeout: 15000 });
+  const sent = await Promise.race([
+    page.waitForSelector('.code-big', { timeout: 20000 }).then(() => true),
+    page.waitForSelector('.flow-error', { timeout: 20000 }).then(() => false),
+  ]).catch(() => false);
+  if (!sent) {
+    const submitError = await page.locator('.flow-error').innerText().catch(() => '');
+    await ctx.close();
+    return { code: null, errors, submitError };
+  }
   const code = (await page.locator('.code-big').textContent()).trim();
+  // Los adjuntos se suben desde «Enviada»: se espera a que acabe (y a que no diga que alguno ha fallado)
+  let uploadError = '';
+  if (files.length) {
+    await page.waitForFunction(() => !document.querySelector('.flow-status'), null, { timeout: 30000 }).catch(() => {});
+    uploadError = await page.locator('.flow-error').innerText().catch(() => '');
+  }
   await ctx.close();
-  return { code, errors };
+  return { code, errors, uploadError };
 }
 /** Quien informa: abre su caso con el código (y, si se pide, escribe un mensaje o pide una reunión) */
 async function lookup(code, message, { meeting = false, blockWorker = false } = {}) {
@@ -109,6 +131,7 @@ async function lookup(code, message, { meeting = false, blockWorker = false } = 
       await btn.first().click();
       meetingAsked = await page.getByText('Has pedido una reunión en persona').first().waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
     }
+    if (!meetingAsked) errors.push(`reunión: botones=${await btn.count()} ${(await page.locator('.mc').innerText()).slice(0, 300).replace(/\n/g, ' ')}`);
   }
   // Si quedó bloqueada la prueba de trabajo, el canal lo dice con claridad y un botón para reintentar
   const proofError = !opened && await page.getByText('No se ha podido hacer la comprobación de seguridad en este dispositivo').count() > 0;
@@ -267,11 +290,207 @@ ok('027 · todas las huellas antiguas quedan reescritas con el secreto (M1)',
   q(`select count(*) from complaints c join private.complaints_copia_019 b on b.id = c.id where c.tracking_hash = b.tracking_hash`) === '0');
 ok('029 · el valor por defecto de appearance es «claro» (8b)',
   (q(`select column_default from information_schema.columns where table_name = 'profiles' and column_name = 'appearance'`) || '').includes(`'light'`));
-const d = await report('Una denuncia nueva con toda la ronda 2 aplicada (prueba de trabajo al enviar incluida).');
-ok('026 · enviar una denuncia nueva sigue funcionando con todo aplicado', d.errors.length === 0 && /^[A-Z0-9-]+$/.test(d.code ?? ''), d.errors.join(' · '));
+// ── 7b · La web entera con la base de datos como producción (001-029) ──
+const caseOf = (code) => q(`select id from complaints where tracking_hash = public.tracking_key('${sha(code)}')`);
+const usedProofs = () => Number(q(`select count(*) from pow_challenges where used`));
+const FILES = fs.mkdtempSync(path.join(os.tmpdir(), 'reportia-base-real-'));
+const PDF = path.join(FILES, 'facturas-marzo-Laura.pdf');
+fs.writeFileSync(PDF, '%PDF-1.4\n% facturas de prueba\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n');
+const proofsBefore = usedProofs();
+const d = await report('Una denuncia nueva con toda la ronda 2 aplicada, con las facturas adjuntas.', { files: [PDF] });
+ok('026 · enviar una denuncia nueva con adjunto funciona con todo aplicado', !!d.code && d.errors.length === 0 && !d.uploadError, `${d.code} ${d.uploadError ?? d.submitError} ${d.errors.join(' · ')}`);
+ok('026 · la web envía por el camino con prueba de trabajo (18 parámetros), el que la 030 deja abierto', usedProofs() > proofsBefore, `${proofsBefore} → ${usedProofs()}`);
+const dId = caseOf(d.code);
 ok('023 · la denuncia web se guarda con la hora al día (00:00 Madrid)',
-  q(`select (created_at at time zone 'Europe/Madrid')::time::text from complaints where tracking_hash = public.tracking_key('${sha(d.code)}')`) === '00:00:00');
+  q(`select (created_at at time zone 'Europe/Madrid')::time::text from complaints where id = '${dId}'`) === '00:00:00');
+const dFile = q(`select storage_path from attachments where complaint_id = '${dId}'`);
+const dSub = q(`select submission_id from complaints where id = '${dId}'`);
+ok('027 · M5 · el adjunto se sube con el id de envío en la ruta y está en el almacén',
+  !!dFile && dFile.startsWith(`${dId}/${dSub}/`) && q(`select count(*) from storage.objects where name = '${dFile}'`) === '1' && db.hasBytes(dFile), dFile);
+ok('A5 · en la anónima, el adjunto va con nombre neutro', !/Laura|facturas/i.test(q(`select filename from attachments where complaint_id = '${dId}'`)), q(`select filename from attachments where complaint_id = '${dId}'`));
+ok('023 · el adjunto, en el almacén, con la fecha al día', q(`select (created_at at time zone 'Europe/Madrid')::time::text from storage.objects where name = '${dFile}'`) === '00:00:00');
+{
+  const r = await lookup(d.code, 'Tengo también los albaranes de abril.', { meeting: true });
+  ok('021 · «Mi caso» con el código de 16: abre y deja escribir', r.opened && r.errors.filter(x => !/^reunión|\[Supabase\]|Supabase/.test(x)).length === 0, r.errors.join(' · '));
+  // Tal como está producción (con la 028): pedir la reunión falla. Lo arregla la 031 (más abajo)
+  ok('029 · (fallo de la 028, lo arregla la 031) pedir una reunión desde «Mi caso» no funciona', !r.meetingAsked);
+}
+ok('023 · el mensaje de quien denuncia, con la hora al día', q(`select (created_at at time zone 'Europe/Madrid')::time::text from messages where complaint_id = '${dId}' and sender = 'reporter'`) === '00:00:00');
+{
+  const { page, ctx, errors } = await login();
+  ok('panel · el tablero carga con los casos', await page.locator('.ds-case').count() >= 3, `${await page.locator('.ds-case').count()} ${errors.join(' · ')}`);
+  await page.goto(`${APP}/admin/complaints/${dId}`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('.cs-desc', { timeout: 10000 });
+  const body = await page.locator('main').innerText();
+  ok('023 · la ficha dice el día de recepción, sin la hora', /Recibida el/.test(body) && !/Recibida el[^\n]*\d{1,2}:\d{2}/.test(body), (body.match(/Recibida el[^\n]*/) ?? [''])[0]);
+  ok('panel · en la ficha llega el mensaje de quien denuncia', /albaranes de abril/.test(await page.locator('.cs-conv').innerText()));
+  // M7: el adjunto se descarga (no se abre en una pestaña), con su nombre neutro y los mismos bytes
+  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.locator('.cs-file').first().click()]);
+  const saved = path.join(FILES, 'descargado.pdf');
+  await dl.saveAs(saved);
+  ok('M7 · el adjunto se descarga entero, con su nombre neutro', fs.readFileSync(saved).equals(fs.readFileSync(PDF)) && !/Laura/.test(dl.suggestedFilename()) && await page.locator('.cs-file-note.is-err').count() === 0, dl.suggestedFilename());
+  const [pdf] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.getByRole('button', { name: 'Exportar PDF' }).click()]);
+  ok('panel · el PDF del caso se descarga', /\.pdf$/.test(pdf.suggestedFilename()), pdf.suggestedFilename());
+  await page.goto(`${APP}/admin`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('.ds-case', { timeout: 10000 });
+  await page.getByRole('button', { name: 'Exportar', exact: true }).click();
+  const [xls] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.getByRole('button', { name: 'Libro-registro (Excel)' }).click()]);
+  ok('panel · el libro-registro en Excel se descarga', /\.xlsx$/.test(xls.suggestedFilename()), xls.suggestedFilename());
+  await page.waitForTimeout(500);
+  const acts = q(`select string_agg(distinct action, ' ' order by action) from audit_logs where complaint_id = '${dId}'`);
+  ok('024 · quedan anotados abrir, descargar el archivo y exportar el PDF', ['case_opened', 'file_downloaded', 'exported_case'].every(a => acts.includes(a)), acts);
+  ok('024 · y el Excel, a nivel de empresa', q(`select count(*) from audit_logs where action = 'exported_excel'`) !== '0');
+  await page.goto(`${APP}/admin/access`, { waitUntil: 'networkidle' });
+  await page.locator('.pn-access-row').first().waitFor({ timeout: 10000 }).catch(() => {});
+  const rows = await page.locator('.pn-access-row').count();
+  const accesses = rows ? await page.locator('.pn-access').innerText() : '';
+  ok('024 · la pantalla «Accesos» enseña quién abrió, descargó y exportó', rows >= 4 && /Laura Puig/.test(accesses), `${rows} filas ${errors.join(' · ')}`);
+  ok('panel · sin errores en la consola en todo el recorrido', errors.length === 0, errors.join(' · '));
+  await ctx.close();
+}
+
+// ── 7c · Supresión (025): programar, adelantar la fecha y ejecutarla; si el almacén falla, no se suprime ──
+// El caso se da por resuelto en la base de datos (la ley no deja suprimir con la investigación abierta)
+q(`update complaints set status = 'resolved' where id = '${dId}'`);
+{
+  const { page, ctx, errors } = await login();
+  await page.goto(`${APP}/admin/complaints/${dId}`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('.cs-desc', { timeout: 10000 });
+  await page.getByRole('button', { name: 'Más acciones' }).click();
+  await page.getByRole('button', { name: 'Suprimir datos' }).click();
+  await page.locator('dialog[open] textarea').fill('Caso resuelto y comunicado; se suprime según el artículo 32 de la Ley 2/2023.');
+  await page.locator('dialog[open] .ds-dialog-actions button').last().click();
+  await page.locator('.cs-suppress').waitFor({ timeout: 10000 }).catch(() => {});
+  ok('025 · la supresión se programa a 7 días, con aviso en la ficha', await page.locator('.cs-suppress').count() > 0
+    && q(`select count(*) from suppressions where complaint_id = '${dId}' and status = 'pending' and scheduled_for > now() + interval '6 days'`) === '1');
+  ok('025 · antes de los 7 días no se puede ejecutar', await page.getByRole('button', { name: 'Suprimir ahora' }).count() === 0);
+  // La misma consulta que la guía da a David para probarlo en producción sin esperar 7 días
+  const ref = q(`select reference from complaints where id = '${dId}'`);
+  q(`update suppressions set scheduled_for = now() - interval '1 minute'
+     where status = 'pending' and complaint_id = (select id from complaints where reference = '${ref}')`);
+  await page.reload({ waitUntil: 'networkidle' });
+  const now = page.getByRole('button', { name: 'Suprimir ahora' });
+  await now.waitFor({ timeout: 10000 });
+  const intact = () => q(`select anonymized_at is null from complaints where id = '${dId}'`) === 't'
+    && q(`select count(*) from attachments where complaint_id = '${dId}'`) === '1'
+    && q(`select count(*) from storage.objects where name = '${dFile}'`) === '1' && db.hasBytes(dFile);
+  for (const mode of ['error', 'silent']) {
+    db.setStorageFailure(mode);
+    await now.click();
+    const msg = page.getByText('No se han podido borrar todos los documentos del caso');
+    const shown = await msg.first().waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
+    ok(`025 · si el almacén ${mode === 'error' ? 'da error' : 'no borra nada (sin error)'}, NO se suprime: el caso, su adjunto y el archivo siguen`, shown && intact() && await page.locator('.cs-erased').count() === 0);
+    await msg.first().waitFor({ state: 'detached', timeout: 8000 }).catch(() => {});
+  }
+  db.setStorageFailure(null);
+  // Producción con la 028 haría aquí lo peor: borraría los archivos y luego no podría suprimir. Se aplican la 030 y la 031
+  db.migrate(31);
+  await now.click();
+  const toast = await page.locator('.pn-toast').first().innerText({ timeout: 10000 }).catch(() => '');
+  await page.locator('.cs-erased').waitFor({ timeout: 10000 }).catch(() => {});
+  errors.push(`aviso: ${toast}`);
+  ok('025 · con el almacén bien, se suprime: el aviso de datos suprimidos', await page.locator('.cs-erased').count() === 1, `${await page.locator('[role=status], [role=alert]').allInnerTexts().then(x => x.join(' | ')).catch(() => '')} ${errors.join(' · ')}`);
+  ok('025 · …el archivo ya no está en el almacén (ni la fila ni los bytes)', q(`select count(*) from storage.objects where name like '${dId}/%'`) === '0' && !db.hasBytes(dFile));
+  ok('025 · …y la denuncia queda anonimizada, sin adjuntos ni mensajes', q(`select anonymized_at is not null from complaints where id = '${dId}'`) === 't'
+    && q(`select count(*) from attachments where complaint_id = '${dId}'`) === '0' && q(`select count(*) from messages where complaint_id = '${dId}'`) === '0'
+    && q(`select status from suppressions where complaint_id = '${dId}'`) === 'done');
+  ok('024 · el borrado del archivo queda en el registro', q(`select count(*) from audit_logs where complaint_id = '${dId}' and action = 'file_deleted'`) !== '0');
+  await ctx.close();
+}
+
+// ── 7d · Alta de una empresa nueva con la 028 (B1: la empresa y el equipo solo con el segundo paso) ──
+{
+  const { page, ctx, errors } = await newPage();
+  await page.goto(`${APP}/crear-compte?lang=es`, { waitUntil: 'networkidle' });
+  await page.locator('#v2-su-company').fill('Talleres Riba');
+  await page.locator('#v2-su-name').fill('Jordi Riba');
+  await page.locator('#v2-su-email').fill('jordi@talleres-riba.es');
+  await page.locator('#v2-su-pw').fill('una-contraseña-muy-larga');
+  await page.locator('#v2-su-terms').check();
+  await page.getByRole('button', { name: 'Crear cuenta' }).click();
+  await page.waitForURL(/\/admin\/mfa/, { timeout: 15000 }).catch(() => {});
+  const newId = q(`select id from auth.users where email = 'jordi@talleres-riba.es'`);
+  ok('028 · alta: crea la empresa y su administrador', !!newId && q(`select o.name from organizations o join profiles p on p.organization_id = o.id where p.id = '${newId}'`) === 'Talleres Riba');
+  await page.screenshot({ path: path.join(os.tmpdir(), 'base-real-alta-mfa.png') });
+  ok('028 · alta: sin el segundo paso, el panel lleva a activarlo (y solo a eso)', /\/admin\/mfa/.test(page.url()) && await page.getByText('Activa la verificación en dos pasos para continuar').first().isVisible().catch(() => false), `${page.url()} ${(await page.locator('main').innerText().catch(() => '')).slice(0, 200).replace(/\n/g, ' ')}`);
+  await page.goto(`${APP}/admin`, { waitUntil: 'networkidle' });
+  ok('028 · alta: sin el segundo paso, el tablero no se abre', /\/admin\/mfa/.test(page.url()), page.url());
+  await page.getByRole('button', { name: 'Activar la verificación' }).click();
+  await page.locator('.sg-qr').waitFor({ timeout: 10000 });
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await page.locator('.ds-otp-box').first().waitFor({ timeout: 10000 });
+  await page.locator('.ds-otp-box').first().focus();
+  await page.keyboard.type('654321', { delay: 80 });
+  const verifyBtn = page.getByRole('button', { name: 'Verificar y activar' });
+  if (await verifyBtn.count()) await verifyBtn.click().catch(() => {});
+  await page.getByText('Verificación en dos pasos activada.').first().waitFor({ timeout: 10000 }).catch(() => {});
+  await page.goto(`${APP}/admin`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('.pn-lead, .pn-empty, .ds-kcol', { timeout: 10000 }).catch(() => {});
+  const head = await page.locator('header').first().innerText().catch(() => '');
+  ok('028 · con el segundo paso activado, el panel se carga: tablero y nombre de la empresa', /\/admin$/.test(page.url()) && /Talleres Riba/.test(head), `${page.url()} ${head.replace(/\n/g, ' ').slice(0, 120)}`);
+  await page.goto(`${APP}/admin/ajustes`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('.st-col', { timeout: 10000 }).catch(() => {});
+  const settings = await page.locator('main').innerText().catch(() => '');
+  ok('028 · …Equipo y ajustes, con la empresa y el equipo', /Talleres Riba/.test(settings) && /Jordi Riba/.test(settings) && /Responsable del Sistema/.test(settings), settings.slice(0, 160).replace(/\n/g, ' '));
+  await page.goto(`${APP}/admin/integration`, { waitUntil: 'networkidle' });
+  const share = await page.locator('main').innerText().catch(() => '');
+  const newSlug = q(`select o.slug from organizations o join profiles p on p.organization_id = o.id where p.id = '${newId}'`);
+  ok('028 · …y «Compartir el canal» con su dirección', share.includes(`/canal/${newSlug}`), newSlug);
+  ok('028 · alta: sin errores en la consola', errors.length === 0, errors.join(' · '));
+  await ctx.close();
+}
+{
+  // Alguien que ya tiene cuenta pero aún no ha activado el segundo paso
+  const pendId = q(`insert into auth.users (email, raw_user_meta_data) values ('marta@fusteria.es', '{"company_name":"Fustería Soler","full_name":"Marta Soler","lang":"es"}') returning id`).split('\n')[0];
+  db.withoutMfa(pendId);
+  const pendOrg = q(`select organization_id from profiles where id = '${pendId}'`);
+  q(`insert into complaints (tracking_hash, organization_id, category, description, status, priority, channel) values (public.tracking_key('${sha('FUST-0001-0000-0000')}'), '${pendOrg}', 'fraud', 'Denuncia de la otra empresa que no se debe ver sin el segundo paso.', 'received', 'normal', 'web')`);
+  const { page, ctx, errors } = await newPage();
+  await page.goto(`${APP}/admin/login?lang=es`, { waitUntil: 'networkidle' });
+  await page.getByLabel('Correo').fill('marta@fusteria.es');
+  await page.locator('#ac-pw').fill('una-contraseña-larga');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.waitForURL(/\/admin\/mfa/, { timeout: 15000 }).catch(() => {});
+  await page.getByRole('button', { name: 'Activar la verificación' }).waitFor({ timeout: 10000 }).catch(() => {});
+  ok('028 · sin el segundo paso activado: entra con la contraseña y va a activarlo, sin pedir código', /\/admin\/mfa/.test(page.url()) && await page.locator('.ds-otp').count() === 0
+    && await page.getByRole('button', { name: 'Activar la verificación' }).isVisible().catch(() => false), `${page.url()} otp=${await page.locator('.ds-otp').count()} ${(await page.locator('main').innerText().catch(() => '')).slice(0, 200).replace(/\n/g, ' ')}`);
+  ok('028 · …y no ve ninguna denuncia', await page.locator('.ds-case').count() === 0 && !/no se debe ver/.test(await page.locator('body').innerText()));
+  ok('028 · …sin errores en la consola', errors.length === 0, errors.join(' · '));
+  await ctx.close();
+  // Lo mismo, preguntando a la base de datos con su sesión de solo contraseña (aal1)
+  const t0 = Math.floor(Date.now() / 1000);
+  const aal1 = jwt({ sub: pendId, role: 'authenticated', aud: 'authenticated', aal: 'aal1', amr: [{ method: 'password', timestamp: t0 }], iat: t0, exp: t0 + 600 });
+  const rest = async (t) => (await fetch(`${db.url}/rest/v1/${t}`, { headers: { apikey: ANON_KEY, authorization: `Bearer ${aal1}` } })).json();
+  const [orgs, team, cases, mine] = [await rest('organizations?select=name'), await rest(`profiles?select=full_name&id=neq.${pendId}`), await rest('complaints?select=id'), await rest(`profiles?select=full_name&id=eq.${pendId}`)];
+  ok('028 · B1 · con solo la contraseña no se leen la empresa, el equipo ni las denuncias (y sí el propio perfil)',
+    Array.isArray(orgs) && !orgs.length && Array.isArray(team) && !team.length && Array.isArray(cases) && !cases.length && mine?.[0]?.full_name === 'Marta Soler',
+    JSON.stringify({ orgs, team, cases, mine }).slice(0, 200));
+}
+
+{
+  const h = await report('Una denuncia después de la 031 para pedir una reunión en persona.');
+  const r = await lookup(h.code, 'Prefiero contarlo en persona.', { meeting: true });
+  ok('031 · «Mi caso»: escribir y pedir una reunión vuelven a funcionar', r.opened && r.meetingAsked && r.errors.length === 0, `abre=${r.opened} reunión=${r.meetingAsked} ${r.errors.join(' · ')}`);
+  const hId = caseOf(h.code);
+  ok('031 · …y la reunión pedida llega a la base de datos', q(`select meeting_requested from complaints where id = '${hId}'`) === 't');
+  const reg = q(`select count(*) from complaints where channel = 'web' and id in (select complaint_id from audit_logs where action = 'registered')`);
+  ok('031 · ningún caso registrado a mano queda como «web»', reg === '0');
+}
+
+// ── 8 · La 030 (ya aplicada con la 031): enviar exige siempre la prueba de trabajo ──
+ok('030 · el camino de 16 queda cerrado y el de 18 abierto',
+  q(`select has_function_privilege('anon', 'public.submit_complaint(uuid,uuid,text,text,text,boolean,text,text,text,text,date,text,text,boolean,text,uuid[])', 'execute')`) === 'f'
+  && q(`select has_function_privilege('anon', 'public.submit_complaint(uuid,uuid,text,text,text,boolean,text,text,text,text,date,text,text,boolean,text,uuid[],text,text)', 'execute')`) === 't');
+const e = await report('Una denuncia enviada después de la 030, con un adjunto.', { files: [PDF] });
+ok('030 · la web sigue enviando (con adjunto) y abriendo el caso', !!e.code && !e.uploadError && e.errors.length === 0 && (await lookup(e.code, 'Un mensaje después de la 030.')).opened, `${e.code} ${e.uploadError ?? e.submitError} ${e.errors.join(' · ')}`);
+ok('030 · …y el adjunto está en el almacén', !!e.code && q(`select count(*) from attachments where complaint_id = '${caseOf(e.code)}'`) === '1');
+const casesBefore = q(`select count(*) from complaints`);
+const f = await report('Una denuncia desde un navegador que no puede hacer la prueba de trabajo.', { blockWorker: 'all' });
+ok('030 · si el navegador no puede hacer la prueba, no se envía y lo dice con claridad', !f.code && /comprobación de seguridad/.test(f.submitError ?? '') && q(`select count(*) from complaints`) === casesBefore, f.submitError);
+const g = await report('Con el Worker bloqueado, la prueba se hace en el hilo principal.', { blockWorker: 'worker' });
+ok('030 · con el Worker bloqueado, se resuelve en el hilo principal y se envía', !!g.code, g.submitError);
+fs.rmSync(FILES, { recursive: true, force: true });
 
 await shutdown();
-console.log(problems.length ? `PROBLEMAS: ${problems.join(' · ')}` : 'Base de datos real: la web funciona hasta la 015, con la 016-017, la 018, la 019 y toda la ronda 2 (020-029) sobre los mismos datos');
+console.log(problems.length ? `PROBLEMAS: ${problems.join(' · ')}` : 'Base de datos real: la web funciona hasta la 015, con la 016-017, la 018, la 019, toda la ronda 2 (020-029) y la 030-031 sobre los mismos datos');
 process.exit(problems.length ? 1 : 0);

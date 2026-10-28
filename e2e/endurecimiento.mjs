@@ -117,6 +117,9 @@ async function api(route) {
   // Ronda 2 de seguridad: C1 (quién gestiona) y A2 (prueba de trabajo + portal por empresa).
   if (p === '/rest/v1/rpc/get_channel_managers') return json(route, []);
   if (p === '/rest/v1/rpc/list_complaint_access') return json(route, []);
+  // Ronda 2: supresión con gracia (025) y registro de accesos (024). Sin supresiones programadas; anotar no devuelve nada
+  if (p === '/rest/v1/rpc/list_pending_suppressions' || p === '/rest/v1/rpc/suppression_for' || p === '/rest/v1/rpc/list_access_log') return json(route, []);
+  if (p === '/rest/v1/rpc/log_case_access' || p === '/rest/v1/rpc/log_org_export') return json(route, null);
   // Reto de prueba de trabajo con bits 0: el worker lo resuelve al instante (cualquier nonce vale)
   if (p === '/rest/v1/rpc/issue_pow_challenge') return json(route, [{ token: `tok-${Math.random().toString(16).slice(2)}`, bits: 0 }]);
   // La consulta endurecida: aquí siempre con un código que no existe (devuelve vacío)
@@ -282,7 +285,7 @@ await page.getByRole('button', { name: 'Entrar' }).click();
 await page.waitForFunction(() => document.querySelector('.ds-case') || [...document.querySelectorAll('button')].some(b => /Reintentar|Volver a intentarlo/.test(b.textContent)), null, { timeout: 15000 });
 if (!(await page.locator('.ds-case').count())) await page.getByRole('button', { name: /Reintentar|Volver a intentarlo/ }).first().click();
 await page.waitForSelector('.ds-case', { timeout: 15000 });
-const lists = log.filter(l => l.path === '/rest/v1/complaints' && l.method === 'GET' && !/id=eq\./.test(l.query));
+const lists = log.filter(l => l.path === '/rest/v1/complaints' && l.method === 'GET' && !/id=eq\./.test(l.query) && !/^\?select=id,likely_spam&/.test(l.query)); // sin la consulta de «posible spam» (026)
 ok('B-12 · un error pasajero no hace creer que falta la 012 (se sigue pidiendo el título)', lists.length >= 2 && lists.every(l => /title/.test(l.query)), lists.map(l => (/title/.test(l.query) ? 'con' : 'sin')).join(' '));
 
 const board = await page.locator('body').innerText();

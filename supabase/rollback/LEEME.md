@@ -1,4 +1,4 @@
-# Copias y vueltas atrás de las migraciones 016 a 019
+# Copias y vueltas atrás de las migraciones 016 a 031
 
 Aquí van los SQL que **no** son migraciones: no se ejecutan solos ni con `npm run db:migrate`. Se pegan a mano en
 Supabase › SQL, solo si hace falta, en el orden que dice `docs/QUE_TIENE_QUE_HACER_DAVID.md`.
@@ -10,6 +10,9 @@ Supabase › SQL, solo si hace falta, en el orden que dice `docs/QUE_TIENE_QUE_H
 | `018_atras.sql` | Si la 018 da problemas (antes que la 016_atras, si hay que deshacer las dos) |
 | `017_atras.sql` | Si la 017 da problemas |
 | `016_atras.sql` | Si la 016 da problemas (después de deshacer la 018) |
+| `020_atras.sql` … `029_atras.sql` | Si la migración del mismo número da problemas (de la más nueva a la más vieja) |
+| `030_atras.sql` | Vuelve a abrir el envío de 16 parámetros (sin prueba de trabajo) |
+| `031_atras.sql` | Vuelve al fallo de la 028 (rompe la supresión y la reunión): solo para comparar |
 
 Ninguna vuelta atrás borra datos: deja las columnas nuevas donde están (sin uso) y devuelve las funciones a como
 eran. Todas se pueden ejecutar más de una vez. `npm run db:test` las prueba.

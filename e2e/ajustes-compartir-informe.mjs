@@ -252,7 +252,13 @@ ok('empresa: el nombre nuevo sale en la cabecera', (await page.locator('.pn-bran
 
 // Autoridad autonómica: M3, solo de la lista cerrada (sin escribir una dirección libre)
 const resp = page.locator('form[aria-labelledby="st-resp-t"]');
-await resp.getByLabel('Autoridad autonómica que se muestra en el canal').selectOption('antifrau_cat');
+const authority = resp.getByLabel('Autoridad autonómica que se muestra en el canal');
+ok('autoridad: solo se ofrecen las de la lista verificada', (await authority.locator('option').allInnerTexts()).every(o => /Ninguna|Antifrau de Catalunya/.test(o)), (await authority.locator('option').allInnerTexts()).join(' · '));
+// La demo ya trae Antifrau: primero se quita y después se vuelve a elegir de la lista
+await authority.selectOption('none');
+await resp.getByRole('button', { name: 'Guardar' }).click();
+await toast('Guardado.');
+await authority.selectOption('antifrau_cat');
 await resp.getByRole('button', { name: 'Guardar' }).click();
 await toast('Guardado.');
 await page.goto(`${BASE}/canal/demo?lang=es`, { waitUntil: 'networkidle' });
@@ -264,8 +270,7 @@ await page.keyboard.press('Escape');
 await page.goto(`${BASE}/admin/ajustes`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.tm-list li');
 ok('autoridad: al volver sigue elegida la de la lista', (await resp.getByLabel('Autoridad autonómica que se muestra en el canal').inputValue()) === 'antifrau_cat');
-await resp.getByRole('button', { name: 'Guardar' }).click();
-await toast('Guardado.');
+ok('sin cambios, «Guardar» está desactivado', await resp.getByRole('button', { name: 'Guardar' }).isDisabled());
 await brand.locator('#st-brand-name').fill('Empresa Demo');
 await brand.getByRole('button', { name: 'Guardar' }).click();
 await toast('Marca guardada. El canal ya la muestra.');
@@ -389,7 +394,7 @@ await page.keyboard.type('2');
 await toast('Verificación en dos pasos activada.');
 await page.getByRole('heading', { name: 'Activada' }).waitFor();
 await page.locator('.ds-nav a').nth(2).waitFor();
-ok('alta hecha: se desbloquea el resto del panel', await page.locator('.ds-nav a').count() === 4);
+ok('alta hecha: se desbloquea el resto del panel (con «Accesos», A6)', await page.locator('.ds-nav a').count() === 5, String(await page.locator('.ds-nav a').count()));
 await page.evaluate(() => sessionStorage.removeItem('f4-no-aal'));
 
 // 8 · Catalán e inglés

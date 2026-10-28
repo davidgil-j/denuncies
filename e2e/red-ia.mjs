@@ -111,6 +111,9 @@ await page.route(`${API}/**`, async (route) => {
   if (path === '/functions/v1/delete-manager') { const i = MEMBERS.findIndex(x => x.id === body.user_id); if (i > 0) MEMBERS.splice(i, 1); return json(route, { ok: true }); }
   // Ficha del caso: quién gestiona y quién está apartado (C1). Vacío = nadie apartado.
   if (path === '/rest/v1/rpc/list_complaint_access') return json(route, []);
+  // Ronda 2: supresión con gracia (025) y registro de accesos (024). Sin supresiones programadas; anotar no devuelve nada
+  if (path === '/rest/v1/rpc/list_pending_suppressions' || path === '/rest/v1/rpc/suppression_for' || path === '/rest/v1/rpc/list_access_log') return json(route, []);
+  if (path === '/rest/v1/rpc/log_case_access' || path === '/rest/v1/rpc/log_org_export') return json(route, null);
   unexpected.push(`${method} ${path}`);
   return json(route, { message: 'sin simular' }, 500);
 });

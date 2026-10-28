@@ -79,7 +79,7 @@ await page.getByPlaceholder('Por ejemplo, desde septiembre').fill('Desde septiem
 await page.locator('input[type=file]').setInputFiles([`${TMP}/capturas-grupo.pdf`, `${TMP}/virus.exe`]);
 ok('archivo admitido en la lista', await page.locator('.proof-file').count() === 1);
 ok('archivo no admitido: aviso con el motivo', await page.getByText('tipo no admitido').isVisible());
-ok('con un archivo adjunto, la frase sobre sus datos ocultos', await page.getByText('De las fotos se quitan la ubicación y los datos del dispositivo.').isVisible());
+ok('con un archivo adjunto, la frase sobre sus datos ocultos', await page.getByText(/^De las fotos y de los documentos \(Office y PDF\) se quitan los datos ocultos/).isVisible());
 await page.getByRole('button', { name: 'Qué datos se quitan de los archivos' }).click();
 ok('el detalle de los archivos se abre en un panel', await page.getByRole('dialog').getByText('no guardamos el nombre del archivo').isVisible());
 await page.keyboard.press('Escape');

@@ -1459,6 +1459,138 @@ if (upTo >= 29) {
   ok('8b · el valor por defecto de appearance es «claro»', (await q(`select column_default d from information_schema.columns where table_name = 'profiles' and column_name = 'appearance'`))[0].d.includes(`'light'`));
 }
 
+// ── Enviar exige siempre la prueba de trabajo (030, A3) ─────────────────
+if (upTo >= 30) {
+  console.log('\nEnviar exige siempre la prueba de trabajo (030)');
+  const crypto = await import('node:crypto');
+  const sha = (c) => crypto.createHash('sha256').update(c.toUpperCase().replace(/[^A-Z0-9]/g, '')).digest('hex');
+  const solvePow = (token, bits) => {
+    const full = Math.floor(bits / 8), rem = bits % 8;
+    for (let n = 0; ; n++) {
+      const d = crypto.createHash('sha256').update(`${token}:${n}`).digest();
+      let good = true;
+      for (let i = 0; i < full; i++) if (d[i] !== 0) { good = false; break; }
+      if (good && rem !== 0 && (d[full] >> (8 - rem)) !== 0) good = false;
+      if (good) return String(n);
+    }
+  };
+  const MIG30 = fs.readFileSync(path.join(MIG, '030_envio_con_prueba_obligatoria.sql'), 'utf8');
+  ok('sin la 026 se para al principio', await (async () => { const p25 = await newDb(25); try { await p25.exec(MIG30); return false; } catch (e) { return /026/.test(e.message); } })());
+
+  const pg = await newDb(30);
+  const q = async (sql, p) => (await pg.query(sql, p)).rows;
+  const an = (sql, p) => asOn(pg, 'anon', null, sql, p);
+  const au = (uid, sql, p) => asOn(pg, 'authenticated', uid, sql, p);
+  const err = (r) => String(r.error ?? '');
+  let again = null;
+  try { await pg.exec(MIG30); } catch (e) { again = e.message; }
+  ok('la 030 se puede ejecutar dos veces', again === null, again ?? '');
+
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('pw@x.es', '{"company_name":"Empresa PW","full_name":"Admin PW"}')`);
+  const [{ id: adminP, organization_id: orgP }] = await q(`select p.id, p.organization_id from profiles p join auth.users u on u.id = p.id where u.email = 'pw@x.es'`);
+  const sub16 = `select submit_complaint($1, $2, $3, 'fraud', 'Hechos por el camino de 16, sin prueba de trabajo.', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[]) as id`;
+  const sub18 = `select submit_complaint($1, $2, $3, 'fraud', 'Hechos por el camino de 18, con prueba de trabajo.', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[], $4, $5) as id`;
+
+  ok('sin sesión, el camino de 16 (sin prueba de trabajo) ya no se puede llamar', /permission denied/.test(err(await an(sub16, [crypto.randomUUID(), orgP, sha('CERR-0001-0000-0000')]))));
+  ok('con sesión, tampoco', /permission denied/.test(err(await au(adminP, sub16, [crypto.randomUUID(), orgP, sha('CERR-0002-0000-0000')]))));
+  ok('ninguna denuncia ha entrado por ahí', (await q(`select count(*)::int n from complaints where organization_id = $1`, [orgP]))[0].n === 0);
+
+  const sid = crypto.randomUUID();
+  const ch = (await an(`select * from issue_pow_challenge($1)`, [orgP])).rows[0];
+  const sent = await an(sub18, [sid, orgP, sha('CERR-0003-0000-0000'), ch.token, solvePow(ch.token, ch.bits)]);
+  ok('con la prueba de trabajo resuelta, enviar funciona (18 parámetros)', !sent.error && !!sent.rows[0]?.id, err(sent));
+  ok('…y deja la entrada «created» en el registro', (await q(`select count(*)::int n from audit_logs where complaint_id = $1 and action = 'created'`, [sent.rows[0]?.id]))[0].n === 1);
+  ok('sin resolverla se rechaza', /proof-required/.test(err(await an(sub18, [crypto.randomUUID(), orgP, sha('CERR-0004-0000-0000'), 'no', 'no']))));
+  ok('un reto ya usado no vale para otra denuncia', /proof-required/.test(err(await an(sub18, [crypto.randomUUID(), orgP, sha('CERR-0005-0000-0000'), ch.token, solvePow(ch.token, ch.bits)]))));
+  const ch2 = (await an(`select * from issue_pow_challenge($1)`, [orgP])).rows[0];
+  const again18 = await an(sub18, [sid, orgP, sha('CERR-0003-0000-0000'), ch2.token, solvePow(ch2.token, ch2.bits)]);
+  ok('reintentar el mismo envío (mismo id de envío) devuelve la misma denuncia', !again18.error && again18.rows[0]?.id === sent.rows[0]?.id, err(again18));
+  const reg = await au(adminP, `select register_complaint('fraud', 'Caso registrado por teléfono después de la 030.', 'phone', now(), true, null, null, null, null, null, null, 'es', $1, null) as id`, [sha('CERR-0007-0000-0000')]);
+  ok('registrar un caso desde el panel sigue funcionando', !reg.error && !!reg.rows[0]?.id, err(reg));
+
+  // Vuelta atrás
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '030_atras.sql'), 'utf8'));
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '030_atras.sql'), 'utf8'));
+  ok('vuelta atrás: el camino de 16 se vuelve a abrir', !(await an(sub16, [crypto.randomUUID(), orgP, sha('CERR-0006-0000-0000')])).error);
+}
+
+// ── Arreglo de la 028: las funciones de confianza (031) ─────────────────
+if (upTo >= 31) {
+  console.log('\nLas funciones de confianza vuelven a funcionar (031, arreglo de la 028)');
+  const crypto = await import('node:crypto');
+  const sha = (c) => crypto.createHash('sha256').update(c.toUpperCase().replace(/[^A-Z0-9]/g, '')).digest('hex');
+  const solvePow = (token, bits) => {
+    const full = Math.floor(bits / 8), rem = bits % 8;
+    for (let n = 0; ; n++) {
+      const d = crypto.createHash('sha256').update(`${token}:${n}`).digest();
+      let good = true;
+      for (let i = 0; i < full; i++) if (d[i] !== 0) { good = false; break; }
+      if (good && rem !== 0 && (d[full] >> (8 - rem)) !== 0) good = false;
+      if (good) return String(n);
+    }
+  };
+  const MIG31 = fs.readFileSync(path.join(MIG, '031_arreglo_funciones_de_confianza.sql'), 'utf8');
+  const pg = await newDb(30); // como producción: con la 028 (y la 030)
+  const q = async (sql, p) => (await pg.query(sql, p)).rows;
+  const an = (sql, p) => asOn(pg, 'anon', null, sql, p);
+  const au = (uid, sql, p) => asOn(pg, 'authenticated', uid, sql, p);
+  const err = (r) => String(r.error ?? '');
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('fc@x.es', '{"company_name":"Empresa FC","full_name":"Admin FC"}')`);
+  const [{ id: admin, organization_id: org }] = await q(`select p.id, p.organization_id from profiles p join auth.users u on u.id = p.id where u.email = 'fc@x.es'`);
+  const submit = async (code) => {
+    const ch = (await an(`select * from issue_pow_challenge($1)`, [org])).rows[0];
+    return (await an(`select submit_complaint($1, $2, $3, 'fraud', 'Hechos de prueba para las funciones de confianza.', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[], $4, $5) as id`,
+      [crypto.randomUUID(), org, sha(code), ch.token, solvePow(ch.token, ch.bits)])).rows[0]?.id;
+  };
+  const register = () => au(admin, `select register_complaint('safety', 'Comunicación recibida por teléfono hace dos días.', 'phone', now() - interval '2 days', true, null, null, null, null, null, null, 'es', null, null) as id`);
+  const suppress = async (id) => {
+    await q(`update complaints set status = 'resolved' where id = $1`, [id]);
+    await au(admin, `select request_suppression($1, 'Caso resuelto; se suprime según el artículo 32 de la ley.')`, [id]);
+    await q(`update suppressions set scheduled_for = now() - interval '1 minute' where complaint_id = $1 and status = 'pending'`, [id]);
+    return au(admin, `select execute_suppression($1)`, [id]);
+  };
+
+  // Con la 028 (sin la 031): el fallo, tal como está en producción
+  const s1 = await submit('CONF-0001-0000-0000');
+  ok('con la 028: «Suprimir ahora» falla (el fallo de producción)', /complaint-content-immutable/.test(err(await suppress(s1))));
+  const r1 = (await register()).rows[0].id;
+  ok('con la 028: un caso registrado por teléfono se guarda como «web» y con la fecha de ahora', (await q(`select channel, created_at > now() - interval '1 day' as hoy from complaints where id = $1`, [r1]))[0].channel === 'web');
+
+  let again = null;
+  try { await pg.exec(MIG31); await pg.exec(MIG31); } catch (e) { again = e.message; }
+  ok('la 031 se puede ejecutar dos veces', again === null, again ?? '');
+  ok('031 · repara el canal de los casos registrados a mano con la 028', (await q(`select channel from complaints where id = $1`, [r1]))[0].channel === 'phone');
+  ok('031 · y no toca las denuncias que sí llegaron por la web', (await q(`select channel from complaints where id = $1`, [s1]))[0].channel === 'web');
+
+  // Las funciones de confianza vuelven a hacer su trabajo
+  const supp = await suppress(s1);
+  ok('031 · «Suprimir ahora» funciona', !supp.error && (await q(`select anonymized_at is not null a from complaints where id = $1`, [s1]))[0].a, err(supp));
+  const r2 = (await register()).rows[0].id;
+  const reg = (await q(`select channel, created_at < now() - interval '1 day' as fecha from complaints where id = $1`, [r2]))[0];
+  ok('031 · registrar a mano guarda el canal y la fecha de recepción', reg.channel === 'phone' && reg.fecha, JSON.stringify(reg));
+  const s2 = await submit('CONF-0002-0000-0000');
+  const ch = (await an(`select * from issue_pow_challenge($1)`, [org])).rows[0];
+  const meet = await an(`select request_meeting_in_org($1, 'CONF-0002-0000-0000', $2, $3) as at`, [org, ch.token, solvePow(ch.token, ch.bits)]);
+  ok('031 · quien denuncia puede pedir una reunión desde «Mi caso»', !meet.error && !!meet.rows[0]?.at, err(meet));
+  ok('031 · el equipo marca la reunión como celebrada', !(await au(admin, `select mark_meeting_held($1)`, [s2])).error);
+  ok('031 · el equipo amplía el plazo', !(await au(admin, `select extend_response_deadline($1, 'Investigación con varios departamentos implicados')`, [s2])).error);
+  const s3 = await submit('CONF-0003-0000-0000');
+  await q(`update complaints set status = 'resolved' where id = $1`, [s3]);
+  const old = await au(admin, `select anonymize_complaint($1, 'Caso que hay que suprimir según el artículo 32 de la ley.')`, [s3]);
+  ok('031 · la supresión de antes (sin gracia) también funciona', !old.error && (await q(`select anonymized_at is not null a from complaints where id = $1`, [s3]))[0].a, err(old));
+
+  // Las protecciones siguen: desde el navegador, directamente, no se tocan los campos protegidos
+  ok('031 · el navegador sigue sin poder cambiar el texto de una denuncia', /complaint-content-immutable|permission denied/.test(err(await au(admin, `update complaints set description = 'cambiado' where id = $1`, [s2]))));
+  ok('031 · ni su canal', /complaint-content-immutable|permission denied/.test(err(await au(admin, `update complaints set channel = 'phone' where id = $1`, [s2]))));
+  ok('031 · is_client_request() sigue siendo true para el navegador', (await an(`select is_client_request() c`)).rows[0].c === true);
+  ok('031 · y el tope de una denuncia por petición sigue contando por dentro (api_role_is_client)', (await an(`select api_role_is_client() c`)).rows[0].c === true);
+
+  // Vuelta atrás (vuelve al fallo de la 028)
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '031_atras.sql'), 'utf8'));
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '031_atras.sql'), 'utf8'));
+  ok('vuelta atrás: vuelve el comportamiento de la 028', (await (async () => { const id = (await register()).rows[0].id; return (await q(`select channel from complaints where id = $1`, [id]))[0].channel; })()) === 'web');
+}
+
 // ── Vueltas atrás de la 018, la 017 y la 016 ────────────────────────────
 if (upTo >= 18) {
   console.log('\nVueltas atrás (018, 017, 016)');

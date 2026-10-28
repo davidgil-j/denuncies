@@ -95,8 +95,8 @@ src/
     └── v2.css               # Estils comuns de la web dins de l'aplicació (i el reset comú)
 
 supabase/
-├── migrations/              # 001 … 019, totes additives i repetibles
-├── rollback/                # Còpia abans de la 019 i tornada enrere de la 016 a la 019 (no són migracions: LEEME.md)
+├── migrations/              # 001 … 031, totes additives i repetibles
+├── rollback/                # Còpia abans de la 019 i tornada enrere de la 016 a la 031 (no són migracions: LEEME.md)
 └── functions/               # invite-manager, delete-manager, notify, ai-assist (no desplegada); _shared/cors.ts (ALLOWED_ORIGINS)
 
 scripts/
@@ -175,7 +175,7 @@ La resta de l'aplicació se serveix amb `app.html` (l'antic `index.html`, reanom
 - **manager_permissions** — permisos per gestor i tema (can_view, can_edit, can_reply, can_delete)
 - **profiles** — usuaris del panell (rol: superadmin o manager; `appearance`: clar, fosc o com el sistema, 016)
 
-Migracions: de la `001` a la `019`, totes additives i repetibles. Fins a la `013` consten com a executades a producció; de la `014` i la `015`, comprova-ho abans de donar-ho per fet; la `016` (marca blanca) i la `017` (adreça pròpia) **executades a producció el 19 d'octubre de 2026**; la `018` (peu «Amb Reportia») i la `019` (empremta amb secret) escrites i provades, encara no executades (ordre i comprovacions a `docs/QUE_TIENE_QUE_HACER_DAVID.md`; còpia i tornada enrere a `supabase/rollback/`). L'app funciona igual si no hi són (provat amb una base de dades real: `e2e/base-real.mjs`). Qualsevol canvi nou va en una `020`, amb les seves proves a `scripts/test-rls.mjs`.
+Migracions: de la `001` a la `031`, totes additives i repetibles. A producció consten executades la `001`–`029` (la `016` i la `017` el 19 d'octubre de 2026; la `020`–`022` el 22 d'octubre; la `023`–`029` el 28 d'octubre). **La `031` (arregla un fallo de la `028`: les funcions de confiança tornen a poder suprimir, demanar reunió i registrar casos) i la `030` (enviar exigeix sempre la prova de treball) són escrites i provades però encara no executades: la `031` primer i amb urgència** (ordre i comprovacions a `docs/seguridad/QUE_TIENE_QUE_HACER_DAVID.md`; tornada enrere a `supabase/rollback/`). L'app funciona igual si no hi són (provat amb una base de dades real: `e2e/base-real.mjs`). Qualsevol canvi nou va en una `032`, amb les seves proves a `scripts/test-rls.mjs`.
 
 ### Estats d'una denúncia
 `received` → `reviewing` → `investigating` → `waiting` → `resolved` → `closed` → `archived`
@@ -260,7 +260,7 @@ node scripts/og-image.mjs         # Torna a fer public/og.jpg (PLAYWRIGHT=…/in
   Amb `VITE_AI_ENABLED=1` es veuen les ajudes d'IA amb textos d'exemple.
 - **Base de dades:** `npm run db:test` aplica totes les migracions a un Postgres en memòria i comprova les polítiques.
 - **Sense una migració:** l'app continua funcionant si la base de dades no té les columnes de la 012, la 013, la 014 o la 016 (vegeu `withRedesign` a `supabase.js`; sense la 016, el canal i el panell surten en blau i «La teva marca» i «Aparença» no es mostren).
-- **Navegador:** `npm run e2e` recorre el canal i el panell a 1440 i 375 px, en els tres idiomes, sense sortir de l'ordinador. També la portada compilada i servida com Vercel (`portada`, amb Lighthouse si està instal·lat), Turnstile (`captcha`) i la web contra una base de dades real amb les migracions de la 015 a la 019 (`base-real`, necessita `brew install postgresql@16 postgrest`).
+- **Navegador:** `npm run e2e` recorre el canal i el panell a 1440 i 375 px, en els tres idiomes, sense sortir de l'ordinador. També la portada compilada i servida com Vercel (`portada`, amb Lighthouse si està instal·lat), Turnstile (`captcha`) i la web contra una base de dades real amb les migracions de la 015 a la 031, amb el magatzem d'adjunts i el segon pas inclosos (`base-real`, necessita `brew install postgresql@16 postgrest`).
 
 ---
 

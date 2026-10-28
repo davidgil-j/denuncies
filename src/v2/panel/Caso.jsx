@@ -266,7 +266,7 @@ export default function Caso() {
     if (missing) {
       const { error: oldErr } = await anonymizeComplaint(c.id, text.trim(), actor);
       setBusy(false);
-      if (oldErr) { setDErr(t.delErr); return; }
+      if (oldErr) { setDErr(/files-not-deleted/.test(oldErr.message ?? '') ? t.supFilesErr : t.delErr); return; }
       setDialog(null);
       notify(fmt(t.deleted, { code: c.reference }));
       loadAll();
@@ -294,7 +294,7 @@ export default function Caso() {
     setBusy(true);
     const { error } = await executeSuppression(c.id);
     setBusy(false);
-    if (error) { notify(t.delErr, 'err'); return; }
+    if (error) { notify(/files-not-deleted/.test(error.message ?? '') ? t.supFilesErr : t.delErr, 'err'); return; }
     notify(fmt(t.deleted, { code: c.reference }));
     loadAll();
   }

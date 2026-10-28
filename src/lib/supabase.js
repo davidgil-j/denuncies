@@ -101,11 +101,14 @@ export async function saveComplaint({ formData, files, organizationId, attempt }
   }
 
   const anon = formData.isAnonymous;
+  // Sin sha-256 en el navegador no se puede ni calcular la huella del código: es la misma «comprobación de seguridad»
+  let hash;
+  try { hash = await codeHash(trackingCode); } catch { return { trackingCode: null, complaintId: null, attempt: next, error: new Error('proof-failed') }; }
   // 1. Con la migración 021: una sola llamada, con el id de envío y las personas apartadas. Escribe
   // también la entrada «created» del registro y nunca revela si un código ya existe.
   const base16 = {
     p_submission_id: submissionId,
-    p_org: organizationId, p_hash: await codeHash(trackingCode), p_category: formData.category,
+    p_org: organizationId, p_hash: hash, p_category: formData.category,
     p_description: formData.description.trim(), p_is_anonymous: anon,
     p_name: anon ? null : clean(formData.name), p_email: anon ? null : clean(formData.email), p_phone: anon ? null : clean(formData.phone),
     p_department: clean(formData.department), p_incident_date: formData.incidentDate || null,
@@ -126,6 +129,9 @@ export async function saveComplaint({ formData, files, organizationId, attempt }
   }
   const viaFunction = await supabase.rpc('submit_complaint', base16);
   if (!viaFunction.error) return { trackingCode, complaintId: viaFunction.data, attempt: next, error: null };
+  // Con la 030 el de 16 está cerrado (permiso denegado, o PostgREST ni lo ofrece): si el navegador no pudo resolver
+  // la prueba, se dice así y no «sin conexión». Un fallo de red no trae código y sigue siendo «sin conexión».
+  if (proof.failed && (viaFunction.error.code === '42501' || isMissingSchema(viaFunction.error))) return { trackingCode: null, complaintId: null, attempt: next, error: new Error('proof-failed') };
   // El código ya es de otra denuncia (casi imposible): uno nuevo, una sola vez. «submit-failed» es el
   // error genérico de la 021 (no revela que el código existe); «code-conflict», el de antes.
   if (/code-conflict|submit-failed/.test(viaFunction.error.message ?? '') && !attempt?.retried) return retry();
@@ -135,7 +141,7 @@ export async function saveComplaint({ formData, files, organizationId, attempt }
   // El código de seguimiento no sale nunca del navegador: solo se envía su hash (migración 010).
   const row = {
       id,
-      tracking_hash:   await codeHash(trackingCode),
+      tracking_hash:   hash,
       organization_id: organizationId ?? null,
       is_anonymous:    anon,
       reporter_name:   anon ? null : clean(formData.name),
@@ -519,17 +525,7 @@ export async function extendDeadline(complaintId, reason, actorName = '') {
  */
 export async function anonymizeComplaint(complaintId, reason, actorName = '') {
   if (DEMO_MODE) return (await demo()).anonymize(complaintId, reason, actorName);
-  const { data: files } = await supabase.from('attachments').select('storage_path').eq('complaint_id', complaintId);
-  // También lo que haya en la carpeta del caso aunque no tenga fila (una subida que falló a medias)
-  const { data: inFolder } = await supabase.storage.from('attachments').list(complaintId, { limit: 1000 });
-  const paths = [...new Set([
-    ...(files ?? []).map(f => f.storage_path).filter(Boolean),
-    ...(inFolder ?? []).filter(o => o?.name && o.id !== null).map(o => `${complaintId}/${o.name}`),
-  ])];
-  if (paths.length) {
-    const { error: rmError } = await supabase.storage.from('attachments').remove(paths);
-    if (rmError) return { error: rmError };
-  }
+  if (!(await removeCaseFiles(complaintId))) return { error: new Error('files-not-deleted') };
   const { error } = await supabase.rpc('anonymize_complaint', { p_complaint: complaintId, p_reason: reason });
   return { error };
 }
@@ -547,16 +543,47 @@ export async function cancelSuppression(complaintId) {
   const { error } = await supabase.rpc('cancel_suppression', { p_complaint: complaintId });
   return { error };
 }
-/** Ejecuta la supresión ya vencida: borra los bytes de los archivos (permiso solo con una supresión vencida) y anonimiza. */
+/**
+ * Borra del almacén todos los archivos de un caso y comprueba que ya no están. Devuelve true si no queda ninguno.
+ * Mira las filas de «attachments» y la carpeta del caso (también lo que no tiene fila: una subida que falló a medias),
+ * con un nivel más por el id de envío (<caso>/<id de envío>/<archivo>, M5). Storage no da error cuando la política
+ * no deja borrar (simplemente no borra), por eso se vuelve a mirar al final.
+ */
+async function removeCaseFiles(complaintId) {
+  const bucket = supabase.storage.from('attachments');
+  const { data: files, error: filesError } = await supabase.from('attachments').select('storage_path').eq('complaint_id', complaintId);
+  if (filesError) return false;
+  const stored = async () => {
+    const top = await bucket.list(complaintId, { limit: 1000 });
+    if (top.error) return null;
+    const found = [];
+    for (const o of top.data ?? []) {
+      if (!o?.name) continue;
+      if (o.id !== null) { found.push(`${complaintId}/${o.name}`); continue; }
+      const sub = await bucket.list(`${complaintId}/${o.name}`, { limit: 1000 });
+      if (sub.error) return null;
+      for (const f of sub.data ?? []) if (f?.name && f.id !== null) found.push(`${complaintId}/${o.name}/${f.name}`);
+    }
+    return found;
+  };
+  const before = await stored();
+  if (!before) return false;
+  const paths = [...new Set([...(files ?? []).map(f => f.storage_path).filter(Boolean), ...before])];
+  if (!paths.length) return true;
+  const { error } = await bucket.remove(paths);
+  if (error) return false;
+  const after = await stored();
+  return !!after && after.length === 0;
+}
+
+/**
+ * Ejecuta la supresión ya vencida: borra los bytes de los archivos (permiso solo con una supresión vencida) y anonimiza.
+ * Si no se puede comprobar que los archivos han desaparecido del almacén, NO anonimiza: la fila del adjunto es lo
+ * único que dice dónde está el archivo, y sin ella quedaría huérfano y sin suprimir. Error «files-not-deleted».
+ */
 export async function executeSuppression(complaintId) {
   if (DEMO_MODE) return (await demo()).executeSuppression(complaintId);
-  const { data: files } = await supabase.from('attachments').select('storage_path').eq('complaint_id', complaintId);
-  const { data: inFolder } = await supabase.storage.from('attachments').list(complaintId, { limit: 1000 });
-  const paths = [...new Set([
-    ...(files ?? []).map(f => f.storage_path).filter(Boolean),
-    ...(inFolder ?? []).filter(o => o?.name && o.id !== null).map(o => `${complaintId}/${o.name}`),
-  ])];
-  if (paths.length) await supabase.storage.from('attachments').remove(paths);
+  if (!(await removeCaseFiles(complaintId))) return { error: new Error('files-not-deleted') };
   const { error } = await supabase.rpc('execute_suppression', { p_complaint: complaintId });
   return { error };
 }

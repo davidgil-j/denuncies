@@ -130,6 +130,21 @@
   .cats, .opts, .ident-main { gap: 8px; }
   .cat, .opt, .meet { padding: 10px 12px; }
 }
+/* El aviso del 112 del paso 1 añade una línea: en un portátil bajo, un poco menos de aire para que el paso siga cabiendo */
+@media (min-width: 641px) and (max-height: 800px) {
+  .flow-q + .flow-note { margin-top: -4px; }
+  .flow-q { gap: 4px; }
+}
+@media (min-width: 641px) and (max-height: 740px) {
+  .flow-body { gap: 8px; padding-top: 8px; }
+  .flow-q + .flow-note { margin-top: 0; }
+  .cat, .opt, .meet { padding: 8px 12px; }
+}
+@media (min-width: 641px) and (max-height: 720px) {
+  .flow-body { gap: 6px; padding-top: 6px; }
+  .flow-top { gap: 6px; }
+  .cats { gap: 6px; }
+}
 
 @media (max-width: 640px) {
   .flow-head { height: 52px; padding: 0 16px; }

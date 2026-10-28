@@ -1,6 +1,8 @@
 # Lo que tiene que hacer David · Seguridad ronda 2
 
-Todo lo del código de esta ronda está hecho y probado en local (`npm run db:test` 494, `npm run test:logic` 49, `npm run build`, todo en verde; la e2e necesita Playwright, que va fuera del repositorio). Esto es lo que necesitas hacer tú, con tus cuentas (Supabase, Vercel) o una decisión.
+Todo lo del código de esta ronda está hecho y probado en local (`npm run db:test` 522, `npm run test:logic` 49, `npm run build`, la e2e completa, `base-real` contra Postgres de verdad y Lighthouse, todo en verde). Esto es lo que necesitas hacer tú, con tus cuentas (Supabase, Vercel) o una decisión.
+
+> **29 oct 2026 · ⚠️ URGENTE: ejecuta la migración 031 antes que nada.** La comprobación final contra una base de datos de verdad encontró un fallo de la **028**, que ya está en producción: «Suprimir ahora» falla siempre, quien denuncia no puede pedir una reunión desde «Mi caso» y un caso registrado a mano (teléfono, en persona, carta) se guarda como «web» y con la fecha de ahora. La **031** lo arregla (apartado 2.12). Después, la **030** (apartado 2.11) y publicar la web nueva.
 
 > Estado: hechas C1, A1, A2 (020-022, **ya en producción desde el 22 oct**) y, nuevas, A4, A6, A7, A3, A5, los medios (M1, M3, M5, M6, M7, M8, M11) y los bajos, en las migraciones **023-029**. La web nueva funciona con la base de datos en la 022 y con cada migración nueva, así que puedes publicar la web primero y ejecutar el SQL después.
 
@@ -8,25 +10,25 @@ Todo lo del código de esta ronda está hecho y probado en local (`npm run db:te
 
 1. **Publica la web** (`git push origin main`; hecho el 28 oct con el commit `f35b046`). Comprueba en Vercel › Deployments que el despliegue de Production de ese commit está «Ready».
 2. **Comprueba el canal y el panel** en producción (enviar una denuncia, consultarla, escribir un mensaje; en el panel, abrir el caso, exportar, ver que no sale la hora).
-3. **Ejecuta las migraciones 023 → 029 en orden** (apartados 2.4 a 2.10), cada una con su comprobación. Son aditivas y repetibles; la web ya funciona con y sin ellas. La 020, la 021 y la 022 (apartados 2.0 a 2.3) **ya están hechas**: no las repitas.
+3. **Las migraciones 023 → 029 ya están ejecutadas en producción** (hecho el 28 oct, con sus comprobaciones). **Falta la 031 (urgente, apartado 2.12) y después la 030 (apartado 2.11).** Son aditivas y repetibles. La 020, la 021 y la 022 (apartados 2.0 a 2.3) también están hechas: no las repitas.
 4. **Despliega las funciones de servidor** (apartado 6): `invite-manager`, `delete-manager` y, si ya la tienes desplegada, `notify`.
 5. **Activa pg_cron** y pon el interruptor del retraso de avisos (2.4.1), solo si ya te llegan los correos de aviso.
 6. **Ajustes de Supabase y Vercel** (apartado 4): Auth (B12), separar Preview (M9), Turnstile (M4), `ALLOWED_ORIGINS`, autoridades (M3), texto de la IP (M10).
 7. **Después y con margen:** borra la copia `private.complaints_copia_019` (M2), si existe.
 
-> **Pendiente (no rompe nada):** la 026 deja abierto el camino de envío de 16 parámetros (sin prueba de trabajo), igual que la 021 dejó abiertas las funciones viejas hasta la 022. Mientras siga abierto, la prueba de trabajo al enviar no es obligatoria; el canal sigue protegido porque nunca se cierra (lo que pasa de 50/hora va a «Posible spam»). Cerrarlo es una migración 030 que aún no está escrita.
+> **La 026 dejó abierto el envío de 16 parámetros (sin prueba de trabajo)**, igual que la 021 dejó abiertas las funciones viejas hasta la 022. Lo cierra la **030** (apartado 2.11), ya escrita y probada. Mientras no se ejecute, la prueba de trabajo al enviar no es obligatoria; el canal sigue protegido porque nunca se cierra (lo que pasa de 50/hora va a «Posible spam»).
 
 ---
 
 ## 1 · Mirarlo en local (opcional)
 
 ```bash
-npm run db:test     # 494 correctas, 0 fallidas (todos los bloques, hasta la 029)
+npm run db:test     # 522 correctas, 0 fallidas (todos los bloques, hasta la 031)
 npm run test:logic  # 49 correctas
 npm run build       # en verde
 ```
 
-Las migraciones se prueban en memoria (PGlite) una encima de otra, desde la 001 hasta la 029, así que las pruebas reproducen el estado al que llegará producción paso a paso.
+Las migraciones se prueban en memoria (PGlite) una encima de otra, desde la 001 hasta la 031, así que las pruebas reproducen el estado al que llegará producción paso a paso.
 
 ---
 
@@ -164,6 +166,61 @@ select (select column_default from information_schema.columns
 ```
 `por_defecto = 'light'::text` y `en_sistema = 0`. Los perfiles que tenían «Como el sistema» pasan a «Claro» (no hay clientes reales todavía); quien tenía «Oscuro» lo conserva.
 
+**2.11 · `supabase/migrations/030_envio_con_prueba_obligatoria.sql`** (cierra el envío de 16 parámetros: enviar una denuncia exige siempre la prueba de trabajo). Aditiva, repetible, no borra ni cambia datos. Necesita la 026 (se para sola si no está). **Solo con la web publicada de la ronda 2** (commit `f35b046` o posterior): esa web envía por el camino de 18 parámetros, lo que se comprobó leyendo el código (`saveComplaint` en `src/lib/supabase.js`) y en `base-real` (la prueba de trabajo se gasta en cada envío). Antes de ejecutarla, comprueba en producción que lo publicado es esa web (Vercel › Deployments) y envía una denuncia de prueba. Comprobación después:
+```sql
+select has_function_privilege('anon', 'public.submit_complaint(uuid,uuid,text,text,text,boolean,text,text,text,text,date,text,text,boolean,text,uuid[])', 'execute') as camino_de_16,        -- debe ser false
+       has_function_privilege('anon', 'public.submit_complaint(uuid,uuid,text,text,text,boolean,text,text,text,text,date,text,text,boolean,text,uuid[],text,text)', 'execute') as camino_de_18; -- debe ser true
+```
+`camino_de_16 = false` y `camino_de_18 = true`. Después envía **otra denuncia de prueba con un adjunto** desde el canal y comprueba que sale el código. Si algo va mal, `supabase/rollback/030_atras.sql` vuelve a abrir el de 16 (no borra nada). Un navegador que no pueda hacer la prueba de trabajo (muy raro) ve «No se ha podido hacer la comprobación de seguridad en este dispositivo» en vez de enviar.
+
+**2.12 · `supabase/migrations/031_arreglo_funciones_de_confianza.sql`** — ⚠️ **URGENTE, va antes que la 030.** Arregla un fallo de la **028** que ya está en producción: la 028 (B13) cambió `is_client_request()` para mirar el rol de la petición, y eso hizo que las protecciones de las denuncias frenasen también a las funciones del propio sistema. Con la 028 sola:
+- «Suprimir ahora» falla siempre (`complaint-content-immutable`), también la supresión de antes;
+- quien denuncia no puede pedir una reunión desde «Mi caso» (y marcar la reunión como hecha o ampliar el plazo pueden fallar igual);
+- **un caso registrado a mano** (teléfono, en persona, carta) se guarda como «web» y con la fecha de ahora en vez de la de recepción.
+
+La 031 devuelve `is_client_request()` a como estaba hasta la 027 (el resto de la 028, B1 y B2, no cambia) y **repara el canal** de los casos registrados a mano. Aditiva, repetible, no borra nada. Comprobación:
+```sql
+select pg_get_functiondef('public.is_client_request()'::regprocedure) like '%current_user%' as vuelve_a_current_user,  -- debe ser true
+       (select count(*) from complaints c join audit_logs a on a.complaint_id = c.id and a.action = 'registered'
+         where c.channel = 'web') as registrados_a_mano_como_web;                                                      -- debe ser 0
+```
+`vuelve_a_current_user = true` y `registrados_a_mano_como_web = 0`. Después, la prueba de la supresión del apartado 2.13 y pedir una reunión desde «Mi caso» con una denuncia de prueba.
+
+**La fecha de recepción de un caso registrado a mano mientras la 028 estaba activa no se puede recuperar sola** (la guardó como «ahora»). Si registraste alguno desde el 28 oct, mira cuáles son y corrige la fecha a mano con la fecha real de la comunicación (de los plazos legales cuenta la fecha de recepción):
+```sql
+select reference, channel, created_at from complaints c
+where exists (select 1 from audit_logs a where a.complaint_id = c.id and a.action = 'registered') and created_at >= '2026-10-28'
+order by created_at;
+-- por cada uno, con su referencia y la fecha real:
+-- update complaints set created_at = '2026-10-27 10:00+01', updated_at = '2026-10-27 10:00+01' where reference = 'REF-XXXXXX';
+```
+Si no registraste ninguno, la consulta no devuelve filas y no hay nada que arreglar.
+
+**2.13 · Probar la supresión en producción sin esperar 7 días** (solo con una denuncia de PRUEBA, tras la 031). La supresión tiene 7 días de gracia por ley de producto; para comprobar que funciona de punta a punta, se adelanta la fecha de **una sola** denuncia de prueba. Pasos:
+1. Desde el canal de tu empresa, envía una **denuncia de prueba con un adjunto** (anota su código y su referencia `REF-XXXXXX`, que ves en el panel).
+2. En el panel, abre el caso, pásalo a **«Resuelta»** (la ley no deja suprimir con la investigación abierta) y pulsa **Más acciones › Suprimir datos**, con un motivo de al menos 30 caracteres. Sale «Supresión programada para el …» (dentro de 7 días).
+3. En Supabase › SQL Editor, primero mira que solo sale **una fila** (la de tu caso de prueba):
+   ```sql
+   select s.id, c.reference, c.status, s.status as supresion, s.scheduled_for
+   from suppressions s join complaints c on c.id = s.complaint_id
+   where c.reference = 'REF-XXXXXX' and s.status = 'pending';
+   ```
+4. Adelanta solo esa supresión (cambia `REF-XXXXXX` por la referencia de tu caso de prueba; toca únicamente esa fila):
+   ```sql
+   update suppressions set scheduled_for = now() - interval '1 minute'
+   where status = 'pending'
+     and complaint_id = (select id from complaints where reference = 'REF-XXXXXX');
+   ```
+   Tiene que decir `UPDATE 1`. Si dice otra cifra, no sigas.
+5. Recarga la ficha del caso: aparece **«Suprimir ahora»**. Púlsalo. Sale el aviso de datos suprimidos y el caso queda en «Cerradas» como «Datos suprimidos».
+6. Comprueba que el archivo ha desaparecido del almacén y que el resto queda como debe:
+   ```sql
+   select (select count(*) from storage.objects where bucket_id = 'attachments' and name like (select id::text from complaints where reference = 'REF-XXXXXX') || '/%') as archivos_en_el_almacen,   -- debe ser 0
+          (select count(*) from attachments where complaint_id = (select id from complaints where reference = 'REF-XXXXXX')) as filas_de_adjuntos,                                                           -- debe ser 0
+          (select anonymized_at is not null from complaints where reference = 'REF-XXXXXX') as anonimizada;                                                                                             -- debe ser true
+   ```
+Si «Suprimir ahora» dice que no se han podido borrar todos los documentos, **no se ha suprimido nada** (a propósito: si el almacén falla, el caso y su adjunto siguen); vuelve a intentarlo al cabo de un rato. Un caso suprimido no se recupera: usa solo el de prueba.
+
 **Si algo falla después de una migración:** ejecuta su vuelta atrás (`supabase/rollback/0XX_atras.sql`, de la más nueva a la más vieja) igual que la migración. Ninguna borra datos.
 
 **M2 · Borrar la copia de seguridad de la 019** (después de la 027 y con unos días de margen, cuando estés tranquilo de que todo va bien):
@@ -237,6 +294,7 @@ C1, A1 y A2 (020-022) **ya están en producción**. Esto es lo nuevo de esta tan
 7. **Bajos (B1/B2/B5/B6/B7/B8/B9/B11/B13/N1):** `028_bajos.sql`, `rollback/028_atras.sql`, `vercel.json`, `src/main.jsx`, `supabase/functions/{notify,invite-manager,delete-manager}/index.ts`, `.github/workflows/ci.yml`, `src/translations.js`, `src/translations-panel.js`, `src/lib/demoStore.js`, `e2e/marca.mjs`.
 8. **8b · modo claro:** `029_modo_claro.sql`, `rollback/029_atras.sql`, `src/v2/canal/Canal.jsx`, `src/v2/panel/{Acceso,Panel}.jsx`, `src/lib/demoStore.js`, `CLAUDE.md`, `scripts/test-logica.mjs`, `e2e/{marca,contraste}.mjs`, `scripts/test-rls.mjs`.
 9. **Documentación:** `docs/seguridad/*`, `docs/DECISIONES_TOMADAS.md`, `docs/REVISION_LEGAL.md`.
+10. **Comprobación final (29 oct) · 030, 031 y arreglos:** `supabase/migrations/{030_envio_con_prueba_obligatoria,031_arreglo_funciones_de_confianza}.sql`, `supabase/rollback/{030,031}_atras.sql`, `scripts/test-rls.mjs`, `src/lib/supabase.js` (la supresión no anonimiza si falla el borrado de archivos; el envío dice «comprobación de seguridad» si no puede hacer la prueba), `src/v2/panel/Caso.jsx`, `src/v2/canal/Denuncia.jsx`, `src/translations.js` (`supFilesErr`), `src/v2/panel/panel.css`, `src/v2/canal/canal.css`, `src/v2/ds.css` (cabida del móvil y del portátil), `e2e/*` (base-real ampliada, almacén y segundo paso en `lib/supabase-local.mjs`, y las pruebas puestas al día con la ronda 2), `public/landing/video/*` (vídeos regrabados), `docs/seguridad/*`, `CLAUDE.md`.
 
 ## 6 · Desplegar las funciones de servidor
 

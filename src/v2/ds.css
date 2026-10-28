@@ -436,6 +436,8 @@ select.ds-input { appearance: none; -webkit-appearance: none; padding-right: 36p
   .ds-nav-ico { display: flex; align-items: center; justify-content: center; }
   .ds-nav-long { display: none; }
   .ds-nav-short { display: inline; }
+  /* Quien administra tiene cinco pestañas (con «Accesos»): en las pantallas más estrechas el nombre se hace un punto menor para que quepa */
+  @media (max-width: 360px) { .ds-nav-item { font-size: 10.5px; letter-spacing: -.01em; } }
   /* El contenido no queda tapado por la barra fija */
   .ds-pane:has(.ds-nav) > .ds-pane-body { padding-bottom: calc(60px + env(safe-area-inset-bottom)) !important; }
 }

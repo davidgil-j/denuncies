@@ -100,6 +100,9 @@ await page.route(`${API}/**`, async (route) => {
   if (path === '/functions/v1/delete-manager') { const i = MEMBERS.findIndex(x => x.id === body.user_id); if (i > 0) MEMBERS.splice(i, 1); return json(route, { ok: true }); }
   // Ficha del caso: quién gestiona y quién está apartado (C1). Vacío = nadie apartado.
   if (path === '/rest/v1/rpc/list_complaint_access') return json(route, []);
+  // Ronda 2: supresión con gracia (025) y registro de accesos (024). Sin supresiones programadas; anotar no devuelve nada
+  if (path === '/rest/v1/rpc/list_pending_suppressions' || path === '/rest/v1/rpc/suppression_for' || path === '/rest/v1/rpc/list_access_log') return json(route, []);
+  if (path === '/rest/v1/rpc/log_case_access' || path === '/rest/v1/rpc/log_org_export') return json(route, null);
   unexpected.push(`${method} ${path}`);
   return json(route, { message: 'sin simular' }, 500);
 });
@@ -143,8 +146,11 @@ if (SCENE === 'gestor') {
   await page.waitForURL(/\/admin\/ajustes$/);
   await page.goto(`${APP}/admin/report`, { waitUntil: 'networkidle' });
   await page.waitForSelector('.rp-figs dd');
-  const lists = log.filter(l => l.method === 'GET' && l.path === '/rest/v1/complaints');
-  ok('gestor: el informe solo pide sus categorías', lists.length > 0 && lists.every(l => /category=in\.\((fraud,safety|safety,fraud)\)/.test(l.query)));
+  // Las listas de casos (no la consulta de «posible spam», que solo pregunta por los ids que ya ha recibido)
+  const lists = log.filter(l => l.method === 'GET' && l.path === '/rest/v1/complaints' && !/^\?select=id,likely_spam&/.test(l.query));
+  const spam = log.filter(l => l.method === 'GET' && l.path === '/rest/v1/complaints' && /^\?select=id,likely_spam&/.test(l.query));
+  ok('gestor: el informe solo pide sus categorías', lists.length > 0 && lists.every(l => /category=in\.\((fraud,safety|safety,fraud)\)/.test(l.query)), lists.map(l => l.query).join(' | '));
+  ok('gestor: la consulta de «posible spam» solo pregunta por sus casos', spam.every(l => !/000000000003/.test(l.query)));
   ok('gestor: el informe cuenta solo sus 2 casos', (await page.locator('.rp-figs dd').first().innerText()) === '2');
   await shot('informe');
   await page.goto(`${APP}/admin/mfa`, { waitUntil: 'networkidle' });
@@ -193,7 +199,7 @@ if (SCENE === 'nueva') {
   ok('guardar el responsable: nombre sin espacios, fecha y AIPI vacía como null', patch2.responsible_name === 'Laura Puig Ferrer' && patch2.responsible_appointed_at === yesterday && patch2.aipi_notified_at === null, JSON.stringify(patch2));
   ok('guardar el responsable: sin autoridad autonómica, las dos columnas a null', patch2.regional_authority_name === null && patch2.regional_authority_url === null);
   ok('guardar el responsable: no se envía nada que no sea suyo', Object.keys(patch2).sort().join(',') === 'aipi_notified_at,regional_authority_name,regional_authority_url,responsible_appointed_at,responsible_name,responsible_role', Object.keys(patch2).join(','));
-  await resp.getByLabel('Autoridad autonómica que se muestra en el canal').selectOption('antifrau');
+  await resp.getByLabel('Autoridad autonómica que se muestra en el canal').selectOption('antifrau_cat');
   await resp.getByRole('button', { name: 'Guardar' }).click();
   await toast('Guardado.');
   const patch3 = last('PATCH', '/rest/v1/organizations').body;

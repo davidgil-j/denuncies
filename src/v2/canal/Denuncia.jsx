@@ -132,7 +132,7 @@ export default function Denuncia() {
         attempt: attemptRef.current,
       });
       attemptRef.current = attempt;
-      if (error) { console.error('[Supabase]', error); setSubmitError(/rate-limited/.test(error.message ?? '') ? 'sendLimit' : 'sendErr'); }
+      if (error) { console.error('[Supabase]', error); setSubmitError(/rate-limited/.test(error.message ?? '') ? 'sendLimit' : /proof-failed/.test(error.message ?? '') ? 'codeProof' : 'sendErr'); }
       else {
         attemptRef.current = null;
         // El código se enseña ya; las pruebas se suben desde «Enviada» (si se corta, la denuncia y su código ya están)
