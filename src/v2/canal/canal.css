@@ -193,6 +193,8 @@
 .proof-rejected ul { margin-top: 4px; }
 .proof-rejected b { overflow-wrap: anywhere; }
 .proof-meta { font-size: 13px; line-height: 1.5; color: var(--muted); }
+.proof-av { display: flex; align-items: flex-start; gap: 6px; }
+.proof-av svg { margin-top: 2px; flex: none; }
 @media (max-width: 760px) { .tell-known { grid-template-columns: minmax(0, 1fr); } }
 /* En el móvil cada apartado opcional es una fila que se abre. En una ventana de ordenador muy baja, también:
    así el paso cabe sin bajar. Con los apartados plegados, la caja de texto puede ser un poco más alta */

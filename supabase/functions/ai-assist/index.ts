@@ -13,7 +13,7 @@
 // Qué envía al proveedor: la categoría, la descripción, el departamento y el «cuándo». Nada más.
 // Nunca el nombre, el correo ni el teléfono de quien informa (esta función ni siquiera los lee), ni las
 // personas implicadas, ni los mensajes, ni los adjuntos, ni el nombre de la empresa.
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2.105.4';
 import { withCors } from '../_shared/cors.ts';
 
 const corsHeaders = {

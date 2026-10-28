@@ -91,11 +91,11 @@ await page.waitForSelector('.cats');
 ok('las pantallas de Denunciar llevan el logo en la barra de arriba', await page.locator('.flow-head .ds-brand-logo img').isVisible());
 await page.emulateMedia({ colorScheme: 'dark' });
 await page.waitForTimeout(300);
-ok('con el sistema en oscuro, el canal se pone oscuro sin guardar nada', (await page.evaluate(() => document.documentElement.dataset.theme)) === 'dark'
-  && (await cssVar('--report')) === '#6CC5D1');
+// 8b: el canal siempre en claro, aunque el sistema esté en oscuro
+ok('con el sistema en oscuro, el canal SIGUE en claro (8b)', (await page.evaluate(() => document.documentElement.dataset.theme)) !== 'dark');
 const left = await page.evaluate(() => ({ local: Object.keys(localStorage).filter(k => k !== 'reportia-panel-lang'), cookies: document.cookie }));
-ok('…ni en el navegador ni en cookies', left.local.length === 0 && left.cookies === '', JSON.stringify(left));
-await page.screenshot({ path: `${OUT}/${W}-04-canal-oscuro.png` });
+ok('el canal no guarda nada ni en el navegador ni en cookies', left.local.length === 0 && left.cookies === '', JSON.stringify(left));
+await page.screenshot({ path: `${OUT}/${W}-04-canal-sistema-oscuro.png` });
 await page.emulateMedia({ colorScheme: 'light' });
 
 // ── 3 · Apariencia de cada gestor ────────────────────────────────────

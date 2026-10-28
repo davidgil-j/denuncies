@@ -7,8 +7,8 @@ import { Tc, ic } from './shared.jsx';
 import { formatBytes } from '../../lib/format.js';
 
 export const MAX_FILES = 5;
-// Límite por archivo, en MB. Lo marca el plan de Supabase (50 en el gratuito) y se cambia con VITE_MAX_FILE_MB
-export const MAX_FILE_MB = Number(import.meta.env.VITE_MAX_FILE_MB) > 0 ? Number(import.meta.env.VITE_MAX_FILE_MB) : 50;
+// Límite por archivo, en MB. 25 por defecto (A3: también lo exige el bucket, migración 026). Se cambia con VITE_MAX_FILE_MB
+export const MAX_FILE_MB = Number(import.meta.env.VITE_MAX_FILE_MB) > 0 ? Number(import.meta.env.VITE_MAX_FILE_MB) : 25;
 // Tipos admitidos: PDF, imágenes, vídeo, audio y documentos de oficina
 const EXTENSIONS = [
   'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf', 'txt', 'csv',
@@ -18,6 +18,8 @@ const EXTENSIONS = [
 ];
 const ACCEPT = EXTENSIONS.map(e => `.${e}`).join(',');
 const extOf = (name) => (name.includes('.') ? name.split('.').pop().toLowerCase() : '');
+// A5: vídeo y audio pueden llevar la ubicación y el modelo del móvil; no se pueden limpiar, solo se avisa
+const AV_EXT = ['mp4', 'mov', 'm4v', 'avi', 'webm', '3gp', 'mp3', 'm4a', 'wav', 'ogg', 'aac', 'opus', 'amr'];
 
 export { formatBytes };
 
@@ -103,6 +105,7 @@ export default function Pruebas({ lang, files, onChange }) {
         </div>
       )}
       {files.length > 0 && <p className="proof-meta">{t.proofMeta}</p>}
+      {files.some(f => AV_EXT.includes(extOf(f.name))) && <p className="proof-meta proof-av">{ic(CircleAlert, 16)}{t.proofAvWarn}</p>}
 
       <Dialog open={info} onClose={() => setInfo(false)} title={t.proofMetaLink} closeLabel={t.close}>
         <p>{t.proofMetaFull}</p>

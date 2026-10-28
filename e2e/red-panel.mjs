@@ -153,7 +153,7 @@ if (SCENE === 'gestor') {
 }
 
 if (SCENE === 'nueva') {
-  ok('administradora: menú completo', nav.join('|') === 'Tablero|Informe|Compartir el canal|Equipo y ajustes', nav.join(' · '));
+  ok('administradora: menú completo', nav.join('|') === 'Tablero|Informe|Compartir el canal|Accesos|Equipo y ajustes', nav.join(' · '));
   const onb = page.locator('.pn-notice.is-steps');
   await onb.waitFor();
   ok('empresa recién creada: «Puesta en marcha: 0 de 5 pasos»', (await onb.locator('.pn-notice-txt').innerText()) === 'Puesta en marcha: 0 de 5 pasos');

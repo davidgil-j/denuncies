@@ -169,10 +169,18 @@ await page.waitForSelector('.ds-case');
 const needBefore = Number((await page.locator('.pn-lead').innerText()).match(/\d+/)?.[0] ?? 0);
 await page.goto(`${B}/admin/complaints/c-p3ve8nqc`, { waitUntil: 'networkidle' }); // fraude, en investigación, crítica
 await page.waitForSelector('.cs-desc');
+// A7: no se puede suprimir con la investigación abierta; para la prueba lo pasamos a «resuelto».
+await page.evaluate(() => { const s = JSON.parse(sessionStorage.getItem('reportia-demo-store-v4')); s.complaints.find(x => x.id === 'c-p3ve8nqc').status = 'resolved'; sessionStorage.setItem('reportia-demo-store-v4', JSON.stringify(s)); });
+await page.reload({ waitUntil: 'networkidle' });
 await page.getByRole('button', { name: 'Más acciones' }).click();
 await page.getByRole('button', { name: 'Suprimir datos' }).click();
-await page.locator('dialog[open] textarea').fill('Prueba del pulido: supresión del art. 32.');
+await page.locator('dialog[open] textarea').fill('Prueba del pulido: supresión del caso según el artículo 32.');
 await page.locator('dialog[open] .ds-dialog-actions button').last().click();
+// A7: la supresión tiene 7 días de gracia. Aparece el aviso; adelantamos el plazo y la ejecutamos.
+await page.locator('.cs-suppress').waitFor({ timeout: 8000 });
+await page.evaluate(() => { const s = JSON.parse(sessionStorage.getItem('reportia-demo-store-v4')); s.complaints.find(x => x.id === 'c-p3ve8nqc').suppression.scheduled_for = new Date(Date.now() - 60000).toISOString(); sessionStorage.setItem('reportia-demo-store-v4', JSON.stringify(s)); });
+await page.reload({ waitUntil: 'networkidle' });
+await page.getByRole('button', { name: 'Suprimir ahora' }).click();
 await page.locator('.cs-erased').waitFor({ timeout: 8000 });
 await toastGone();
 await page.goto(`${B}/admin`, { waitUntil: 'networkidle' });

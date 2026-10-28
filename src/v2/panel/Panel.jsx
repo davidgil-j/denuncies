@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BarChart3, Share2, SlidersHorizontal, Search, Plus, LogOut, CircleCheck, CircleAlert, ArrowUpRight } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Share2, ScrollText, SlidersHorizontal, Search, Plus, LogOut, CircleCheck, CircleAlert, ArrowUpRight } from 'lucide-react';
 import { translations } from '../../translations.js';
 import './texts.js'; // textos del panel (lado Gestionar)
 import {
@@ -50,7 +50,7 @@ export default function Panel() {
   const setLang = (l) => { setLangState(l); try { localStorage.setItem(LANG_KEY, l); } catch { /* nada */ } };
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   // La paleta de la empresa («Tu marca») y la apariencia que ha elegido esta persona (claro, oscuro o como el sistema)
-  useBrandTheme(org?.brand_palette, profile?.appearance ?? 'system');
+  useBrandTheme(org?.brand_palette, profile?.appearance ?? 'light'); // 8b: por defecto, claro (no «como el sistema»)
 
   const loadProfile = useCallback(async () => {
     const s = await getAdminSession().catch(() => null);
@@ -189,8 +189,11 @@ export default function Panel() {
   ] : [
     { to: '/admin', label: p.nav.board, icon: LayoutDashboard, active: path === '/admin' || path.startsWith('/admin/complaints') || path.startsWith('/admin/nueva') },
     { to: '/admin/report', label: p.nav.report, icon: BarChart3, active: path.startsWith('/admin/report') },
-    // «Compartir el canal» es cosa de quien administra
-    ...(isSuperadmin ? [{ to: '/admin/integration', label: p.nav.share, short: p.nav.shareShort, icon: Share2, active: path.startsWith('/admin/integration') }] : []),
+    // «Compartir el canal» y «Accesos» son cosa de quien administra
+    ...(isSuperadmin ? [
+      { to: '/admin/integration', label: p.nav.share, short: p.nav.shareShort, icon: Share2, active: path.startsWith('/admin/integration') },
+      { to: '/admin/access', label: p.nav.access, short: p.nav.accessShort, icon: ScrollText, active: path.startsWith('/admin/access') },
+    ] : []),
     { to: '/admin/ajustes', label: p.nav.settings, short: p.nav.settingsShort, icon: SlidersHorizontal, active: inSettings },
   ];
 

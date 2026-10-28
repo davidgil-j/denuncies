@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, BarChart3, CircleAlert, FileSpreadsheet, FileText, AlignLeft, Clock, LayoutDashboard } from 'lucide-react';
-import { listComplaints } from '../../lib/supabase.js';
+import { listComplaints, logOrgExport } from '../../lib/supabase.js';
 import { fmt } from '../V2Layout.jsx';
 import { STATUS_ORDER, OPEN, ANSWERED, deadlineInfo, daysBetween, localeOf } from '../admin/adminKit.jsx';
 import { Button, Card, Field, Skeleton, cx } from '../ui/index.js';
@@ -127,6 +127,7 @@ export default function Informe() {
       const filters = { view: '', status: '', category: '', priority: '', dateFrom: year ? `${year}-01-01` : '', dateTo: year ? `${year}-12-31` : '', q: '', organization: org ?? '' };
       if (kind === 'xlsx') await exportToExcel(list, undefined, lang, filters);
       else await exportSummaryToPDF(list, filters, lang);
+      logOrgExport(kind === 'xlsx' ? 'exported_excel' : 'exported_report'); // A6: la exportación del informe queda anotada
     } catch { notify(p.exportErr, 'err'); }
     setExporting('');
   }

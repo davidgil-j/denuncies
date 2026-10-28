@@ -256,6 +256,22 @@ ok('022 · con el Worker bloqueado, la prueba se resuelve en el hilo principal y
 const noProof = await lookup(a.code, null, { blockWorker: 'all' });
 ok('022 · sin forma de resolver la prueba, el canal lo dice con claridad y no abre en silencio', !noProof.opened && noProof.proofError);
 
+// ── 7 · El resto de la ronda 2 (023-029) sobre los mismos datos ──
+db.migrate(29);
+ok('023-029 · las migraciones aplican en un Postgres real y las funciones nuevas existen',
+  q(`select to_regprocedure('public.madrid_day_start(timestamptz)') is not null`) === 't'
+  && q(`select to_regprocedure('public.list_access_log(integer,integer)') is not null`) === 't'
+  && q(`select to_regprocedure('public.request_suppression(uuid,text)') is not null`) === 't'
+  && q(`select to_regprocedure('public.offboard_organization(uuid)') is not null`) === 't');
+ok('027 · todas las huellas antiguas quedan reescritas con el secreto (M1)',
+  q(`select count(*) from complaints c join private.complaints_copia_019 b on b.id = c.id where c.tracking_hash = b.tracking_hash`) === '0');
+ok('029 · el valor por defecto de appearance es «claro» (8b)',
+  (q(`select column_default from information_schema.columns where table_name = 'profiles' and column_name = 'appearance'`) || '').includes(`'light'`));
+const d = await report('Una denuncia nueva con toda la ronda 2 aplicada (prueba de trabajo al enviar incluida).');
+ok('026 · enviar una denuncia nueva sigue funcionando con todo aplicado', d.errors.length === 0 && /^[A-Z0-9-]+$/.test(d.code ?? ''), d.errors.join(' · '));
+ok('023 · la denuncia web se guarda con la hora al día (00:00 Madrid)',
+  q(`select (created_at at time zone 'Europe/Madrid')::time::text from complaints where tracking_hash = public.tracking_key('${sha(d.code)}')`) === '00:00:00');
+
 await shutdown();
-console.log(problems.length ? `PROBLEMAS: ${problems.join(' · ')}` : 'Base de datos real: la web funciona hasta la 015, con la 016-017, la 018, la 019 y la ronda 2 (020-022: portal endurecido, códigos de 16 y 8, worker bloqueado) sobre los mismos datos');
+console.log(problems.length ? `PROBLEMAS: ${problems.join(' · ')}` : 'Base de datos real: la web funciona hasta la 015, con la 016-017, la 018, la 019 y toda la ronda 2 (020-029) sobre los mismos datos');
 process.exit(problems.length ? 1 : 0);

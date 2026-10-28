@@ -27,6 +27,7 @@ const Caso = lazy(() => import('./v2/panel/Caso.jsx'));
 const Registrar = lazy(() => import('./v2/panel/Registrar.jsx'));
 const Informe = lazy(() => import('./v2/panel/Informe.jsx'));
 const Compartir = lazy(() => import('./v2/panel/Compartir.jsx'));
+const Accesos = lazy(() => import('./v2/panel/Accesos.jsx'));
 const Ajustes = lazy(() => import('./v2/panel/Ajustes.jsx'));
 const Seguridad = lazy(() => import('./v2/panel/Seguridad.jsx'));
 // Si algo que no es el canal acaba dentro de un recuadro de otra web (iframe), solo se ve un aviso con un enlace
@@ -121,6 +122,7 @@ function prefetchNext() {
   } else if (path.startsWith('/admin') && !/login|forgot-password|reset-password/.test(path)) {
     quiet(import('./v2/panel/Caso.jsx')); quiet(import('./v2/panel/Tablero.jsx')); quiet(import('./v2/panel/Informe.jsx'));
     quiet(import('./v2/panel/Compartir.jsx')); quiet(import('./v2/panel/Ajustes.jsx')); quiet(import('./v2/panel/Seguridad.jsx'));
+    quiet(import('./v2/panel/Accesos.jsx'));
   } else {
     // Desde la web, el alta y el acceso (al panel casi nadie va desde aquí)
     quiet(import('./v2/site/V2Signup.jsx')); quiet(acceso());
@@ -183,6 +185,7 @@ export default function App() {
             <Route path="nueva" element={page(<Registrar />)} />
             <Route path="report" element={page(<Informe />)} />
             <Route path="integration" element={page(<Compartir />)} />
+            <Route path="access" element={page(<Accesos />)} />
             <Route path="ajustes" element={page(<Ajustes />)} />
             <Route path="mfa" element={page(<Seguridad />)} />
             {/* Las direcciones de antes (gestores y cuenta) llevan a la página única de ajustes */}

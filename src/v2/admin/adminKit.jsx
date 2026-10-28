@@ -10,7 +10,7 @@ export const STATUS_ORDER = ['received', 'reviewing', 'investigating', 'waiting'
 export const OPEN = ['received', 'reviewing', 'investigating', 'waiting'];
 export { ANSWERED } from '../../lib/deadlines.js';
 export const PRIORITIES = ['low', 'normal', 'high', 'critical'];
-export const PERMS = ['can_view', 'can_edit', 'can_reply', 'can_delete'];
+export const PERMS = ['can_view', 'can_edit', 'can_reply', 'can_delete', 'can_view_identity'];
 
 export { localeOf };
 
@@ -27,6 +27,15 @@ export function fShort(iso, lang) {
 }
 export function fLong(iso, lang) {
   return fDate(iso, lang, { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// A4: lo que viene de quien denuncia se enseña solo con el día (nunca la hora), para que la hora no lo delate.
+// Lo que hace el propio equipo (notas, cambios de estado…) puede llevar hora.
+const REPORTER_ACTIONS = new Set(['created', 'reporter_message', 'meeting_requested']);
+export const isReporterAction = (action) => REPORTER_ACTIONS.has(action);
+/** Fecha de una entrada del registro: solo el día si es de quien denuncia; con hora si es del equipo */
+export function auditWhen(log, lang) {
+  return isReporterAction(log.action) ? fDate(log.created_at, lang) : fDateTime(log.created_at, lang);
 }
 
 // ── Plan de la organización ─────────────────────────────────────────────

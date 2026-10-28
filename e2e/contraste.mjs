@@ -1,7 +1,8 @@
 // Contraste medido (WCAG): cada texto visible contra el fondo real que tiene detrás (componiendo las
 // transparencias), y los bordes de los campos e iconos contra su fondo. Mínimos: 4,5:1 en texto (3:1 si es
 // grande), 3:1 en bordes de campos e iconos. Con «oscuro» (node contraste.mjs oscuro), lo mismo con el sistema en modo
-// oscuro: el canal lo sigue y el panel también (la apariencia de la demo es «como el sistema»).
+// oscuro. 8b: el canal y el acceso al panel SIEMPRE se ven en claro (dan igual con el sistema en oscuro); el panel
+// sí tiene modo oscuro, así que en la tanda «oscuro» se pone la apariencia del perfil en «dark» para medirlo.
 import { chromium } from './lib/playwright.mjs';
 import { audit } from './lib/contraste.mjs';
 const B = 'http://localhost:3111';
@@ -47,7 +48,10 @@ await page.getByLabel('Correo').fill('laura.puig@empresa-demo.es'); await page.l
 await go('/admin/forgot-password?from=demo', '.ac-form'); await check('panel · recuperar contraseña');
 await go('/admin/reset-password', '.ac-form'); await page.waitForTimeout(500); await check('panel · contraseña nueva');
 await page.evaluate(() => { sessionStorage.setItem('reportia-demo-session', '1'); sessionStorage.setItem('reportia-demo-aal', '2'); });
-await go('/admin', '.ds-case'); await check('panel · tablero');
+await go('/admin', '.ds-case');
+// 8b: el panel por defecto es claro; para medir el contraste en oscuro se pone la apariencia del perfil en «dark»
+if (DARK) { await page.evaluate(() => { const s = JSON.parse(sessionStorage.getItem('reportia-demo-store-v4') || 'null'); if (s) { const p = (s.profiles || []).find(x => x.id === 'demo-user'); if (p) { p.appearance = 'dark'; sessionStorage.setItem('reportia-demo-store-v4', JSON.stringify(s)); } } }); await page.reload({ waitUntil: 'networkidle' }); await page.waitForSelector('.ds-case'); await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark').catch(() => {}); }
+await check('panel · tablero');
 await page.locator('.ds-case').first().hover(); await check('panel · tablero con el ratón en una tarjeta');
 await page.getByRole('button', { name: 'Filtrar' }).click(); await page.locator('dialog[open]').waitFor(); await check('panel · filtros'); await page.keyboard.press('Escape');
 await page.getByRole('button', { name: 'Exportar', exact: true }).click(); await check('panel · menú «Exportar»'); await page.keyboard.press('Escape');

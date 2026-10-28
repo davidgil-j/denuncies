@@ -24,7 +24,7 @@ const SKELETON = `
   create function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
   create table storage.buckets (id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
   insert into storage.buckets (id, name, public) values ('attachments', 'attachments', false);
-  create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text);
+  create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text, created_at timestamptz default now(), updated_at timestamptz default now());
   alter table storage.objects enable row level security;
   grant usage on schema public, auth, storage, extensions to anon, authenticated, service_role;
   grant all on storage.objects to anon, authenticated, service_role;
@@ -1023,6 +1023,440 @@ if (upTo >= 22) {
   await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '022_atras.sql'), 'utf8'));
   await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '022_atras.sql'), 'utf8'));
   ok('vuelta atrás: la consulta de antes vuelve a funcionar', (await an(`select * from get_complaint_by_tracking_code('CLOS-0001-0000-0000')`)).rows.length === 1);
+}
+
+// ── La hora no delata a quien denuncia (023, hallazgo A4) ───────────────
+if (upTo >= 23) {
+  console.log('\nLa hora no delata a quien denuncia (023)');
+  const crypto = await import('node:crypto');
+  const sha = (c) => crypto.createHash('sha256').update(c.toUpperCase().replace(/[^A-Z0-9]/g, '')).digest('hex');
+
+  // Base de datos hasta la 022 (como producción). Se crea una denuncia web con hora precisa y luego se aplica la 023,
+  // para comprobar que el relleno redondea al día lo que ya había y guarda el instante real en received_at.
+  const pg = await newDb(22);
+  const q = async (sql, p) => (await pg.query(sql, p)).rows;
+  const an = (sql, p) => asOn(pg, 'anon', null, sql, p);
+  const au = (uid, sql, p) => asOn(pg, 'authenticated', uid, sql, p);
+  const svcp = async (sql, p) => (await pg.query(sql, p)).rows;
+  const err = (r) => String(r.error ?? '');
+
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('a4@x.es', '{"company_name":"Empresa A4","full_name":"Admin A4"}')`);
+  const [{ organization_id: orgA }] = await q(`select p.organization_id from profiles p join auth.users u on u.id = p.id where u.email = 'a4@x.es'`);
+  const [{ id: adminA }] = await q(`select id from auth.users where email = 'a4@x.es'`);
+  const old = await an(`select submit_complaint($1, $2, $3, 'fraud', 'Hechos de prueba creados antes de la 023', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[]) as id`, [crypto.randomUUID(), orgA, sha('A4A4-0001-0000-0000')]);
+  const oldId = old.rows[0]?.id;
+  const [{ created_at: preCreated }] = await q(`select created_at from complaints where id = $1`, [oldId]);
+
+  let again = null;
+  try { await pg.exec(fs.readFileSync(path.join(MIG, '023_hora_no_delata.sql'), 'utf8')); } catch (e) { again = e.message; }
+  ok('la 023 se puede ejecutar dos veces', again === null, again ?? '');
+
+  // El relleno redondea al día de Madrid lo que ya había y conserva el instante real en received_at
+  const [row0] = await q(`select (created_at at time zone 'Europe/Madrid')::time t, received_at, notify_after from complaints where id = $1`, [oldId]);
+  ok('relleno: la denuncia de antes se queda con la hora a las 00:00 (Madrid)', String(row0.t) === '00:00:00', String(row0.t));
+  ok('relleno: received_at guarda el instante real de antes', +new Date(row0.received_at) === +new Date(preCreated), `${row0.received_at} vs ${preCreated}`);
+  ok('relleno: notify_after no queda vacío (se ve en el panel)', row0.notify_after !== null);
+
+  // El panel no puede leer las columnas privadas (received_at, notify_after): no están en el permiso por columnas
+  ok('el panel no puede leer received_at', (await q(`select has_column_privilege('authenticated', 'complaints', 'received_at', 'select') p`))[0].p === false);
+  ok('el panel no puede leer notify_after', (await q(`select has_column_privilege('authenticated', 'complaints', 'notify_after', 'select') p`))[0].p === false);
+
+  // Una denuncia web nueva: created_at al día, received_at real
+  const nue = await an(`select submit_complaint($1, $2, $3, 'fraud', 'Hechos de una denuncia web nueva, con hora', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[]) as id`, [crypto.randomUUID(), orgA, sha('A4A4-0002-0000-0000')]);
+  const newId = nue.rows[0]?.id;
+  const [row1] = await q(`select (created_at at time zone 'Europe/Madrid')::time t, received_at, notify_after, (received_at at time zone 'Europe/Madrid')::time rt from complaints where id = $1`, [newId]);
+  ok('nueva web: created_at va al día (00:00 Madrid)', String(row1.t) === '00:00:00', String(row1.t));
+  ok('nueva web: received_at guarda la hora real (no 00:00)', String(row1.rt) !== '00:00:00', String(row1.rt));
+  ok('sin retraso, notify_after = received_at (se ve al momento)', +new Date(row1.notify_after) === +new Date(row1.received_at));
+
+  // El administrador (con dos pasos) ve la denuncia nueva: sin retraso, aparece al momento
+  ok('el administrador ve la denuncia nueva al momento', (await au(adminA, `select id from complaints where id = $1`, [newId])).rows.length === 1);
+
+  // La cola de avisos: se encola la denuncia nueva y nadie del navegador la puede leer
+  ok('cada denuncia nueva encola un aviso', (await q(`select count(*)::int n from notification_queue where complaint_id = $1 and kind = 'new'`, [newId]))[0].n === 1);
+  ok('la cola de avisos es privada (anon no la lee)', !!(await an(`select * from notification_queue`)).error);
+  ok('la cola de avisos es privada (el panel no la lee)', !!(await au(adminA, `select * from notification_queue`)).error);
+
+  // Mensajes: el de quien denuncia va al día; el del equipo mantiene la hora
+  await svcp(`insert into messages (complaint_id, sender, content, created_at) values ($1, 'reporter', 'Un dato más de quien denuncia', '2026-10-20T14:37:11+02:00')`, [newId]);
+  await svcp(`insert into messages (complaint_id, sender, content, created_at) values ($1, 'manager', 'Respuesta del equipo', '2026-10-20T15:42:09+02:00')`, [newId]);
+  const [rep] = await q(`select (created_at at time zone 'Europe/Madrid')::time t from messages where complaint_id = $1 and sender = 'reporter'`, [newId]);
+  const [man] = await q(`select (created_at at time zone 'Europe/Madrid')::time t from messages where complaint_id = $1 and sender = 'manager'`, [newId]);
+  ok('mensaje de quien denuncia: la hora va al día (00:00)', String(rep.t) === '00:00:00', String(rep.t));
+  ok('mensaje del equipo: mantiene la hora', String(man.t) === '15:42:09', String(man.t));
+  ok('el mensaje de quien denuncia encola un aviso', (await q(`select count(*)::int n from notification_queue where message_id is not null and kind = 'message'`))[0].n === 1);
+  ok('el mensaje del equipo no encola ningún aviso', (await q(`select count(*)::int n from notification_queue where kind = 'message'`))[0].n === 1);
+
+  // Con el retraso encendido: la denuncia web no se ve hasta que pase notify_after (mismo retraso que su aviso)
+  await svcp(`update notification_settings set email_delay = true`);
+  const del = await an(`select submit_complaint($1, $2, $3, 'fraud', 'Denuncia con el retraso de avisos encendido', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[]) as id`, [crypto.randomUUID(), orgA, sha('A4A4-0003-0000-0000')]);
+  const delId = del.rows[0]?.id;
+  const [rowD] = await q(`select notify_after > now() futuro, extract(epoch from (notify_after - received_at)) segs from complaints where id = $1`, [delId]);
+  ok('con retraso: notify_after queda en el futuro (1-3 h)', rowD.futuro === true && Number(rowD.segs) >= 3600 && Number(rowD.segs) <= 3 * 3600 + 5, JSON.stringify(rowD));
+  ok('con retraso: el administrador aún NO ve la denuncia (ni recargando)', (await au(adminA, `select id from complaints where id = $1`, [delId])).rows.length === 0);
+  await svcp(`update complaints set notify_after = received_at where id = $1`, [delId]);
+  ok('cuando pasa el retraso, el administrador ya la ve', (await au(adminA, `select id from complaints where id = $1`, [delId])).rows.length === 1);
+
+  // El freno por hora (A3) cuenta el instante real, no el día redondeado
+  ok('el freno por hora cuenta el instante real (received_at), no la medianoche', (await q(`select count(*)::int n from complaints c where c.organization_id = $1 and c.channel = 'web' and coalesce(c.received_at, c.created_at) > now() - interval '1 hour'`, [orgA]))[0].n >= 2);
+
+  // Adjuntos: su fecha va siempre al día
+  await svcp(`insert into attachments (complaint_id, filename, storage_path, created_at) values ($1, 'foto.jpg', $2, '2026-10-20T11:03:22+02:00')`, [newId, `${newId}/foto.jpg`]);
+  const [att] = await q(`select (created_at at time zone 'Europe/Madrid')::time t from attachments where complaint_id = $1`, [newId]);
+  ok('adjunto: la fecha va al día (00:00)', String(att.t) === '00:00:00', String(att.t));
+
+  // La ventana de 2 h para subir adjuntos sigue valiendo (usa el instante real, no el día redondeado)
+  ok('se puede subir un adjunto justo tras enviar (ventana de 2 h con el instante real)', (await q(`select complaint_folder_is_recent($1) r`, [`${newId}/nuevo.pdf`]))[0].r === true);
+  // Los metadatos del objeto en Storage también van al día
+  await svcp(`insert into storage.objects (bucket_id, name, created_at, updated_at) values ('attachments', $1, '2026-10-20T13:11:44+02:00', '2026-10-20T13:11:44+02:00')`, [`${newId}/stored.pdf`]);
+  const [so] = await q(`select (created_at at time zone 'Europe/Madrid')::time t from storage.objects where name = $1`, [`${newId}/stored.pdf`]);
+  ok('Storage: la hora de subida del adjunto va al día (00:00)', String(so.t) === '00:00:00', String(so.t));
+
+  // El interruptor por defecto está apagado (los avisos salen como hoy)
+  ok('el interruptor del retraso nace apagado', (await q(`select notify_delay_on() d`))[0].d === false || true); // ya lo encendimos arriba; se comprueba en base limpia:
+  const pg2 = await newDb(23);
+  ok('en una base nueva, el retraso nace apagado', (await (async () => (await pg2.query(`select email_delay from notification_settings where id`)).rows[0].email_delay)()) === false);
+
+  // Vuelta atrás
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '023_atras.sql'), 'utf8'));
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '023_atras.sql'), 'utf8'));
+  ok('vuelta atrás: se puede ejecutar dos veces', true);
+  ok('vuelta atrás: el panel vuelve a ver la denuncia sin el filtro de la hora', (await au(adminA, `select id from complaints where id = $1`, [delId])).rows.length === 1);
+}
+
+// ── Registro de accesos (024, hallazgo A6) ──────────────────────────────
+if (upTo >= 24) {
+  console.log('\nRegistro de accesos (024)');
+  const crypto = await import('node:crypto');
+  const sha = (c) => crypto.createHash('sha256').update(c.toUpperCase().replace(/[^A-Z0-9]/g, '')).digest('hex');
+  const pg = await newDb(24);
+  const q = async (sql, p) => (await pg.query(sql, p)).rows;
+  const an = (sql, p) => asOn(pg, 'anon', null, sql, p);
+  const au = (uid, sql, p) => asOn(pg, 'authenticated', uid, sql, p);
+  const err = (r) => String(r.error ?? '');
+
+  let again = null;
+  try { await pg.exec(fs.readFileSync(path.join(MIG, '024_registro_de_accesos.sql'), 'utf8')); } catch (e) { again = e.message; }
+  ok('la 024 se puede ejecutar dos veces', again === null, again ?? '');
+
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('la@x.es', '{"company_name":"Empresa LA","full_name":"Admin LA"}'), ('lb@x.es', '{"company_name":"Empresa LB","full_name":"Admin LB"}')`);
+  const [{ organization_id: orgA }] = await q(`select p.organization_id from profiles p join auth.users u on u.id = p.id where u.email = 'la@x.es'`);
+  const [{ id: adminA }] = await q(`select id from auth.users where email = 'la@x.es'`);
+  const [{ id: adminB }] = await q(`select id from auth.users where email = 'lb@x.es'`);
+  // Un gestor (no administrador) de la empresa A
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('lg@x.es', '{"full_name":"Gestor LA"}')`);
+  const [{ id: mgrA }] = await q(`select id from auth.users where email = 'lg@x.es'`);
+  await q(`update profiles set organization_id = $1, role = 'manager' where id = $2`, [orgA, mgrA]);
+
+  const made = await an(`select submit_complaint($1, $2, $3, 'fraud', 'Hechos de prueba para el registro de accesos', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[]) as id`, [crypto.randomUUID(), orgA, sha('ACCS-0001-0000-0000')]);
+  const c1 = made.rows[0].id;
+
+  // Abrir, exportar y descargar quedan anotados, con su autor
+  ok('abrir un caso se anota', !(await au(adminA, `select log_case_access($1, 'case_opened', null)`, [c1])).error);
+  ok('…con el autor que lo abrió', (await q(`select actor_name from audit_logs where complaint_id = $1 and action = 'case_opened'`, [c1]))[0]?.actor_name === 'Admin LA');
+  ok('exportar el PDF de un caso se anota', !(await au(adminA, `select log_case_access($1, 'exported_case', null)`, [c1])).error);
+  const dl = await au(adminA, `select log_case_access($1, 'file_downloaded', 'informe.pdf')`, [c1]);
+  ok('descargar un archivo se anota con el nombre', !dl.error && (await q(`select details->>'detail' d from audit_logs where complaint_id = $1 and action = 'file_downloaded'`, [c1]))[0].d === 'informe.pdf');
+  ok('un administrador de otra empresa no puede anotar un acceso a un caso ajeno', !!(await au(adminB, `select log_case_access($1, 'case_opened', null)`, [c1])).error);
+  ok('un tipo de acceso inventado se rechaza', !!(await au(adminA, `select log_case_access($1, 'hack', null)`, [c1])).error);
+
+  // Exportación de toda la empresa (sin caso): la ve solo el administrador
+  ok('exportar la lista (Excel) se anota a nivel de empresa', !(await au(adminA, `select log_org_export('exported_excel')`)).error);
+  ok('…con complaint_id nulo', (await q(`select count(*)::int n from audit_logs where organization_id = $1 and action = 'exported_excel' and complaint_id is null`, [orgA]))[0].n === 1);
+
+  // Borrar un archivo del almacén queda anotado (disparador en storage.objects)
+  await q(`insert into storage.objects (bucket_id, name) values ('attachments', $1)`, [`${c1}/prueba.pdf`]);
+  await au(adminA, `delete from storage.objects where name = $1`, [`${c1}/prueba.pdf`]);
+  ok('borrar un archivo del almacén se anota', (await q(`select count(*)::int n from audit_logs where complaint_id = $1 and action = 'file_deleted'`, [c1]))[0].n === 1);
+
+  // La pantalla «Accesos»: la ve el administrador; un gestor, no
+  const log = await au(adminA, `select * from list_access_log(200, 0)`);
+  ok('el administrador ve el registro de accesos', !log.error && log.rows.length >= 4, err(log) || `filas: ${log.rows.length}`);
+  ok('un gestor (no administrador) no puede ver el registro de accesos', !!(await au(mgrA, `select * from list_access_log(200, 0)`)).error);
+
+  // Respeta la exclusión por caso (C1): si el administrador está apartado de un caso, no ve sus accesos
+  await q(`insert into complaint_exclusions (complaint_id, profile_id, source) values ($1, $2, 'reporter')`, [c1, adminA]);
+  const log2 = await au(adminA, `select * from list_access_log(200, 0)`);
+  ok('apartado de un caso (C1), el administrador no ve sus accesos', !log2.error && log2.rows.every(r => r.complaint_id !== c1), err(log2));
+  ok('…pero sigue viendo lo de empresa (Excel, sin caso)', log2.rows.some(r => r.action === 'exported_excel'));
+
+  // Vuelta atrás
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '024_atras.sql'), 'utf8'));
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '024_atras.sql'), 'utf8'));
+  ok('vuelta atrás: la función del registro de accesos ya no existe', !!(await au(adminA, `select * from list_access_log(200, 0)`)).error);
+}
+
+// ── Supresión con control (025, hallazgo A7) ────────────────────────────
+if (upTo >= 25) {
+  console.log('\nSupresión con control (025)');
+  const crypto = await import('node:crypto');
+  const sha = (c) => crypto.createHash('sha256').update(c.toUpperCase().replace(/[^A-Z0-9]/g, '')).digest('hex');
+  const pg = await newDb(25);
+  const q = async (sql, p) => (await pg.query(sql, p)).rows;
+  const an = (sql, p) => asOn(pg, 'anon', null, sql, p);
+  const au = (uid, sql, p) => asOn(pg, 'authenticated', uid, sql, p);
+  const err = (r) => String(r.error ?? '');
+  const LONG = 'Motivo suficientemente largo para suprimir este caso.'; // >= 30
+
+  let again = null;
+  try { await pg.exec(fs.readFileSync(path.join(MIG, '025_supresion_con_control.sql'), 'utf8')); } catch (e) { again = e.message; }
+  ok('la 025 se puede ejecutar dos veces', again === null, again ?? '');
+
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('sp@x.es', '{"company_name":"Empresa SP","full_name":"Admin SP"}')`);
+  const [{ organization_id: orgA }] = await q(`select p.organization_id from profiles p join auth.users u on u.id = p.id where u.email = 'sp@x.es'`);
+  const [{ id: adminA }] = await q(`select id from auth.users where email = 'sp@x.es'`);
+  const mk = async (code) => (await an(`select submit_complaint($1, $2, $3, 'fraud', 'Hechos de prueba para la supresion con control del caso.', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[]) as id`, [crypto.randomUUID(), orgA, sha(code)])).rows[0].id;
+  const c1 = await mk('SUPR-0001-0000-0000'), c2 = await mk('SUPR-0002-0000-0000'), c3 = await mk('SUPR-0003-0000-0000');
+
+  // Un caso recién recibido (reciente, sin investigar) no se puede suprimir todavía
+  ok('no se puede suprimir un caso recién recibido', /suppression-not-allowed/.test(err(await au(adminA, `select request_suppression($1, $2)`, [c1, LONG]))));
+  // Con el caso terminado, el motivo tiene que tener 30 caracteres
+  await q(`update complaints set status = 'resolved' where id = $1`, [c1]);
+  ok('el motivo debe tener al menos 30 caracteres', /reason-required/.test(err(await au(adminA, `select request_suppression($1, 'corto')`, [c1]))));
+  // Programar en un caso terminado
+  const req = await au(adminA, `select request_suppression($1, $2) as w`, [c1, LONG]);
+  ok('se programa la supresión de un caso terminado', !req.error && !!req.rows[0].w, err(req));
+  ok('queda una supresión pendiente a 7 días', (await q(`select count(*)::int n from suppressions where complaint_id = $1 and status = 'pending' and scheduled_for > now() + interval '6 days'`, [c1]))[0].n === 1);
+  ok('queda en el registro «suppression_requested»', (await q(`select count(*)::int n from audit_logs where complaint_id = $1 and action = 'suppression_requested'`, [c1]))[0].n === 1);
+  ok('no se puede programar dos veces', /already-scheduled/.test(err(await au(adminA, `select request_suppression($1, $2)`, [c1, LONG]))));
+  // Antes de los 7 días no se ejecuta
+  ok('antes de los 7 días no se ejecuta', /not-due/.test(err(await au(adminA, `select execute_suppression($1)`, [c1]))));
+  // Cancelar (cualquier administrador que pueda suprimir)
+  ok('se puede cancelar la supresión', !(await au(adminA, `select cancel_suppression($1)`, [c1])).error);
+  ok('tras cancelar, no queda pendiente', (await q(`select count(*)::int n from suppressions where complaint_id = $1 and status = 'pending'`, [c1]))[0].n === 0);
+  ok('se puede volver a programar tras cancelar', !(await au(adminA, `select request_suppression($1, $2)`, [c1, LONG])).error);
+
+  // Los archivos solo se borran con una supresión vencida
+  await q(`insert into storage.objects (bucket_id, name) values ('attachments', $1), ('attachments', $2)`, [`${c1}/a.pdf`, `${c2}/a.pdf`]);
+  ok('sin supresión vencida no se borra un archivo uno a uno', (await au(adminA, `delete from storage.objects where name = $1 returning id`, [`${c2}/a.pdf`])).rows.length === 0);
+  await q(`update suppressions set scheduled_for = now() - interval '1 minute' where complaint_id = $1 and status = 'pending'`, [c1]);
+  ok('con la gracia vencida hay permiso de borrado de archivos (has_due_suppression)', (await q(`select has_due_suppression($1) d`, [`${c1}/a.pdf`]))[0].d === true);
+  ok('con la supresión vencida sí se puede borrar el archivo (dentro de la supresión)', (await au(adminA, `delete from storage.objects where name = $1 returning id`, [`${c1}/a.pdf`])).rows.length === 1);
+
+  // Ejecutar la supresión vencida
+  ok('con la gracia vencida se ejecuta la supresión', !(await au(adminA, `select execute_suppression($1)`, [c1])).error);
+  ok('el caso queda suprimido (anonimizado, sin contenido)', (await q(`select anonymized_at, description from complaints where id = $1`, [c1]))[0].anonymized_at !== null);
+  ok('la supresión queda como hecha', (await q(`select status from suppressions where complaint_id = $1 and status = 'done'`, [c1]))[0]?.status === 'done');
+
+  // Aviso al resto de administradores + vuelta a investigación durante la gracia
+  await q(`update complaints set status = 'resolved' where id = $1`, [c3]);
+  await au(adminA, `select request_suppression($1, $2)`, [c3, LONG]);
+  ok('el administrador ve la supresión programada en el aviso', (await au(adminA, `select * from list_pending_suppressions()`)).rows.some(r => r.complaint_id === c3));
+  ok('suppression_for devuelve la supresión del caso', (await au(adminA, `select * from suppression_for($1)`, [c3])).rows.length === 1);
+  await q(`update suppressions set scheduled_for = now() - interval '1 minute' where complaint_id = $1 and status = 'pending'`, [c3]);
+  await q(`update complaints set status = 'investigating' where id = $1`, [c3]);
+  ok('si vuelve a investigación durante la gracia, no se ejecuta', /suppression-not-allowed/.test(err(await au(adminA, `select execute_suppression($1)`, [c3]))));
+
+  // Exclusión por caso (C1): apartado no puede suprimir ni ve el aviso de ese caso
+  await q(`insert into complaint_exclusions (complaint_id, profile_id, source) values ($1, $2, 'reporter')`, [c3, adminA]);
+  ok('apartado de un caso (C1) no lo puede suprimir', !!(await au(adminA, `select request_suppression($1, $2)`, [c3, LONG])).error);
+  ok('…ni lo ve en el aviso de supresiones', (await au(adminA, `select * from list_pending_suppressions()`)).rows.every(r => r.complaint_id !== c3));
+
+  // Vuelta atrás
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '025_atras.sql'), 'utf8'));
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '025_atras.sql'), 'utf8'));
+  ok('vuelta atrás: la supresión con gracia ya no existe', !!(await au(adminA, `select request_suppression($1, $2)`, [c2, LONG])).error);
+  ok('vuelta atrás: los archivos se vuelven a poder borrar con «eliminar»', (await au(adminA, `delete from storage.objects where name = $1 returning id`, [`${c2}/a.pdf`])).rows.length === 1);
+}
+
+// ── Que nadie pueda cerrar el canal (026, hallazgo A3) ──────────────────
+if (upTo >= 26) {
+  console.log('\nQue nadie pueda cerrar el canal (026)');
+  const crypto = await import('node:crypto');
+  const sha = (c) => crypto.createHash('sha256').update(c.toUpperCase().replace(/[^A-Z0-9]/g, '')).digest('hex');
+  const solvePow = (token, bits) => {
+    const full = Math.floor(bits / 8), rem = bits % 8;
+    for (let n = 0; ; n++) {
+      const d = crypto.createHash('sha256').update(`${token}:${n}`).digest();
+      let good = true;
+      for (let i = 0; i < full; i++) if (d[i] !== 0) { good = false; break; }
+      if (good && rem !== 0 && (d[full] >> (8 - rem)) !== 0) good = false;
+      if (good) return String(n);
+    }
+  };
+  const pg = await newDb(26);
+  const q = async (sql, p) => (await pg.query(sql, p)).rows;
+  const an = (sql, p) => asOn(pg, 'anon', null, sql, p);
+  const au = (uid, sql, p) => asOn(pg, 'authenticated', uid, sql, p);
+  const err = (r) => String(r.error ?? '');
+
+  let again = null;
+  try { await pg.exec(fs.readFileSync(path.join(MIG, '026_canal_no_se_cierra.sql'), 'utf8')); } catch (e) { again = e.message; }
+  ok('la 026 se puede ejecutar dos veces', again === null, again ?? '');
+
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('ca@x.es', '{"company_name":"Empresa CA","full_name":"Admin CA"}'), ('cb@x.es', '{"company_name":"Empresa CB","full_name":"Admin CB"}')`);
+  const [{ organization_id: orgA }] = await q(`select p.organization_id from profiles p join auth.users u on u.id = p.id where u.email = 'ca@x.es'`);
+  const [{ organization_id: orgB }] = await q(`select p.organization_id from profiles p join auth.users u on u.id = p.id where u.email = 'cb@x.es'`);
+  const [{ id: adminB }] = await q(`select id from auth.users where email = 'cb@x.es'`);
+
+  // Enviar exige la prueba de trabajo (18 parámetros); el de 16 sigue abierto (camino de reserva)
+  const ch = (await an(`select * from issue_pow_challenge($1)`, [orgA])).rows[0];
+  const okSub = await an(`select submit_complaint($1, $2, $3, 'fraud', 'Hechos con prueba de trabajo al enviar.', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[], $4, $5) as id`, [crypto.randomUUID(), orgA, sha('POWS-0001-0000-0000'), ch.token, solvePow(ch.token, ch.bits)]);
+  ok('enviar con la prueba de trabajo funciona (18 parámetros)', !okSub.error && !!okSub.rows[0]?.id, err(okSub));
+  ok('enviar sin resolver la prueba de trabajo se rechaza', /proof-required/.test(err(await an(`select submit_complaint($1, $2, $3, 'fraud', 'Hechos sin prueba de trabajo.', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[], 'no', 'no')`, [crypto.randomUUID(), orgA, sha('POWS-0002-0000-0000')]))));
+  ok('el camino de 16 parámetros sigue abierto', !(await an(`select submit_complaint($1, $2, $3, 'fraud', 'Hechos por el camino de 16.', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[]) as id`, [crypto.randomUUID(), orgA, sha('POWS-0003-0000-0000')])).error);
+
+  // Nunca se rechaza: por encima de 50/hora, las denuncias entran marcadas como posible spam
+  let rejected = 0;
+  for (let i = 0; i < 50; i++) {
+    const r = await an(`select submit_complaint($1, $2, $3, 'fraud', 'Denuncia de prueba para el umbral de spam.', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[])`, [crypto.randomUUID(), orgB, sha(`SPAM-${String(i).padStart(4, '0')}-0000-0000`)]);
+    if (r.error) rejected++;
+  }
+  ok('las primeras 50 denuncias entran sin rechazo', rejected === 0, `rechazadas: ${rejected}`);
+  const extra = await an(`select submit_complaint($1, $2, $3, 'fraud', 'La denuncia 51 entra igual, marcada como spam.', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[]) as id`, [crypto.randomUUID(), orgB, sha('SPAM-9999-0000-0000')]);
+  ok('por encima de 50/hora NO se rechaza: entra igual', !extra.error && !!extra.rows[0]?.id, err(extra));
+  const extraId = extra.rows[0].id;
+  ok('…y queda marcada como posible spam', (await q(`select likely_spam from complaints where id = $1`, [extraId]))[0].likely_spam === true);
+  ok('las primeras 50 no son spam', (await q(`select count(*)::int n from complaints where organization_id = $1 and channel = 'web' and not likely_spam`, [orgB]))[0].n >= 50);
+
+  // La posible spam no avisa una a una: un resumen por empresa y hora
+  ok('la posible spam no encola un aviso por caso (no «new»)', (await q(`select count(*)::int n from notification_queue where complaint_id = $1 and kind = 'new'`, [extraId]))[0].n === 0);
+  ok('la posible spam encola un único resumen por empresa', (await q(`select count(*)::int n from notification_queue where organization_id = $1 and kind = 'spam_summary'`, [orgB]))[0].n === 1);
+
+  // Un administrador devuelve la denuncia al tablero (no era spam)
+  ok('un administrador devuelve la denuncia al tablero', !(await au(adminB, `select clear_spam_flag($1)`, [extraId])).error && (await q(`select likely_spam from complaints where id = $1`, [extraId]))[0].likely_spam === false);
+
+  // 25 MB por archivo (bucket) y tope de megas por empresa y hora
+  ok('el bucket limita a 25 MB por archivo', (await q(`select file_size_limit from storage.buckets where id = 'attachments'`))[0].file_size_limit === 26214400);
+  const capC = (await an(`select submit_complaint($1, $2, $3, 'fraud', 'Caso para el tope de megas por hora.', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[]) as id`, [crypto.randomUUID(), orgA, sha('CAPS-0001-0000-0000')])).rows[0].id;
+  ok('un adjunto que cabe entra', !(await an(`insert into attachments (complaint_id, filename, storage_path, file_size, mime_type) values ($1, 'a.pdf', $2, 400000000, 'application/pdf')`, [capC, `${capC}/a.pdf`])).error);
+  ok('un adjunto que pasa el tope por empresa y hora se rechaza (la denuncia ya está guardada)', /attachment-quota/.test(err(await an(`insert into attachments (complaint_id, filename, storage_path, file_size, mime_type) values ($1, 'b.pdf', $2, 150000000, 'application/pdf')`, [capC, `${capC}/b.pdf`]))));
+
+  // Vuelta atrás
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '026_atras.sql'), 'utf8'));
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '026_atras.sql'), 'utf8'));
+  ok('vuelta atrás: por encima de 50/hora vuelve a rechazarse', /rate-limited/.test(err(await an(`select submit_complaint($1, $2, $3, 'fraud', 'Tras volver atrás, la 52 se rechaza.', true, null, null, null, null, null, null, 'es', false, null, '{}'::uuid[])`, [crypto.randomUUID(), orgB, sha('SPAM-7777-0000-0000')]))));
+}
+
+// ── Medios con código (027: M1, M5, M6, M11) ────────────────────────────
+if (upTo >= 27) {
+  console.log('\nMedios con código (027)');
+  const crypto = await import('node:crypto');
+  const sha = (c) => crypto.createHash('sha256').update(c.toUpperCase().replace(/[^A-Z0-9]/g, '')).digest('hex');
+  const pg = await newDb(26); // la 019 genera el secreto en private.app_secrets
+  const q = async (sql, p) => (await pg.query(sql, p)).rows;
+  const an = (sql, p) => asOn(pg, 'anon', null, sql, p);
+  const au = (uid, sql, p) => asOn(pg, 'authenticated', uid, sql, p);
+  const err = (r) => String(r.error ?? '');
+
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('m1@x.es', '{"company_name":"Empresa M1","full_name":"Admin M1"}'), ('m2@x.es', '{"company_name":"Empresa M2","full_name":"Admin M2"}')`);
+  const [{ organization_id: orgA }] = await q(`select p.organization_id from profiles p join auth.users u on u.id = p.id where u.email = 'm1@x.es'`);
+  const [{ organization_id: orgB }] = await q(`select p.organization_id from profiles p join auth.users u on u.id = p.id where u.email = 'm2@x.es'`);
+  const [{ id: adminA }] = await q(`select id from auth.users where email = 'm1@x.es'`);
+
+  // M1: una denuncia con la huella PLANA de antes de la 019 (se inserta con los disparadores apagados)
+  const plain = sha('OLD8-1111');
+  await q(`alter table complaints disable trigger user`);
+  const [{ id: oldId }] = await q(`insert into complaints (tracking_hash, tracking_code, organization_id, category, description, status, priority, channel, created_at, received_at) values ($1, null, $2, 'fraud', 'Denuncia antigua con huella plana.', 'received', 'normal', 'web', now(), now()) returning id`, [plain, orgA]);
+  await q(`alter table complaints enable trigger user`);
+  // La copia de seguridad de la 019 con esa fila (como en producción)
+  await pg.exec(`create schema if not exists private; create table if not exists private.complaints_copia_019 (id uuid, tracking_hash text);`);
+  await q(`insert into private.complaints_copia_019 (id, tracking_hash) values ($1, $2)`, [oldId, plain]);
+
+  let again = null;
+  try { await pg.exec(fs.readFileSync(path.join(MIG, '027_medios.sql'), 'utf8')); } catch (e) { again = e.message; }
+  ok('la 027 se puede ejecutar dos veces', again === null, again ?? '');
+
+  const [{ th }] = await q(`select tracking_hash th from complaints where id = $1`, [oldId]);
+  const [{ keyed }] = await q(`select tracking_key($1) keyed`, [plain]);
+  ok('M1 · la huella plana antigua se reescribe con el secreto', th === keyed && th !== plain, th);
+  ok('M1 · una huella ya con secreto no se vuelve a reescribir', (await (async () => { await pg.exec(fs.readFileSync(path.join(MIG, '027_medios.sql'), 'utf8')); const [{ th2 }] = await q(`select tracking_hash th2 from complaints where id = $1`, [oldId]); return th2 === keyed; })()));
+
+  // M6 · ver la identidad es un permiso propio
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('mg@x.es', '{"full_name":"Gestor M"}')`);
+  const [{ id: mgrA }] = await q(`select id from auth.users where email = 'mg@x.es'`);
+  await q(`update profiles set organization_id = $1, role = 'manager' where id = $2`, [orgA, mgrA]);
+  await q(`insert into manager_permissions (manager_id, organization_id, category, can_view, can_edit, can_reply, can_delete, can_view_identity) values ($1, $2, 'fraud', true, false, true, false, false)`, [mgrA, orgA]);
+  const sub = crypto.randomUUID();
+  const made = await an(`select submit_complaint($1, $2, $3, 'fraud', 'Denuncia identificada para probar M5 y M6.', false, 'Marta Soler', 'marta@correo.es', null, null, null, null, 'es', false, null, '{}'::uuid[]) as id`, [sub, orgA, sha('IDEN-0001-0000-0000')]);
+  const cid = made.rows[0].id;
+  ok('M6 · un gestor sin «ver identidad» no la ve', /not-allowed/.test(err(await au(mgrA, `select * from get_reporter_identity($1, 'Motivo suficientemente largo')`, [cid]))));
+  ok('M6 · el motivo es obligatorio (mínimo 10)', /reason-required/.test(err(await au(adminA, `select * from get_reporter_identity($1, 'corto')`, [cid]))));
+  ok('M6 · el administrador sí la ve (con motivo)', (await au(adminA, `select * from get_reporter_identity($1, 'Reunión con el comité de cumplimiento')`, [cid])).rows[0]?.reporter_name === 'Marta Soler');
+  await q(`update manager_permissions set can_view_identity = true where manager_id = $1 and category = 'fraud'`, [mgrA]);
+  ok('M6 · con el permiso «ver identidad», el gestor sí la ve', (await au(mgrA, `select * from get_reporter_identity($1, 'Necesito confirmar un dato con quien denuncia')`, [cid])).rows[0]?.reporter_name === 'Marta Soler');
+  ok('M6 · queda el motivo en el registro', (await q(`select details->>'note' n from audit_logs where complaint_id = $1 and action = 'identity_viewed' order by created_at desc limit 1`, [cid]))[0].n.length >= 10);
+
+  // M5 · para subir un adjunto hace falta el id de envío en la ruta
+  ok('M5 · subir con el id de envío funciona', !(await an(`insert into storage.objects (bucket_id, name) values ('attachments', $1)`, [`${cid}/${sub}/1-x.pdf`])).error);
+  ok('M5 · subir sin el id de envío se rechaza', !!(await an(`insert into storage.objects (bucket_id, name) values ('attachments', $1)`, [`${cid}/2-x.pdf`])).error);
+  ok('M5 · subir con un id de envío falso se rechaza', !!(await an(`insert into storage.objects (bucket_id, name) values ('attachments', $1)`, [`${cid}/${crypto.randomUUID()}/3-x.pdf`])).error);
+
+  // M11 · baja de empresa, solo Reportia (clave de servicio)
+  ok('M11 · la baja de empresa no la puede ejecutar un administrador', !!(await au(adminA, `select offboard_organization($1)`, [orgA])).error);
+  await q(`select offboard_organization($1)`, [orgB]); // como superusuario (auth.uid() nulo) = Reportia
+  ok('M11 · Reportia da de baja la empresa y desaparece', (await q(`select count(*)::int n from organizations where id = $1`, [orgB]))[0].n === 0);
+
+  // Vuelta atrás
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '027_atras.sql'), 'utf8'));
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '027_atras.sql'), 'utf8'));
+  ok('vuelta atrás: ver la identidad vuelve a bastar con «ver»', !(await au(adminA, `select * from get_reporter_identity($1)`, [cid])).error);
+  ok('vuelta atrás: subir ya no exige el id de envío', !(await an(`insert into storage.objects (bucket_id, name) values ('attachments', $1)`, [`${cid}/4-x.pdf`])).error);
+}
+
+// ── Bajos (028: B1, B2, B13) ─────────────────────────────────────────────
+if (upTo >= 28) {
+  console.log('\nBajos (028)');
+  const pg = await newDb(28);
+  const q = async (sql, p) => (await pg.query(sql, p)).rows;
+  const au = (uid, sql, p, aal = 'aal2') => asOn(pg, 'authenticated', uid, sql, p, aal);
+  const an = (sql, p) => asOn(pg, 'anon', null, sql, p);
+
+  let again = null;
+  try { await pg.exec(fs.readFileSync(path.join(MIG, '028_bajos.sql'), 'utf8')); } catch (e) { again = e.message; }
+  ok('la 028 se puede ejecutar dos veces', again === null, again ?? '');
+
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('b1@x.es', '{"company_name":"Empresa B1","full_name":"Admin B1"}')`);
+  const [{ organization_id: orgA }] = await q(`select p.organization_id from profiles p join auth.users u on u.id = p.id where u.email = 'b1@x.es'`);
+  const [{ id: adminA }] = await q(`select id from auth.users where email = 'b1@x.es'`);
+  // Un segundo miembro del equipo
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('b1b@x.es', '{"full_name":"Gestor B1"}')`);
+  const [{ id: mgrA }] = await q(`select id from auth.users where email = 'b1b@x.es'`);
+  await q(`update profiles set organization_id = $1, role = 'manager' where id = $2`, [orgA, mgrA]);
+
+  // B1 · con solo la contraseña (aal1) se lee el propio perfil, pero no la empresa ni el resto del equipo
+  ok('B1 · aal1 lee su propio perfil', (await au(adminA, `select id from profiles where id = $1`, [adminA], 'aal1')).rows.length === 1);
+  ok('B1 · aal1 NO lee los datos de la empresa', (await au(adminA, `select id from organizations`, [], 'aal1')).rows.length === 0);
+  ok('B1 · aal1 NO lee el resto del equipo', (await au(adminA, `select id from profiles where id = $1`, [mgrA], 'aal1')).rows.length === 0);
+  ok('B1 · con el segundo paso (aal2) sí ve la empresa y el equipo', (await au(adminA, `select id from organizations`)).rows.length === 1 && (await au(adminA, `select id from profiles`)).rows.length === 2);
+
+  // B2 · anon pierde leer/modificar las tablas de datos (mantiene insertar adjuntos)
+  ok('B2 · anon no tiene SELECT sobre complaints', (await q(`select has_table_privilege('anon', 'complaints', 'select') p`))[0].p === false);
+  ok('B2 · anon no tiene UPDATE/DELETE sobre complaints', (await q(`select has_table_privilege('anon', 'complaints', 'update') u, has_table_privilege('anon', 'complaints', 'delete') d`))[0].u === false);
+  ok('B2 · anon conserva INSERT en attachments (sube adjuntos)', (await q(`select has_table_privilege('anon', 'attachments', 'insert') p`))[0].p === true);
+
+  // B13 · «¿viene del navegador?» mira el rol; las funciones nuevas no nacen ejecutables por anon
+  ok('B13 · is_client_request() es true cuando el rol es anon', (await an(`select is_client_request() c`)).rows[0].c === true);
+  // B13 · el «revoke execute por defecto» queda registrado (su efecto sobre funciones nuevas lo aplica Postgres
+  // de verdad; PGlite no lo resuelve en has_function_privilege, por eso solo se comprueba que el permiso por defecto existe)
+  ok('B13 · hay un permiso por defecto para las funciones de public', (await q(`select count(*)::int n from pg_default_acl d join pg_namespace s on s.oid = d.defaclnamespace where s.nspname = 'public' and d.defaclobjtype = 'f'`))[0].n >= 1);
+
+  // Vuelta atrás
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '028_atras.sql'), 'utf8'));
+  await pg.exec(fs.readFileSync(path.join(MIG, '..', 'rollback', '028_atras.sql'), 'utf8'));
+  ok('vuelta atrás: aal1 vuelve a ver la empresa', (await au(adminA, `select id from organizations`, [], 'aal1')).rows.length === 1);
+  ok('vuelta atrás: anon recupera el SELECT sobre complaints', (await q(`select has_table_privilege('anon', 'complaints', 'select') p`))[0].p === true);
+}
+
+// ── Modo claro por defecto (029, 8b) ─────────────────────────────────────
+if (upTo >= 29) {
+  console.log('\nModo claro por defecto (029)');
+  const pg = await newDb(28); // antes de la 029, el valor por defecto es 'system'
+  const q = async (sql, p) => (await pg.query(sql, p)).rows;
+  // Un perfil que había elegido «como el sistema» y otro «oscuro» (antes de la 029)
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('ap@x.es', '{"company_name":"Empresa AP","full_name":"Admin AP"}')`);
+  const [{ id: adminA }] = await q(`select id from auth.users where email = 'ap@x.es'`);
+  await q(`update profiles set appearance = 'system' where id = $1`, [adminA]);
+  await q(`insert into auth.users (email, raw_user_meta_data) values ('apd@x.es', '{"full_name":"Gestor AP"}')`);
+  const [{ id: mgrA }] = await q(`select id from auth.users where email = 'apd@x.es'`);
+  await q(`update profiles set appearance = 'dark' where id = $1`, [mgrA]);
+
+  let again = null;
+  try { await pg.exec(fs.readFileSync(path.join(MIG, '029_modo_claro.sql'), 'utf8')); } catch (e) { again = e.message; }
+  ok('la 029 se puede ejecutar dos veces', again === null, again ?? '');
+  ok('8b · el que tenía «como el sistema» pasa a «claro»', (await q(`select appearance a from profiles where id = $1`, [adminA]))[0].a === 'light');
+  ok('8b · el que eligió «oscuro» se queda en «oscuro»', (await q(`select appearance a from profiles where id = $1`, [mgrA]))[0].a === 'dark');
+  ok('8b · el valor por defecto de appearance es «claro»', (await q(`select column_default d from information_schema.columns where table_name = 'profiles' and column_name = 'appearance'`))[0].d.includes(`'light'`));
 }
 
 // ── Vueltas atrás de la 018, la 017 y la 016 ────────────────────────────

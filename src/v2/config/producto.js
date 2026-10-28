@@ -39,3 +39,17 @@ export const INDEXAR_WEB = false;
 
 /** n.º 83 · Reportia sobre blanco: su icono oficial y el nombre en tinta ('icono'); 'logotipo' usaría el logotipo verde */
 export const LOGO_SOBRE_BLANCO = 'icono';
+
+/**
+ * M3 · Lista cerrada de autoridades externas autonómicas. El canal solo puede enlazar a una de estas: nadie pone
+ * una dirección libre (así nadie puede apuntar a una web que imite a la autoridad y recoja las denuncias externas).
+ * La autoridad estatal (AIPI) es aparte (AIPI_URL en src/v2/V2Layout.jsx).
+ * `verificar: true` = la dirección está POR COMPROBAR y NO se ofrece todavía en los ajustes; David la confirma y le
+ * quita la marca (ver docs/seguridad/QUE_TIENE_QUE_HACER_DAVID.md). Así nunca se enlaza a una dirección sin verificar.
+ */
+export const AUTORIDADES_EXTERNAS = [
+  { id: 'antifrau_cat', name: 'Oficina Antifrau de Catalunya', url: 'https://www.antifrau.cat' },
+  { id: 'avaf', name: 'Agència Valenciana Antiffrau', url: 'https://www.antifraucv.es', verificar: true },
+  { id: 'oaib', name: 'Oficina de Prevenció i Lluita contra la Corrupció (Illes Balears)', url: 'https://www.oaib.es', verificar: true },
+  { id: 'andalucia', name: 'Oficina Andaluza contra el Fraude y la Corrupción', url: 'https://www.antifraudeandalucia.es', verificar: true },
+];

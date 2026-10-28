@@ -128,13 +128,19 @@ const skeleton = (page) => page.evaluate(() => [...document.querySelectorAll('.c
   await p2.waitForSelector('.ds-case');
   ok('tablero: el título que propone la IA no se pone solo; sigue el neutro', await p2.locator('.ds-case', { hasText: 'Posibles apuntes contables que no reflejan la realidad' }).count() === 0 && await p2.locator('.ds-case', { hasText: 'REF-YB3KMV · Cuentas y gastos' }).count() === 1);
   await shot(p2, 'IA-encendida-tablero', { view: true });
-  // Suprimir borra el resumen
+  // Suprimir borra el resumen. A7: la supresión tiene 7 días de gracia; en la prueba lo adelantamos.
   await p2.goto(`${ON}${CASE2}`, { waitUntil: 'networkidle' });
   await p2.waitForSelector('.ai-text');
+  await p2.evaluate(() => { const s = JSON.parse(sessionStorage.getItem('reportia-demo-store-v4')); s.complaints.find(x => x.id === 'c-j6yb3kmv').status = 'resolved'; sessionStorage.setItem('reportia-demo-store-v4', JSON.stringify(s)); });
+  await p2.reload({ waitUntil: 'networkidle' });
   await p2.getByRole('button', { name: 'Más acciones' }).click();
   await p2.getByRole('button', { name: 'Suprimir datos' }).click();
-  await p2.locator('dialog[open] textarea').fill('Prueba: supresión completa del caso.');
+  await p2.locator('dialog[open] textarea').fill('Prueba: supresión completa del caso tras los siete días de gracia.');
   await p2.locator('dialog[open] .ds-dialog-actions button').last().click();
+  await p2.locator('.cs-suppress').waitFor({ timeout: 8000 });
+  await p2.evaluate(() => { const s = JSON.parse(sessionStorage.getItem('reportia-demo-store-v4')); s.complaints.find(x => x.id === 'c-j6yb3kmv').suppression.scheduled_for = new Date(Date.now() - 60000).toISOString(); sessionStorage.setItem('reportia-demo-store-v4', JSON.stringify(s)); });
+  await p2.reload({ waitUntil: 'networkidle' });
+  await p2.getByRole('button', { name: 'Suprimir ahora' }).click();
   await p2.locator('.cs-erased').waitFor({ timeout: 8000 });
   const gone = await p2.evaluate(() => { const c = JSON.parse(sessionStorage.getItem('reportia-demo-store-v4')).complaints.find(x => x.id === 'c-j6yb3kmv'); return [c.ai_summary, c.ai_title, c.title, c.incident_when, c.description]; });
   ok('suprimir el caso borra también el resumen, el título y el «cuándo»', gone.every(x => x === null || x === '') && await p2.locator('.ai-card').count() === 0, JSON.stringify(gone));

@@ -5,11 +5,14 @@
 //    (una foto demasiado grande para el lienzo, un archivo extraño), se quitan los bloques de metadatos byte a byte.
 // 2. Otras fotos (HEIC del iPhone, TIFF, GIF, BMP, AVIF): se convierten a JPEG si el navegador las sabe leer.
 // 3. Si no hay manera de limpiarla, devuelve null: la foto no se envía y el formulario lo dice.
-// El resto de archivos (PDF, vídeo, documentos) se dejan igual: el formulario avisa de que pueden llevar datos ocultos.
+// Office (docx/xlsx/pptx) y PDF se limpian con cleanDocs.js (A5). El resto (vídeo, audio, texto) se deja igual:
+// el formulario avisa de que el vídeo y el audio pueden llevar la ubicación y el modelo del móvil.
+import { isCleanableDoc, cleanDocForAnonymous } from './cleanDocs.js';
 const REDRAW = ['image/jpeg', 'image/png', 'image/webp'];
 
-/** Foto limpia para una denuncia anónima, o null si no se puede limpiar. Los archivos que no son fotos, tal como son. */
+/** Archivo limpio para una denuncia anónima, o null si no se puede limpiar con garantías. */
 export async function cleanForAnonymous(file) {
+  if (isCleanableDoc(file)) return cleanDocForAnonymous(file);
   if (!isImage(file)) return file;
   const type = REDRAW.includes(file.type) ? file.type : 'image/jpeg';
   const drawn = await redraw(file, type);

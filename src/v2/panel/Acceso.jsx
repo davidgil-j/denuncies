@@ -35,7 +35,7 @@ export function AccessLayout() {
   const p = translations[lang].panel;
   const setLang = setLangState;
   // Desde el canal de una empresa, el acceso lleva su paleta; el modo, el del sistema (aún no se sabe quién entra)
-  useBrandTheme(org?.brand_palette, 'system');
+  useBrandTheme(org?.brand_palette, 'light'); // 8b: el acceso al panel siempre en claro
 
   // El idioma del acceso (el del canal desde el que se llega, o el elegido aquí) es el del panel al entrar
   useEffect(() => {

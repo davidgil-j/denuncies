@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2.105.4';
 import { withCors } from '../_shared/cors.ts';
 
 const corsHeaders = {
@@ -52,6 +52,11 @@ Deno.serve(withCors(async (req) => {
     const { count: sent } = await adminClient.from('audit_logs').select('id', { count: 'exact', head: true })
       .eq('organization_id', profile.organization_id).eq('action', 'member_invited').gte('created_at', since);
     if ((sent ?? 0) >= 20) return json({ error: 'invite-limit' }, 429);
+    // B8 · Tope GLOBAL diario (todas las empresas): frena el abuso con muchas empresas creadas en masa, cada una
+    // enviando su cupo. 200 al día en todo Reportia (un cliente real no se acerca; el abuso de correos masivos sí).
+    const { count: globalSent } = await adminClient.from('audit_logs').select('id', { count: 'exact', head: true })
+      .eq('action', 'member_invited').gte('created_at', since);
+    if ((globalSent ?? 0) >= 200) return json({ error: 'invite-limit' }, 429);
 
     // Un correo que ya tiene cuenta solo se puede volver a invitar si es de esta empresa y aún no ha entrado.
     // Nunca se adopta ni se borra una cuenta de otra empresa o sin empresa (migración 014: find_auth_user).

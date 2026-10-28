@@ -7,6 +7,7 @@ import { translations } from '../../translations.js';
 import '../site/texts.js'; // los nombres de los planes (v2site.landing.plans, src/translations-site.js)
 import { planInfo, fLong } from '../admin/adminKit.jsx';
 import { PLANS, CONTACT_EMAIL, formatPrice } from '../site/plans.js';
+import { AUTORIDADES_EXTERNAS } from '../config/producto.js'; // M3: lista cerrada de autoridades
 import { EMAIL_RE, authErrorKey } from '../site/fields.jsx';
 import { isoDay } from '../../lib/businessDays.js';
 import { Button, Card, Dialog, Field, Segmented, Skeleton, cx } from '../ui/index.js';
@@ -62,7 +63,8 @@ export default function Ajustes() {
 // ── Responsable del Sistema ──────────────────────────────────────────────
 function authOf(org) {
   if (!org?.regional_authority_url) return 'none';
-  return org.regional_authority_url === ANTIFRAU_URL ? 'antifrau' : 'other';
+  const found = AUTORIDADES_EXTERNAS.find(a => a.url === org.regional_authority_url);
+  return found ? found.id : 'legacy'; // 'legacy' = una dirección antigua que no está en la lista cerrada
 }
 const respForm = (org) => ({
   responsible_name: org?.responsible_name ?? '',
@@ -109,19 +111,13 @@ function Responsable() {
   async function save(e) {
     e.preventDefault();
     if (busy) return;
-    const name = form.authName.trim();
-    const url = form.authUrl.trim();
-    if (withAuthority && form.auth === 'other' && (!name || !HTTPS.test(url))) {
-      setErrors({ auth: s.errAuth });
-      document.getElementById(name ? 'st-auth-url' : 'st-auth-name')?.focus();
-      return;
-    }
     const changes = { responsible_name: form.responsible_name, responsible_role: form.responsible_role };
     if (withDates) Object.assign(changes, { responsible_appointed_at: form.responsible_appointed_at, aipi_notified_at: form.aipi_notified_at });
     if (withAuthority) {
-      Object.assign(changes, form.auth === 'none' ? { regional_authority_name: '', regional_authority_url: '' }
-        : form.auth === 'antifrau' ? { regional_authority_name: s.authAntifrau, regional_authority_url: ANTIFRAU_URL }
-        : { regional_authority_name: name, regional_authority_url: url });
+      const picked = AUTORIDADES_EXTERNAS.find(a => a.id === form.auth);
+      if (form.auth === 'none') Object.assign(changes, { regional_authority_name: '', regional_authority_url: '' });
+      else if (picked) Object.assign(changes, { regional_authority_name: picked.name, regional_authority_url: picked.url });
+      // 'legacy': se mantiene la dirección antigua tal cual (no se toca) hasta que elijan una de la lista
     }
     setBusy(true);
     const { error } = await saveOrg(changes);
@@ -150,18 +146,12 @@ function Responsable() {
       {counting && <p className="st-small">{s.noHolidays}</p>}
       {withAuthority && (
         <>
+          {/* M3: solo autoridades de la lista cerrada (direcciones fijas); nadie escribe una dirección libre */}
           <Field as="select" size="sm" label={s.authority} value={form.auth} onChange={set('auth')}>
             <option value="none">{s.authNone}</option>
-            <option value="antifrau">{s.authAntifrau}</option>
-            <option value="other">{s.authOther}</option>
+            {AUTORIDADES_EXTERNAS.filter(a => !a.verificar).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+            {form.auth === 'legacy' && <option value="legacy">{org?.regional_authority_name || s.authOther}</option>}
           </Field>
-          {form.auth === 'other' && (
-            <div className="st-two">
-              <Field id="st-auth-name" size="sm" label={s.authName} value={form.authName} onChange={set('authName')} autoComplete="off" maxLength={160} aria-invalid={errors.auth ? true : undefined} />
-              <Field id="st-auth-url" size="sm" type="url" inputMode="url" label={s.authUrl} placeholder="https://" value={form.authUrl} onChange={set('authUrl')} autoComplete="off" spellCheck={false} maxLength={300} aria-invalid={errors.auth ? true : undefined} />
-            </div>
-          )}
-          {errors.auth && <p className="ac-error" role="alert">{alertIcon}{errors.auth}</p>}
         </>
       )}
       <div className="st-foot">

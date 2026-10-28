@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2.105.4';
 import { withCors } from '../_shared/cors.ts';
 
 const corsHeaders = {
@@ -40,14 +40,12 @@ Deno.serve(withCors(async (req) => {
     if (!user_id) return json({ error: 'invalid' }, 400);
     if (user_id === user.id) return json({ error: 'self' }, 400);
 
-    // Solo usuarios de la misma organización, y nunca el último administrador
+    // Solo usuarios de la misma organización
     const { data: target } = await adminClient.from('profiles').select('organization_id, role, full_name').eq('id', user_id).single();
     if (!target || target.organization_id !== profile.organization_id) return json({ error: 'Forbidden' }, 403);
-    if (target.role === 'superadmin') {
-      const { count } = await adminClient.from('profiles').select('id', { count: 'exact', head: true })
-        .eq('organization_id', profile.organization_id).eq('role', 'superadmin');
-      if ((count ?? 0) <= 1) return json({ error: 'last-admin' }, 400);
-    }
+    // B7 · Un administrador NO puede quitar a otro administrador (ni «el denunciado echa al otro»). Para quitar a un
+    // administrador hay que bajarlo antes a gestor (lo ve el equipo) o pedírselo a Reportia. Así nunca lo hace uno solo.
+    if (target.role === 'superadmin') return json({ error: 'admin-protected' }, 400);
 
     // Queda en el registro de actividad de la empresa quién ha quitado a quién del equipo (antes no quedaba rastro)
     const { error: logError } = await adminClient.from('audit_logs').insert({

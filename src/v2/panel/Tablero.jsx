@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { SlidersHorizontal, ChevronDown, Download, FileSpreadsheet, FileText, CircleAlert, MessageSquare, Clock, CircleCheck } from 'lucide-react';
-import { listComplaints, getRetentionDue, hasRedesign } from '../../lib/supabase.js';
+import { listComplaints, getRetentionDue, hasRedesign, logOrgExport, listPendingSuppressions } from '../../lib/supabase.js';
 import { fmt } from '../V2Layout.jsx';
 import { STATUS_ORDER, PRIORITIES, fLong, fShort } from '../admin/adminKit.jsx';
 import { Button, Card, Chip, CaseCard, Kanban, Dialog, Field, Menu, MenuItem, Skeleton, cx } from '../ui/index.js';
@@ -40,6 +40,7 @@ export default function Tablero() {
   const [rows, setRows] = useState(null);
   const [failed, setFailed] = useState(false);
   const [due, setDue] = useState(null); // null: aún no se sabe (el tablero espera, para no saltar al llegar el aviso)
+  const [pendingSup, setPendingSup] = useState([]); // A7: supresiones programadas (aviso al resto de administradores)
   const [filtering, setFiltering] = useState(false);
   const [closedShown, setClosedShown] = useState(CLOSED_SHOWN);
   const [exporting, setExporting] = useState(false);
@@ -62,6 +63,7 @@ export default function Tablero() {
     if (!isSuperadmin) return undefined;
     let alive = true;
     getRetentionDue().then(({ items }) => { if (alive) setDue(items ?? []); }).catch(() => { if (alive) setDue([]); });
+    listPendingSuppressions().then(({ items }) => { if (alive) setPendingSup(items ?? []); }).catch(() => { if (alive) setPendingSup([]); });
     return () => { alive = false; };
   }, [isSuperadmin]);
   useEffect(() => { document.title = `${p.nav.board} · ${org?.name ?? ''}`; }, [p, org]);
@@ -78,6 +80,9 @@ export default function Tablero() {
   };
   const clear = () => setFilter(Object.fromEntries(FILTERS.map(k => [k, ''])));
   const canMine = hasRedesign();
+  // A3: las «posible spam» no salen en el tablero normal; se ven en su bandeja (?spam=1)
+  const spamOn = params.get('spam') === '1';
+  const goSpam = (on) => { const next = new URLSearchParams(params); if (on) next.set('spam', '1'); else next.delete('spam'); setParams(next, { replace: true }); };
 
   const all = useMemo(() => {
     const now = new Date();
@@ -87,14 +92,16 @@ export default function Tablero() {
   const shown = useMemo(() => {
     const from = f.from ? new Date(`${f.from}T00:00:00`) : null;
     const to = f.to ? new Date(`${f.to}T23:59:59`) : null;
-    return all.filter(({ c, s }) => (!f.cat || c.category === f.cat)
+    return all.filter(({ c, s }) => (spamOn ? c.likely_spam : !c.likely_spam)
+      && (!f.cat || c.category === f.cat)
       && (!f.pr || c.priority === f.pr)
       && (!f.st || c.status === f.st)
       && (!f.dl || (f.dl === 'overdue' ? s.overdue : !s.closed && s.dl.next.state === 'soon'))
       && (!f.mine || !canMine || c.assigned_to === profile.id)
       && (!from || new Date(c.created_at) >= from)
       && (!to || new Date(c.created_at) <= to));
-  }, [all, f.cat, f.pr, f.st, f.dl, f.mine, f.from, f.to, canMine, profile.id]);
+  }, [all, spamOn, f.cat, f.pr, f.st, f.dl, f.mine, f.from, f.to, canMine, profile.id]);
+  const spamCount = useMemo(() => all.filter(x => x.c.likely_spam).length, [all]);
 
   const columns = useMemo(() => {
     const by = { new: [], open: [], closed: [] };
@@ -107,7 +114,7 @@ export default function Tablero() {
   }, [shown]);
 
   // Cuántos casos necesitan algo hoy (de todos los que puede ver, no solo de los filtrados)
-  const need = all.filter(x => x.s.today).length;
+  const need = all.filter(x => x.s.today && !x.c.likely_spam).length;
   const from = params.toString() ? `?${params}` : '';
   const loading = (rows === null || (isSuperadmin && due === null)) && !noAccess;
   // Lo que le queda por hacer a la empresa para tener el canal en regla: solo lo ve quien administra
@@ -129,6 +136,7 @@ export default function Tablero() {
       const filters = { view: '', status: f.st, category: f.cat, priority: f.pr, dateFrom: f.from, dateTo: f.to, q: '', organization: org ?? '' };
       if (kind === 'xlsx') await exportToExcel(list, undefined, lang, filters);
       else await exportSummaryToPDF(list, filters, lang);
+      logOrgExport(kind === 'xlsx' ? 'exported_excel' : 'exported_report'); // A6: la exportación queda anotada
     } catch { notify(p.exportErr, 'err'); }
     setExporting(false);
   }
@@ -170,6 +178,18 @@ export default function Tablero() {
         <ul className="pn-notice-refs">{due.map(d => <li key={d.id}><Link to={`/admin/complaints/${d.id}`} state={{ from }}>{d.reference}</Link></li>)}</ul>
       </Notice>
     ),
+    !!pendingSup?.length && (
+      <Notice key="sup" id="pn-sup" tone="warn" text={pendingSup.length === 1 ? p.supPending1 : fmt(p.supPendingN, { n: pendingSup.length })} see={p.see} hide={p.hide}>
+        <p>{p.supPendingText}</p>
+        <ul className="pn-notice-refs">{pendingSup.map(d => <li key={d.complaint_id}><Link to={`/admin/complaints/${d.complaint_id}`} state={{ from }}>{d.reference}</Link>{d.due ? ` · ${p.supDueTag}` : ''}</li>)}</ul>
+      </Notice>
+    ),
+    !spamOn && spamCount > 0 && (
+      <Notice key="spam" id="pn-spam" tone="warn" text={spamCount === 1 ? p.spam1 : fmt(p.spamN, { n: spamCount })} see={p.see} hide={p.hide}>
+        <p>{p.spamText}</p>
+        <Button variant="soft" size="xs" onClick={() => goSpam(true)}>{p.spamSee}</Button>
+      </Notice>
+    ),
     steps && steps.count < STEPS.length && (
       <Notice key="steps" id="pn-onb" className="is-steps" text={fmt(p.onb.line, { n: steps.count })} see={p.see} hide={p.hide}>
         <p>{fmt(p.onb.missing, { list: joinList(missing, p.onb.and) })}</p>
@@ -201,6 +221,13 @@ export default function Tablero() {
           </Menu>
         </div>
       </div>
+
+      {spamOn && (
+        <p className="pn-filtered">
+          <Chip size="md" tone="report">{p.spamTray}</Chip>
+          <button type="button" className="pn-link" onClick={() => goSpam(false)}>{p.spamBack}</button>
+        </p>
+      )}
 
       {active > 0 && (
         <p className="pn-filtered">

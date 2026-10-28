@@ -29,6 +29,7 @@ if (!process.env.LOGIC_CHILD) {
 
 const { deadlineInfo, extensionUntil, madridDay, addMonthsDay, dayToIso, daysBetween } = await import('../src/lib/deadlines.js');
 const { cleanForAnonymous, stripJpeg, stripPng, stripWebp } = await import('../src/lib/cleanImage.js');
+const { cleanDocForAnonymous, stripAuthors } = await import('../src/lib/cleanDocs.js');
 const { isMissingSchema } = await import('../src/lib/whenFallback.js');
 
 let pass = 0, fail = 0;
@@ -102,12 +103,45 @@ const outJ = await cleanForAnonymous(f(jpeg, 'IMG_0042_Maria.jpg', 'image/jpeg')
 ok('una JPEG que no se puede redibujar sale limpia igualmente (antes: tal cual)', !!outJ && !has(new Uint8Array(await outJ.arrayBuffer()), 'GPS'));
 ok('una foto HEIC que no se puede convertir no se envía (antes: con su GPS)', (await cleanForAnonymous(f(Buffer.from('ftypheic GPS Maria'), 'IMG_0042.heic', 'image/heic'))) === null);
 ok('una JPEG rota tampoco', (await cleanForAnonymous(f(Buffer.from([0xff, 0xd8, 0xff, 0xe1, 0xff, 0xff, 1, 2]), 'roto.jpg', 'image/jpeg'))) === null);
-const pdf = f(Buffer.from('%PDF-1.4 prueba'), 'informe.pdf', 'application/pdf');
-ok('un PDF no se toca (el formulario avisa de sus datos ocultos)', (await cleanForAnonymous(pdf)) === pdf);
+// A5: ahora los PDF y los documentos de Office se limpian en las denuncias anónimas
+const pdfDirty = f(Buffer.from('%PDF-1.4\n2 0 obj<</Author (Maria Garcia)/Title (Informe secreto)>>endobj\ntrailer<</Info 2 0 R>>\n%%EOF'), 'informe.pdf', 'application/pdf');
+const outPdf = await cleanForAnonymous(pdfDirty);
+ok('un PDF anónimo sale sin el autor del Info (A5)', !!outPdf && !has(new Uint8Array(await outPdf.arrayBuffer()), 'Maria Garcia') && !has(new Uint8Array(await outPdf.arrayBuffer()), 'Informe secreto'));
+ok('…y el PDF no cambia de tamaño (no se mueven sus referencias)', (await outPdf.arrayBuffer()).byteLength === await pdfDirty.arrayBuffer().then(b => b.byteLength));
+// stripAuthors: quita autores de comentarios y de control de cambios
+ok('stripAuthors quita w:author y dc:creator', !/Maria|Juan/.test(stripAuthors('<c w:author="Maria"/><m><dc:creator>Juan</dc:creator></m>')));
+// Un docx (ZIP) anónimo sale sin autor del core ni de los comentarios. ZIP mínimo «stored» (sin comprimir)
+{
+  const CT = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  const crc = (b) => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CT[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  const zip = (files) => {
+    const loc = [], cen = []; let off = 0;
+    for (const { name, xml } of files) {
+      const nb = Buffer.from(name), d = Buffer.from(xml), c = crc(d);
+      const lh = Buffer.alloc(30 + nb.length); lh.writeUInt32LE(0x04034b50, 0); lh.writeUInt16LE(20, 4); lh.writeUInt32LE(c, 14); lh.writeUInt32LE(d.length, 18); lh.writeUInt32LE(d.length, 22); lh.writeUInt16LE(nb.length, 26); nb.copy(lh, 30);
+      loc.push(lh, d);
+      const ch = Buffer.alloc(46 + nb.length); ch.writeUInt32LE(0x02014b50, 0); ch.writeUInt16LE(20, 4); ch.writeUInt16LE(20, 6); ch.writeUInt32LE(c, 16); ch.writeUInt32LE(d.length, 20); ch.writeUInt32LE(d.length, 24); ch.writeUInt16LE(nb.length, 28); ch.writeUInt32LE(off, 42); nb.copy(ch, 46);
+      cen.push(ch); off += lh.length + d.length;
+    }
+    const csz = cen.reduce((n, c) => n + c.length, 0); const eo = Buffer.alloc(22); eo.writeUInt32LE(0x06054b50, 0); eo.writeUInt16LE(files.length, 8); eo.writeUInt16LE(files.length, 10); eo.writeUInt32LE(csz, 12); eo.writeUInt32LE(off, 16);
+    return new Uint8Array(Buffer.concat([...loc, ...cen, eo]));
+  };
+  const docx = zip([
+    { name: 'docProps/core.xml', xml: '<cp:coreProperties xmlns:cp="x" xmlns:dc="y"><dc:creator>Juan Perez</dc:creator></cp:coreProperties>' },
+    { name: 'word/comments.xml', xml: '<w:comments xmlns:w="z"><w:comment w:author="Maria Lopez"><w:t>hola</w:t></w:comment></w:comments>' },
+  ]);
+  const outDoc = await cleanDocForAnonymous(f(Buffer.from(docx), 'informe.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'));
+  ok('un docx anónimo sale sin autor del core ni del comentario (A5)', !!outDoc && !has(new Uint8Array(await outDoc.arrayBuffer()), 'Juan Perez') && !has(new Uint8Array(await outDoc.arrayBuffer()), 'Maria Lopez'));
+  ok('…y conserva el contenido real y sigue siendo un ZIP', !!outDoc && has(new Uint8Array(await outDoc.arrayBuffer()), 'hola') && (new Uint8Array(await outDoc.arrayBuffer()))[0] === 0x50);
+}
 
 // ── «Tu marca»: paletas y modo oscuro ─────────────────────────────────
 // Lo mismo que mide la prueba de navegador «contraste», pero de las 16 combinaciones a la vez y sin navegador
-const { PALETTE_IDS, themeVars } = await import('../src/v2/lib/brand.js');
+const { PALETTE_IDS, themeVars, resolveMode } = await import('../src/v2/lib/brand.js');
+// 8b: el canal (appearance 'light') siempre en claro, aunque el sistema esté en oscuro; elegir oscuro funciona
+ok('8b · «claro» gana aunque el sistema esté en oscuro', resolveMode('light', true) === 'light');
+ok('8b · «oscuro» pone oscuro', resolveMode('dark', false) === 'dark');
+ok('8b · «como el sistema» sigue al sistema', resolveMode('system', true) === 'dark' && resolveMode('system', false) === 'light');
 const lum = (hex) => { const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
 const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
 // [texto o borde, fondo, mínimo]: 4,5 en texto; 3 en bordes de campo, iconos y el borde de lo elegido

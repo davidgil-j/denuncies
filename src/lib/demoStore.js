@@ -388,7 +388,7 @@ const wait = (ms = 220) => new Promise(r => setTimeout(r, ms));
 const uid = (p) => `${p}-${Math.random().toString(36).slice(2, 10)}`;
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const LIST_FIELDS = ['id', 'reference', 'category', 'status', 'priority', 'is_anonymous', 'department', 'incident_date', 'language', 'created_at', 'updated_at', 'acknowledged_at', 'answered_at', 'extended_until', 'anonymized_at',
-  'description', 'channel', 'meeting_requested', 'meeting_held_at', 'outcome', 'investigation_started_at', 'title', 'assigned_to', 'incident_when', 'meeting_requested_at', 'ai_title'];
+  'description', 'channel', 'meeting_requested', 'meeting_held_at', 'outcome', 'investigation_started_at', 'title', 'assigned_to', 'incident_when', 'meeting_requested_at', 'ai_title', 'likely_spam'];
 const pick = (c) => Object.fromEntries(LIST_FIELDS.map(k => [k, c[k] ?? null]));
 const byDateDesc = (a, b) => new Date(b.created_at) - new Date(a.created_at);
 
@@ -418,13 +418,13 @@ export async function getComplaintById(id) {
   return { complaint: rest, error: null };
 }
 
-export async function getReporterIdentity(id) {
+export async function getReporterIdentity(id, reason) {
   await wait(250);
   const s = db();
   const c = s.complaints.find(x => x.id === id);
   if (!c || c.anonymized_at) return { identity: null, error: { message: 'not-allowed' } };
   if (c.is_anonymous) return { identity: null, error: null };
-  s.audit.push({ id: `a${++s.seq}`, complaint_id: id, action: 'identity_viewed', details: { actor_name: PEOPLE.admin.full_name }, created_at: new Date().toISOString() });
+  s.audit.push({ id: `a${++s.seq}`, complaint_id: id, action: 'identity_viewed', details: { actor_name: PEOPLE.admin.full_name, ...(reason ? { note: String(reason).trim().slice(0, 300) } : {}) }, created_at: new Date().toISOString() });
   save(s);
   return { identity: { reporter_name: c.reporter_name ?? null, reporter_email: c.reporter_email ?? null, reporter_phone: c.reporter_phone ?? null }, error: null };
 }
@@ -486,6 +486,32 @@ export async function getAuditLogs(complaintId) {
     .filter(a => a.complaint_id === complaintId)
     .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   return { logs: clone(logs), error: null };
+}
+
+// ── A6: registro de accesos (demo) ──────────────────────────────────────
+const ACCESS_ACTIONS = ['case_opened', 'exported_case', 'exported_excel', 'exported_report', 'file_downloaded', 'identity_viewed', 'file_deleted', 'anonymized'];
+export async function logCaseAccess(complaintId, kind, detail = null) {
+  const s = db();
+  s.audit.push({ id: `a${++s.seq}`, complaint_id: complaintId, action: kind, details: { actor_name: PEOPLE.admin.full_name, ...(detail ? { detail } : {}) }, created_at: new Date().toISOString() });
+  save(s);
+}
+export async function logOrgExport(kind) {
+  const s = db();
+  s.audit.push({ id: `a${++s.seq}`, complaint_id: null, action: kind, details: { actor_name: PEOPLE.admin.full_name }, created_at: new Date().toISOString() });
+  save(s);
+}
+export async function listAccessLog() {
+  await wait(150);
+  const s = db();
+  const refOf = new Map(s.complaints.map(c => [c.id, c.reference]));
+  const rows = s.audit
+    .filter(a => ACCESS_ACTIONS.includes(a.action))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .map(a => ({
+      id: a.id, created_at: a.created_at, action: a.action, actor_name: a.details?.actor_name ?? null,
+      reference: a.complaint_id ? (refOf.get(a.complaint_id) ?? null) : null, detail: a.details?.detail ?? null, complaint_id: a.complaint_id ?? null,
+    }));
+  return { rows, error: null };
 }
 
 // ── Mensajes ────────────────────────────────────────────────────────────
@@ -640,6 +666,71 @@ export async function anonymize(complaintId, reason, actorName = '') {
   });
   s.messages[complaintId] = [];
   push(s, complaintId, 'anonymized', { note: reason.trim(), actor_name: actorName || undefined });
+  save();
+  return { error: null };
+}
+
+// ── A7: supresión con control (demo) ────────────────────────────────────
+const FINISHED = ['resolved', 'closed', 'archived'];
+// ¿La ley permite suprimir este caso ahora? (nunca con la investigación abierta)
+function supAllowed(c) {
+  if (!c || c.anonymized_at || c.status === 'investigating') return false;
+  if (FINISHED.includes(c.status)) return true;
+  const months = madridDay(new Date()) - madridDay(c.created_at) >= 90; // ~3 meses
+  return months && !c.investigation_started_at;
+}
+export async function requestSuppression(complaintId, reason) {
+  await wait(300);
+  const s = db();
+  const c = s.complaints.find(x => x.id === complaintId);
+  if (!c || c.anonymized_at) return { scheduledFor: null, missing: false, error: { message: 'not-allowed' } };
+  if (!reason || reason.trim().length < 30) return { scheduledFor: null, missing: false, error: { message: 'reason-required' } };
+  if (!supAllowed(c)) return { scheduledFor: null, missing: false, error: { message: 'suppression-not-allowed' } };
+  if (c.suppression?.status === 'pending') return { scheduledFor: null, missing: false, error: { message: 'already-scheduled' } };
+  const when = new Date(Date.now() + 7 * DAY).toISOString();
+  c.suppression = { reason: reason.trim(), scheduled_for: when, requested_by_name: PEOPLE.admin.full_name, status: 'pending' };
+  push(s, complaintId, 'suppression_requested', { note: reason.trim(), actor_name: PEOPLE.admin.full_name });
+  save();
+  return { scheduledFor: when, missing: false, error: null };
+}
+export async function cancelSuppression(complaintId) {
+  await wait(250);
+  const s = db();
+  const c = s.complaints.find(x => x.id === complaintId);
+  if (!c) return { error: { message: 'not-allowed' } };
+  if (c.suppression) c.suppression = null;
+  push(s, complaintId, 'suppression_cancelled', { actor_name: PEOPLE.admin.full_name });
+  save();
+  return { error: null };
+}
+export async function executeSuppression(complaintId) {
+  const s = db();
+  const c = s.complaints.find(x => x.id === complaintId);
+  if (!c?.suppression || c.suppression.status !== 'pending') return { error: { message: 'not-due' } };
+  if (new Date(c.suppression.scheduled_for).getTime() > Date.now()) return { error: { message: 'not-due' } };
+  const reason = c.suppression.reason;
+  c.suppression = null;
+  return anonymize(complaintId, reason, PEOPLE.admin.full_name);
+}
+export async function suppressionFor(complaintId) {
+  await wait(120);
+  const c = db().complaints.find(x => x.id === complaintId);
+  const sp = c?.suppression?.status === 'pending' ? c.suppression : null;
+  return { pending: sp ? { reason: sp.reason, scheduled_for: sp.scheduled_for, requested_by_name: sp.requested_by_name, due: new Date(sp.scheduled_for).getTime() <= Date.now() } : null, error: null };
+}
+export async function listPendingSuppressions() {
+  await wait(150);
+  const items = db().complaints
+    .filter(c => c.suppression?.status === 'pending')
+    .map(c => ({ complaint_id: c.id, reference: c.reference, reason: c.suppression.reason, scheduled_for: c.suppression.scheduled_for, requested_by_name: c.suppression.requested_by_name, due: new Date(c.suppression.scheduled_for).getTime() <= Date.now() }));
+  return { items, error: null };
+}
+
+// A3: devolver una denuncia al tablero (no era spam)
+export async function clearSpamFlag(complaintId) {
+  const s = db();
+  const c = s.complaints.find(x => x.id === complaintId);
+  if (c) c.likely_spam = false;
   save();
   return { error: null };
 }
@@ -839,7 +930,7 @@ export async function getProfile(id) {
   const p = db().profiles.find(x => x.id === id);
   if (!p) return { profile: null, error: null };
   const { email, invited, ...profile } = p; // eslint-disable-line no-unused-vars
-  return { profile: clone({ appearance: 'system', ...profile }), error: null };
+  return { profile: clone({ appearance: 'light', ...profile }), error: null }; // 8b: por defecto, claro
 }
 
 export async function getAllProfiles() {
@@ -885,6 +976,8 @@ export async function updateProfile(userId, updates) {
 export async function deleteManager(userId) {
   await wait(400);
   const s = db();
+  // B7: un administrador no puede quitar a otro administrador (hay que bajarlo antes, o lo hace Reportia)
+  if (s.profiles.find(p => p.id === userId)?.role === 'superadmin') return { error: { message: 'admin-protected' } };
   s.profiles = s.profiles.filter(p => p.id !== userId);
   s.permissions = s.permissions.filter(p => p.manager_id !== userId);
   save();

@@ -147,6 +147,9 @@ const fDateTime = (v, locale) => {
 };
 const fLong = (d, locale) => d.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
 const isoDay = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+// A4: lo de quien denuncia, solo el día; lo del equipo, con hora. Igual que en la ficha (adminKit.auditWhen).
+const REPORTER_ACTIONS = new Set(['created', 'reporter_message', 'meeting_requested']);
+const fAuditWhen = (e, locale) => (REPORTER_ACTIONS.has(e.action) ? fDate(e.created_at, locale) : fDateTime(e.created_at, locale));
 
 /**
  * Plazos del artículo 9 de la Ley 2/2023, con la misma cuenta que el panel (src/lib/deadlines.js):
@@ -887,8 +890,8 @@ export async function buildComplaintPDF(complaint, messages = [], lang = 'es', {
   }
   data.push([t.cDept, c.department || t.notStated]);
   data.push([t.cIncident, fDate(c.incident_date, locale) || t.notStated]);
-  data.push([t.cReceivedLong, fDateTime(c.created_at, locale) || t.notStated]);
-  if (c.updated_at) data.push([t.updated, fDateTime(c.updated_at, locale)]);
+  data.push([t.cReceivedLong, fDate(c.created_at, locale) || t.notStated]);   // A4: solo el día
+  if (c.updated_at) data.push([t.updated, fDate(c.updated_at, locale)]);      // A4: solo el día
   if (c.language) data.push([t.language, D.langName(c.language)]);
   table(ctx, {
     body: data,
@@ -979,7 +982,7 @@ export async function buildComplaintPDF(complaint, messages = [], lang = 'es', {
     const sorted = [...msgs].sort((a, b) => (toDate(a.created_at) ?? 0) - (toDate(b.created_at) ?? 0));
     table(ctx, {
       head: [[t.mDate, t.mFrom, t.mText]],
-      body: sorted.map(m => [fDateTime(m.created_at, locale), m.sender === 'manager' ? t.manager : t.reporter, String(m.content ?? '').trim()]),
+      body: sorted.map(m => [fDate(m.created_at, locale), m.sender === 'manager' ? t.manager : t.reporter, String(m.content ?? '').trim()]),   // A4: los mensajes, sin hora
       columnStyles: {
         0: { cellWidth: 30, textColor: C.ink2, fontSize: 7.8 },
         1: { cellWidth: 25 },
@@ -1001,7 +1004,7 @@ export async function buildComplaintPDF(complaint, messages = [], lang = 'es', {
     const sorted = [...audit].sort((a, b) => (toDate(a.created_at) ?? 0) - (toDate(b.created_at) ?? 0));
     table(ctx, {
       head: [[t.logDate, t.logAction, t.logDetail]],
-      body: sorted.map(e => [fDateTime(e.created_at, locale), auditLabel(e, D), auditDetail(e)]),
+      body: sorted.map(e => [fAuditWhen(e, locale), auditLabel(e, D), auditDetail(e)]),   // A4: lo de quien denuncia, solo el día
       columnStyles: {
         0: { cellWidth: 30, textColor: C.ink2, fontSize: 7.8 },
         1: { cellWidth: 62 },

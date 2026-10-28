@@ -249,6 +249,7 @@
 .cs-file small { flex: none; font-size: 13px; font-weight: 500; color: var(--muted); }
 .cs-file-note { display: block; padding: 2px 0; font-size: 13px; color: var(--muted); }
 .cs-file-note.is-err { font-weight: 600; color: var(--danger-ink); }
+.cs-file-note.is-warn { font-weight: 600; color: var(--warn-ink); }
 /* La caja de escribir, pegada al final de la conversación: el texto arriba y, debajo, sus acciones y «Enviar» */
 .cs-compose.ds-compose.is-stacked { gap: 0; border-radius: 10px; }
 .cs-compose > .ds-input { min-height: 76px; border-bottom-color: var(--line); border-radius: 10px 10px 0 0; }
@@ -751,3 +752,32 @@ button.sh-step:disabled { cursor: progress; }
 .cs-access-who small { color: var(--muted); font-size: 12.5px; }
 .cs-access-row.is-excluded .cs-access-who b { color: var(--muted); text-decoration: line-through; }
 .cs-access-locked { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+
+/* ── A6 · Pantalla «Accesos» ──
+   Registro de quién abre, exporta, descarga, ve la identidad o suprime. En el ordenador, cada entrada es una
+   fila (cuándo · quién · acción · caso); en el móvil se apila. Las acciones del equipo llevan la hora. */
+.pn-access { display: flex; flex-direction: column; margin-top: 16px; }
+.pn-access-row { display: grid; grid-template-columns: 170px 160px minmax(0, 1fr) 120px; gap: 12px; align-items: baseline; padding: 12px 0; border-top: 1px solid var(--line); font-size: 14px; line-height: 1.45; }
+.pn-access-row:first-child { border-top: 0; }
+.pn-access-when { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.pn-access-who { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pn-access-what { min-width: 0; }
+.pn-access-what b { font-weight: 600; }
+.pn-access-what q { quotes: none; margin-left: 6px; font-size: 13px; color: var(--muted); }
+.ds .pn-access-case a { font-weight: 600; color: var(--report); text-decoration: none; }
+.ds .pn-access-case a:hover { text-decoration: underline; }
+@media (max-width: 760px) {
+  .pn-access-row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .pn-access-when { order: -1; }
+}
+
+/* ── A7 · Supresión programada (periodo de gracia) ──
+   Aviso ámbar en la ficha: la supresión está programada; cualquier administrador puede cancelarla y, pasada la
+   gracia, ejecutarla. El ámbar es el único color de aviso que permiten las reglas (estados y plazos). */
+.cs-suppress { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border: 1px solid var(--warn-ink); border-radius: var(--r-lg); background: var(--warn-bg); font-size: 14px; line-height: 1.5; color: var(--ink); }
+.cs-suppress > svg { margin-top: 2px; color: var(--warn-ink); flex: none; }
+.cs-suppress b { color: var(--warn-ink); }
+.cs-suppress-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cs-suppress-reason { quotes: none; font-size: 13px; color: var(--muted); }
+.cs-suppress-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+@media (max-width: 640px) { .cs-suppress { padding: 12px 0; border-width: 1px 0; border-radius: 0; background: none; } }

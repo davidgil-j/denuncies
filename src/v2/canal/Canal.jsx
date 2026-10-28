@@ -35,7 +35,7 @@ export default function Canal() {
   const [leaving, setLeaving] = useState(false); // se ha pulsado «Acceder» con una denuncia a medias
   const t = translations[lang].canal;
   // La marca de la empresa (su paleta) y el modo claro u oscuro del sistema de quien entra: no se guarda nada
-  useBrandTheme(org?.brand_palette, 'system');
+  useBrandTheme(org?.brand_palette, 'light'); // 8b: el canal siempre en claro (los colores de la empresa como los eligió)
   const base = `/canal/${slug}`;
   const sub = pathname.slice(base.length).replace(/^\/+|\/+$/g, '');
   // En el canal de ejemplo «Gestionar» no lleva al acceso real: no hay cuenta detrás, se invita a crear una. En la

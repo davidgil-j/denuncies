@@ -7,12 +7,13 @@ import {
 import {
   getComplaintById, getReporterIdentity, getMessages, sendMessage, getAuditLogs, updateComplaint, addComplaintNote,
   markMessagesRead, extendDeadline, anonymizeComplaint, getAttachmentUrl, markMeetingHeld, markFiscalReferral, listAssignees, hasRedesign, AI_ENABLED,
-  listComplaintAccess, excludeFromComplaint, includeInComplaint,
+  listComplaintAccess, excludeFromComplaint, includeInComplaint, logCaseAccess,
+  requestSuppression, cancelSuppression, executeSuppression, suppressionFor, clearSpamFlag,
 } from '../../lib/supabase.js';
 import { translations } from '../../translations.js';
 import './texts.js'; // textos del panel (lado Gestionar)
 import { fmt } from '../V2Layout.jsx';
-import { deadlineInfo, fDateTime, fLong, fShort, auditText, PRIORITIES } from '../admin/adminKit.jsx';
+import { deadlineInfo, fDateTime, fLong, fShort, auditWhen, auditText, PRIORITIES } from '../admin/adminKit.jsx';
 import { extensionUntil } from '../../lib/deadlines.js';
 import { Button, IconButton, Card, Chip, Field, Segmented, StepBar, ChatThread, ChatComposer, Dialog, Menu, MenuItem, Skeleton, cx } from '../ui/index.js';
 import { deadlineLook } from '../ui/DeadlineChip.jsx';
@@ -23,7 +24,24 @@ import { formatBytes } from '../../lib/format.js';
 
 // Icono pequeño de un título de sección (16 px, trazo 2), en el color de acento por CSS
 const ti = (Icon) => <Icon size={16} strokeWidth={2} aria-hidden="true" />;
-const LOCALE = { ca: 'ca-ES', es: 'es-ES', en: 'en-GB' };
+
+// M7: primeros bytes esperados por tipo. Office y OpenDocument son ZIP (empiezan por «PK»). Los tipos sin firma
+// conocida (txt, csv, vídeo, audio…) no se comprueban: devuelven true para no avisar en falso.
+const MAGIC = {
+  pdf: b => b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46,
+  jpg: b => b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF,
+  png: b => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47,
+  gif: b => b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46,
+  webp: b => b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42,
+  zip: b => b[0] === 0x50 && b[1] === 0x4B, // docx/xlsx/pptx/odt/ods/odp/zip
+};
+function magicOk(bytes, name, _mime) {
+  let ext = (String(name || '').split('.').pop() || '').toLowerCase();
+  if (['jpeg'].includes(ext)) ext = 'jpg';
+  if (['docx', 'xlsx', 'pptx', 'docm', 'xlsm', 'pptm', 'odt', 'ods', 'odp'].includes(ext)) ext = 'zip';
+  const check = MAGIC[ext];
+  return check ? check(bytes) : true;
+}
 
 /**
  * Ficha de un caso: el siguiente paso en una franja con su único botón de color; lo que ha contado, la
@@ -46,6 +64,8 @@ export default function Caso() {
   const [accessErr, setAccessErr] = useState('');
   const [identity, setIdentity] = useState(null);
   const [loadErr, setLoadErr] = useState(false);
+  const [pendingSup, setPendingSup] = useState(null); // A7: supresión programada de este caso (o null)
+  const openedRef = useRef(null); // A6: para anotar «abrir el caso» una sola vez por caso, no en cada recarga
   const [dialog, setDialog] = useState(null); // ack | close | extend | suppress | fiscal
   const [note, setNote] = useState(''); // la nota interna que se está escribiendo
   // Solo cuentan en el móvil: la pestaña a la vista, la descripción entera o resumida y el campo de la nota abierto
@@ -80,6 +100,10 @@ export default function Caso() {
     setC(complaint ?? null);
     setMessages(msgs ?? []);
     setLogs(l ?? []);
+    // A6: abrir un caso queda anotado en la base de datos, una sola vez por caso (no en cada recarga)
+    if (complaint && openedRef.current !== complaint.id) { openedRef.current = complaint.id; logCaseAccess(complaint.id, 'case_opened'); }
+    // A7: ¿hay una supresión programada? (null si la base de datos aún no tiene la 025)
+    if (complaint) suppressionFor(id).then(({ pending }) => setPendingSup(pending ?? null)); else setPendingSup(null);
     // Al abrirlo, los mensajes de quien informa quedan leídos (solo si quien lo abre puede responder: si no,
     // el aviso de «mensaje nuevo» desaparecería para quien sí tiene que hacerlo)
     if (complaint && can('reply', complaint.category) && (msgs ?? []).some(m => m.sender === 'reporter' && !m.is_read)) markMessagesRead(complaint.id);
@@ -235,18 +259,57 @@ export default function Caso() {
   }
   async function doSuppress() {
     if (busy) return;
-    if (text.trim().length < 5) { setDErr(t.supErrReason); return; }
+    if (text.trim().length < 30) { setDErr(t.supErrReason); return; }
     setBusy(true);
-    const { error } = await anonymizeComplaint(c.id, text.trim(), actor);
+    // A7: se programa la supresión (gracia de 7 días). Si la base de datos aún no tiene la 025, se cae a la supresión de antes (inmediata).
+    const { scheduledFor, missing, error } = await requestSuppression(c.id, text.trim());
+    if (missing) {
+      const { error: oldErr } = await anonymizeComplaint(c.id, text.trim(), actor);
+      setBusy(false);
+      if (oldErr) { setDErr(t.delErr); return; }
+      setDialog(null);
+      notify(fmt(t.deleted, { code: c.reference }));
+      loadAll();
+      return;
+    }
     setBusy(false);
-    if (error) { setDErr(t.delErr); return; }
+    if (error) { setDErr(/suppression-not-allowed/.test(String(error.message)) ? t.supNotAllowed : t.delErr); return; }
     setDialog(null);
+    notify(fmt(t.supScheduled, { date: fLong(scheduledFor, lang) }));
+    loadAll();
+  }
+  // A7: cancelar la supresión programada (cualquier administrador que pueda suprimir)
+  async function doCancelSup() {
+    if (busy) return;
+    setBusy(true);
+    const { error } = await cancelSuppression(c.id);
+    setBusy(false);
+    if (error) { notify(t.delErr, 'err'); return; }
+    notify(t.supCancelled);
+    loadAll();
+  }
+  // A7: ejecutar la supresión ya vencida (borra los archivos y anonimiza)
+  async function doExecuteSup() {
+    if (busy) return;
+    setBusy(true);
+    const { error } = await executeSuppression(c.id);
+    setBusy(false);
+    if (error) { notify(t.delErr, 'err'); return; }
     notify(fmt(t.deleted, { code: c.reference }));
     loadAll();
   }
   async function doFiscal() {
     const ok = await run(() => markFiscalReferral(c.id, text.trim(), actor), p.fiscalOk);
     if (ok) setDialog(null);
+  }
+  // A3: devolver una denuncia al tablero (no era spam)
+  async function doClearSpam() {
+    if (busy) return;
+    setBusy(true);
+    const { error } = await clearSpamFlag(c.id);
+    setBusy(false);
+    if (error) { notify(t.delErr, 'err'); return; }
+    loadAll();
   }
   async function send(body) {
     // Con el caso en «Recibida», el primer mensaje es el acuse de recibo: se abre su diálogo con lo escrito
@@ -267,14 +330,17 @@ export default function Caso() {
     const ok = await change({ title: editing });
     if (ok) setEditing(null);
   }
-  async function reveal() {
+  // M6: ver la identidad pide un motivo (queda en el registro) y necesita el permiso «ver identidad»
+  async function doReveal() {
     if (idBusy) return;
+    if (text.trim().length < 10) { setDErr(p.identReasonErr); return; }
     setIdBusy(true);
     setIdErr(false);
-    const { identity: found, error } = await getReporterIdentity(c.id);
+    const { identity: found, error } = await getReporterIdentity(c.id, text.trim());
     setIdBusy(false);
-    if (error || !found) { setIdErr(true); return; }
+    if (error || !found) { setDErr(p.identErr); return; }
     setIdentity(found);
+    setDialog(null);
     const { logs: l } = await getAuditLogs(id);
     setLogs(l ?? []);
   }
@@ -296,7 +362,19 @@ export default function Caso() {
     const { url, demo, error } = await getAttachmentUrl(a.storage_path);
     if (demo) { setFileNote({ id: a.id, text: t.downloadDemo }); return; }
     if (error || !url) { setFileNote({ id: a.id, text: p.downloadErr, err: true }); return; }
-    window.open(url, '_blank', 'noopener');
+    logCaseAccess(id, 'file_downloaded', a.filename); // A6: descargar un archivo queda anotado
+    // M7: se descarga (no se abre en una pestaña, para que nada se ejecute), con el nombre neutro, y se comprueban
+    // los primeros bytes contra el tipo declarado. Si no cuadran, se avisa (el archivo puede no ser lo que dice).
+    try {
+      const buf = new Uint8Array(await (await fetch(url)).arrayBuffer());
+      const blob = new Blob([buf], { type: 'application/octet-stream' }); // octet-stream fuerza la descarga
+      const dl = document.createElement('a');
+      dl.href = URL.createObjectURL(blob);
+      dl.download = a.filename || 'adjunto';
+      document.body.appendChild(dl); dl.click(); dl.remove();
+      setTimeout(() => URL.revokeObjectURL(dl.href), 10000);
+      if (!magicOk(buf, a.filename, a.mime_type)) setFileNote({ id: a.id, text: p.downloadMismatch, warn: true });
+    } catch { setFileNote({ id: a.id, text: p.downloadErr, err: true }); }
   }
   async function exportPdf() {
     try {
@@ -305,6 +383,7 @@ export default function Caso() {
       const { exportComplaintToPDF } = await import('../lib/exportV2.js');
       // La identidad solo sale en el PDF si se ha consultado en esta ficha (y la consulta ya consta en el historial)
       await exportComplaintToPDF({ ...c, ...(identity ?? { identityWithheld: true }), tracking_code: c.reference, organization: org ?? '', audit_logs, deadline: info }, messages, lang);
+      logCaseAccess(id, 'exported_case'); // A6: exportar el PDF de un caso queda anotado
     } catch { notify(p.exportErr, 'err'); }
   }
   // «Proponer la reunión»: deja el mensaje preparado en la conversación para que se edite y se envíe
@@ -342,7 +421,8 @@ export default function Caso() {
   const files = c.attachments ?? [];
   const thread = messages.map(m => ({
     id: m.id, mine: m.sender === 'manager', author: m.sender === 'manager' ? (org?.name ?? '') : p.reporter,
-    when: fDateTime(m.created_at, lang), text: m.content, isNew: m.sender === 'reporter' && !m.is_read,
+    // A4: los mensajes se ven sin hora (el de quien denuncia podría delatarlo cruzando la hora con los registros)
+    when: fShort(m.created_at, lang), text: m.content, isNew: m.sender === 'reporter' && !m.is_read,
   }));
   const history = [...logs].reverse();
   // Las notas internas son entradas del historial; aquí se leen juntas, de la más antigua a la más reciente
@@ -350,7 +430,8 @@ export default function Caso() {
   const title = caseTitle(c, tr);
   const cat = cats[c.category]?.[0] ?? c.category;
   const via = p.via[c.channel ?? 'web'] ?? p.via.other;
-  const received = fmt(p.receivedOn, { date: fShort(c.created_at, lang), time: new Date(c.created_at).toLocaleTimeString(LOCALE[lang] ?? 'es-ES', { hour: '2-digit', minute: '2-digit' }), via });
+  // A4: solo el día, nunca la hora (la hora de quien denuncia podría delatarlo cruzándola con los registros de la empresa)
+  const received = fmt(p.receivedOn, { date: fShort(c.created_at, lang), via });
   const flag = <Flag size={13} strokeWidth={2} aria-hidden="true" />;
   const meetLeft = meeting?.pending
     ? (meeting.days < -1 ? fmt(p.meetOverN, { n: -meeting.days }) : meeting.days === -1 ? p.meetOver1 : meeting.days === 0 ? p.meetToday : meeting.days === 1 ? p.meetLeft1 : fmt(p.meetLeftN, { n: meeting.days }))
@@ -410,6 +491,32 @@ export default function Caso() {
         </p>
       </div>
 
+      {/* A3: posible spam. La denuncia entró por encima del ritmo normal; si es real, se devuelve al tablero */}
+      {!erased && c.likely_spam && (
+        <div className="cs-suppress" role="note">
+          <CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />
+          <div className="cs-suppress-body">
+            <p><b>{t.spamCaseBanner}</b> {t.spamCaseText}</p>
+            {canEdit && <div className="cs-suppress-actions"><Button variant="soft" size="sm" busy={busy} onClick={doClearSpam}>{t.spamNotSpam}</Button></div>}
+          </div>
+        </div>
+      )}
+      {/* A7: supresión programada (periodo de gracia): cualquier administrador puede cancelarla; pasados los 7 días, ejecutarla */}
+      {!erased && pendingSup && (
+        <div className="cs-suppress" role="note">
+          <Eraser size={16} strokeWidth={1.8} aria-hidden="true" />
+          <div className="cs-suppress-body">
+            <p><b>{fmt(t.supBanner, { date: fLong(pendingSup.scheduled_for, lang) })}</b> {pendingSup.requested_by_name ? fmt(t.supBannerBy, { who: pendingSup.requested_by_name }) : t.supBannerAnon}</p>
+            {pendingSup.reason && <q className="cs-suppress-reason">{pendingSup.reason}</q>}
+            {canDelete && (
+              <div className="cs-suppress-actions">
+                {pendingSup.due && <Button variant="danger" size="sm" busy={busy} onClick={doExecuteSup}>{busy ? t.supExecuting : t.supExecute}</Button>}
+                <Button variant="soft" size="sm" onClick={doCancelSup}>{t.supCancel}</Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {erased ? (
         <p className="cs-erased"><Archive size={16} strokeWidth={1.8} aria-hidden="true" /><span><b>{fmt(t.anonBanner, { date: fLong(c.anonymized_at, lang) })}</b> {t.anonBannerText}</span></p>
       ) : (
@@ -469,7 +576,7 @@ export default function Caso() {
                             <button type="button" className="cs-file" onClick={() => download(a)} aria-label={fmt(p.downloadAria, { name: a.filename })}>
                               <Paperclip size={15} strokeWidth={1.8} aria-hidden="true" /><span title={a.filename}>{a.filename}</span><small>{formatBytes(a.file_size)}</small><Download size={15} strokeWidth={1.8} aria-hidden="true" />
                             </button>
-                            {fileNote?.id === a.id && <span className={`cs-file-note${fileNote.err ? ' is-err' : ''}`} role="status">{fileNote.text}</span>}
+                            {fileNote?.id === a.id && <span className={`cs-file-note${fileNote.err ? ' is-err' : ''}${fileNote.warn ? ' is-warn' : ''}`} role="status">{fileNote.text}</span>}
                           </li>
                         ))}
                       </ul>
@@ -587,12 +694,14 @@ export default function Caso() {
                   <div><dt>{p.email}</dt><dd>{identity.reporter_email ? <a href={`mailto:${identity.reporter_email}`}>{identity.reporter_email}</a> : p.notGiven}</dd></div>
                   <div><dt>{p.phone}</dt><dd>{identity.reporter_phone ? <a href={`tel:${identity.reporter_phone.replace(/\s/g, '')}`}>{identity.reporter_phone}</a> : p.notGiven}</dd></div>
                 </dl>
-              ) : (
+              ) : can('view_identity', c.category) ? (
                 <>
                   <p className="cs-p">{p.identWarn}</p>
-                  <Button variant="soft" size="xs" className="cs-sec-btn" busy={idBusy} onClick={reveal} icon={<Eye size={14} strokeWidth={1.8} aria-hidden="true" />}>{p.identShow}</Button>
+                  <Button variant="soft" size="xs" className="cs-sec-btn" busy={idBusy} onClick={() => open('identity')} icon={<Eye size={14} strokeWidth={1.8} aria-hidden="true" />}>{p.identShow}</Button>
                   {idErr && <p className="ds-field-error" role="alert"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />{p.identErr}</p>}
                 </>
+              ) : (
+                <p className="cs-p">{p.identNoPerm}</p>
               )}
             </section>
           )}
@@ -630,7 +739,7 @@ export default function Caso() {
               {history.map(l => (
                 <li key={l.id}>
                   <b>{historyText(p, t, l)}</b>
-                  <time dateTime={l.created_at}>{fDateTime(l.created_at, lang)}</time>
+                  <time dateTime={l.created_at}>{auditWhen(l, lang)}</time>
                   {/* El texto de una nota interna ya está en su bloque: aquí solo consta que se añadió */}
                   {l.details?.note && l.action !== 'note_added' && <q>{l.details.note}</q>}
                 </li>
@@ -666,9 +775,15 @@ export default function Caso() {
       </Dialog>
 
       <Dialog open={dialog === 'suppress'} onClose={closeDialog} title={fmt(t.supTitle, { code: c.reference })}
-        actions={<><Button variant="soft" size="md" onClick={closeDialog}>{p.cancel}</Button><Button variant="danger" size="md" busy={busy} onClick={doSuppress}>{busy ? t.deleting : t.delConfirm}</Button></>}>
+        actions={<><Button variant="soft" size="md" onClick={closeDialog}>{p.cancel}</Button><Button variant="danger" size="md" busy={busy} onClick={doSuppress}>{busy ? t.deleting : t.supConfirm}</Button></>}>
         <p>{t.supText}</p>
         <Field as="textarea" rows={3} label={t.supReason} placeholder={t.supReasonPh} value={text} maxLength={500} error={dErr} onChange={e => { setText(e.target.value); setDErr(''); }} />
+      </Dialog>
+
+      <Dialog open={dialog === 'identity'} onClose={closeDialog} title={p.identReasonT}
+        actions={<><Button variant="soft" size="md" onClick={closeDialog}>{p.cancel}</Button><Button variant="report" size="md" busy={idBusy} onClick={doReveal}>{p.identConfirm}</Button></>}>
+        <p>{p.identReasonText}</p>
+        <Field as="textarea" rows={3} label={p.identReason} placeholder={p.identReasonPh} value={text} maxLength={300} error={dErr} onChange={e => { setText(e.target.value); setDErr(''); }} />
       </Dialog>
 
       <Dialog open={dialog === 'fiscal'} onClose={closeDialog} title={p.fiscalTitle}

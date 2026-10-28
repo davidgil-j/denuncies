@@ -106,9 +106,12 @@ export default function Denuncia() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      // En una denuncia anónima, las fotos salen sin datos ocultos. Si alguna no se puede limpiar, no se envía nada
+      // En una denuncia anónima, fotos y documentos salen sin datos ocultos (A5). Si algo no se puede limpiar, no se envía nada
       let files = draft.files;
       if (draft.isAnonymous && files.length) {
+        // Correos y ZIP no se aceptan en anónimas: llevan datos que identifican (remitente, servidores, nombres)
+        const forbidden = files.find(f => /\.(eml|msg|zip)$/i.test(f.name || ''));
+        if (forbidden) { setSubmitError({ forbidden: forbidden.name }); return; }
         const cleaned = await Promise.all(files.map(cleanForAnonymous));
         const dirty = files.find((f, i) => !cleaned[i]);
         if (dirty) { setSubmitError({ clean: dirty.name }); return; }
@@ -135,7 +138,7 @@ export default function Denuncia() {
         // El código se enseña ya; las pruebas se suben desde «Enviada» (si se corta, la denuncia y su código ya están)
         setSent({
           code: trackingCode, failed: 0, createdAt: new Date().toISOString(), secured: false, asked: false,
-          complaintId, anonymous: draft.isAnonymous, uploads: files.length ? files : null, uploaded: 0,
+          complaintId, submissionId: attempt?.submissionId, anonymous: draft.isAnonymous, uploads: files.length ? files : null, uploaded: 0,
         });
         setDraft(EMPTY_DRAFT);
       }
@@ -178,6 +181,8 @@ export default function Denuncia() {
               <Tc as="h1" className="ds-h1" lang={lang} k="q1" ref={headRef} tabIndex={-1} />
               <Tc as="p" className="ds-lead" lang={lang} k="q1Lead" />
             </div>
+            {/* A4: aviso visible al empezar: este canal no es para emergencias */}
+            <p className="flow-note" role="note"><CircleAlert size={16} strokeWidth={1.8} aria-hidden="true" />{t.emergency112}</p>
             <div className="cats" role="radiogroup" aria-label={t.q1Group} ref={groupRef} onKeyDown={onCatKey}>
               {CATEGORIES.map((value) => (
                 <button key={value} type="button" role="radio" aria-checked={draft.category === value} className="cat" onClick={() => set({ category: value })}>
@@ -356,7 +361,7 @@ export default function Denuncia() {
               {errors.privacy && <p className="ds-field-error" id="dn-privacy-e" role="alert">{ic(CircleAlert, 16)}{t[errors.privacy]}</p>}
             </div>
 
-            {submitError && <p className="flow-error" role="alert">{ic(CircleAlert, 18)}{submitError.clean ? fmt(t.cleanErr, { name: submitError.clean }) : t[submitError]}</p>}
+            {submitError && <p className="flow-error" role="alert">{ic(CircleAlert, 18)}{submitError.clean ? fmt(t.cleanErr, { name: submitError.clean }) : submitError.forbidden ? fmt(t.forbiddenErr, { name: submitError.forbidden }) : t[submitError]}</p>}
           </>
         )}
 

@@ -9,7 +9,7 @@ import { CATEGORIES } from '../canal/shared.jsx';
 import { Avatar, Button, Card, Dialog, Field, Skeleton } from '../ui/index.js';
 import { usePanel } from './kit.jsx';
 
-const emptyPerms = () => CATEGORIES.map(category => ({ category, can_view: false, can_edit: false, can_reply: false, can_delete: false }));
+const emptyPerms = () => CATEGORIES.map(category => ({ category, can_view: false, can_edit: false, can_reply: false, can_delete: false, can_view_identity: false }));
 const nameOf = (person) => person?.full_name || person?.email || '';
 const SHOWN_CATS = 3;
 
@@ -95,7 +95,7 @@ export default function Equipo() {
     const { permissions } = await getManagerPermissions(person.id);
     const merged = emptyPerms().map(ep => {
       const ex = (permissions ?? []).find(x => x.category === ep.category);
-      return ex ? { category: ep.category, can_view: !!ex.can_view, can_edit: !!ex.can_edit, can_reply: !!ex.can_reply, can_delete: !!ex.can_delete } : ep;
+      return ex ? { category: ep.category, can_view: !!ex.can_view, can_edit: !!ex.can_edit, can_reply: !!ex.can_reply, can_delete: !!ex.can_delete, can_view_identity: !!ex.can_view_identity } : ep;
     });
     setPerms(merged);
     setOriginal(JSON.stringify(merged));
@@ -108,7 +108,7 @@ export default function Equipo() {
   // «Ver» es la base: activar cualquier otro permiso lo activa; quitarlo los quita todos
   function setPerm(row, key, value) {
     const next = { ...row, [key]: value };
-    if (key === 'can_view' && !value) { next.can_edit = false; next.can_reply = false; next.can_delete = false; }
+    if (key === 'can_view' && !value) { next.can_edit = false; next.can_reply = false; next.can_delete = false; next.can_view_identity = false; }
     if (key !== 'can_view' && value) next.can_view = true;
     return next;
   }

@@ -103,7 +103,7 @@ export async function saveComplaint({ formData, files, organizationId, attempt }
   const anon = formData.isAnonymous;
   // 1. Con la migración 021: una sola llamada, con el id de envío y las personas apartadas. Escribe
   // también la entrada «created» del registro y nunca revela si un código ya existe.
-  const viaFunction = await supabase.rpc('submit_complaint', {
+  const base16 = {
     p_submission_id: submissionId,
     p_org: organizationId, p_hash: await codeHash(trackingCode), p_category: formData.category,
     p_description: formData.description.trim(), p_is_anonymous: anon,
@@ -112,13 +112,23 @@ export async function saveComplaint({ formData, files, organizationId, attempt }
     p_involved: clean(formData.involvedPeople), p_language: formData.language ?? 'ca',
     p_meeting: !!formData.meetingRequested, p_when: clean(formData.when),
     p_excluded: excluded,
-  });
+  };
+  const retry = () => saveComplaint({ formData, files, organizationId, attempt: { id: crypto.randomUUID(), trackingCode: generateTrackingCode(), submissionId: crypto.randomUUID(), retried: true } });
+  // A3 (migración 026): enviar exige la prueba de trabajo. Si el navegador la resuelve, se usa el camino de 18
+  // parámetros; si la base de datos aún no lo pide (hasta la 025) o el navegador no la puede resolver, se cae al de 16.
+  const proof = await solveProof(organizationId);
+  if (proof.token) {
+    const withPow = await supabase.rpc('submit_complaint', { ...base16, p_pow_token: proof.token, p_pow_nonce: proof.nonce });
+    if (!withPow.error) return { trackingCode, complaintId: withPow.data, attempt: next, error: null };
+    if (/code-conflict|submit-failed/.test(withPow.error.message ?? '') && !attempt?.retried) return retry();
+    if (!isMissingSchema(withPow.error)) return { trackingCode: null, complaintId: null, attempt: next, error: withPow.error };
+    // El de 18 parámetros no existe (base de datos en la 025): seguimos con el de 16
+  }
+  const viaFunction = await supabase.rpc('submit_complaint', base16);
   if (!viaFunction.error) return { trackingCode, complaintId: viaFunction.data, attempt: next, error: null };
   // El código ya es de otra denuncia (casi imposible): uno nuevo, una sola vez. «submit-failed» es el
   // error genérico de la 021 (no revela que el código existe); «code-conflict», el de antes.
-  if (/code-conflict|submit-failed/.test(viaFunction.error.message ?? '') && !attempt?.retried) {
-    return saveComplaint({ formData, files, organizationId, attempt: { id: crypto.randomUUID(), trackingCode: generateTrackingCode(), submissionId: crypto.randomUUID(), retried: true } });
-  }
+  if (/code-conflict|submit-failed/.test(viaFunction.error.message ?? '') && !attempt?.retried) return retry();
   if (!isMissingSchema(viaFunction.error)) return { trackingCode: null, complaintId: null, attempt: next, error: viaFunction.error };
 
   // 2. Sin la migración 014: inserción directa, con el id y el código generados aquí.
@@ -185,12 +195,14 @@ export const mimeOf = (name, fallback = '') => MIME[(String(name).split('.').pop
  * tampoco viaja el nombre original (ni a la tabla ni a la subida), y las fotos ya llegan limpias
  * (cleanForAnonymous, antes de enviar). onProgress(n): n archivos terminados. Devuelve { failedFiles }
  */
-export async function uploadAttachments({ complaintId, files, isAnonymous, onProgress }) {
+export async function uploadAttachments({ complaintId, submissionId, files, isAnonymous, onProgress }) {
   const failedFiles = [];
   if (channelDemo() || !files?.length) return { failedFiles };
+  // M5: la ruta lleva el «id de envío» (solo lo tiene quien envió); sin él, la base de datos (027) rechaza la subida
+  const folder = submissionId ? `${complaintId}/${submissionId}` : `${complaintId}`;
   for (const [i, file] of files.entries()) {
     const ext  = (file.name.includes('.') ? file.name.split('.').pop() : '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
-    const path = `${complaintId}/${i + 1}-${crypto.randomUUID()}${ext ? `.${ext}` : ''}`;
+    const path = `${folder}/${i + 1}-${crypto.randomUUID()}${ext ? `.${ext}` : ''}`;
     const name = isAnonymous ? neutralName(file.name, i) : file.name;
     const type = mimeOf(file.name, file.type);
     const body = isAnonymous ? new File([file], name, { type, lastModified: 0 }) : file;
@@ -361,6 +373,21 @@ const COMPLAINT_COLUMNS = [
   'channel', 'meeting_requested', 'meeting_held_at', 'outcome', 'investigation_started_at', 'fiscal_referral_at',
 ].join(', ');
 
+// A3 (migración 026): la marca «posible spam». Se lee aparte para que la web siga funcionando sin la 026.
+let spamCol = null; // null: aún no se sabe · true/false
+/** Añade likely_spam a una lista de filas (o un id suelto) con una consulta aparte. Si la 026 no está, todo es false. */
+async function withSpam(rows) {
+  const list = Array.isArray(rows) ? rows : [rows];
+  if (spamCol === false || !list.length) return rows;
+  // Se pide también el valor y se comprueba en el navegador: así, si algo devuelve filas sin filtrar, no se marca de más
+  const { data, error } = await supabase.from('complaints').select('id, likely_spam').eq('likely_spam', true).in('id', list.map(c => c.id));
+  if (error) { if (isMissingSchema(error)) spamCol = false; return rows; }
+  spamCol = true;
+  const spam = new Set((data ?? []).filter(r => r.likely_spam === true).map(r => r.id));
+  list.forEach(c => { c.likely_spam = spam.has(c.id); });
+  return rows;
+}
+
 // Columnas de la migración 012 (rediseño). El panel funciona igual si aún no se ha ejecutado:
 // se piden y, si la base de datos las rechaza, se vuelve a pedir sin ellas y el panel esconde
 // lo que depende de ellas (título editable, «quién lo lleva», «solo los míos»).
@@ -507,6 +534,47 @@ export async function anonymizeComplaint(complaintId, reason, actorName = '') {
   return { error };
 }
 
+// ── A7: supresión con control (periodo de gracia de 7 días) ───────────────
+/** Programa la supresión (motivo ≥ 30). missing = la base de datos aún no tiene la 025 (usar la supresión de antes). */
+export async function requestSuppression(complaintId, reason) {
+  if (DEMO_MODE) return (await demo()).requestSuppression(complaintId, reason);
+  const { data, error } = await supabase.rpc('request_suppression', { p_complaint: complaintId, p_reason: reason });
+  return { scheduledFor: data ?? null, missing: isMissingSchema(error), error };
+}
+/** Cancela la supresión programada (cualquier administrador que pueda suprimir). */
+export async function cancelSuppression(complaintId) {
+  if (DEMO_MODE) return (await demo()).cancelSuppression(complaintId);
+  const { error } = await supabase.rpc('cancel_suppression', { p_complaint: complaintId });
+  return { error };
+}
+/** Ejecuta la supresión ya vencida: borra los bytes de los archivos (permiso solo con una supresión vencida) y anonimiza. */
+export async function executeSuppression(complaintId) {
+  if (DEMO_MODE) return (await demo()).executeSuppression(complaintId);
+  const { data: files } = await supabase.from('attachments').select('storage_path').eq('complaint_id', complaintId);
+  const { data: inFolder } = await supabase.storage.from('attachments').list(complaintId, { limit: 1000 });
+  const paths = [...new Set([
+    ...(files ?? []).map(f => f.storage_path).filter(Boolean),
+    ...(inFolder ?? []).filter(o => o?.name && o.id !== null).map(o => `${complaintId}/${o.name}`),
+  ])];
+  if (paths.length) await supabase.storage.from('attachments').remove(paths);
+  const { error } = await supabase.rpc('execute_suppression', { p_complaint: complaintId });
+  return { error };
+}
+/** La supresión programada de un caso (para la ficha), o null. */
+export async function suppressionFor(complaintId) {
+  if (DEMO_MODE) return (await demo()).suppressionFor(complaintId);
+  const { data, error } = await supabase.rpc('suppression_for', { p_complaint: complaintId });
+  if (error) return { pending: null, error: isMissingSchema(error) ? null : error };
+  return { pending: data?.[0] ?? null, error: null };
+}
+/** Todas las supresiones programadas de la empresa (aviso al resto de administradores). */
+export async function listPendingSuppressions() {
+  if (DEMO_MODE) return (await demo()).listPendingSuppressions();
+  const { data, error } = await supabase.rpc('list_pending_suppressions');
+  if (error) return { items: [], error: isMissingSchema(error) ? null : error };
+  return { items: data ?? [], error: null };
+}
+
 /** Denuncias que hay que suprimir (3 meses sin investigación, o 10 años). Solo administrador. */
 export async function getRetentionDue() {
   if (DEMO_MODE) return (await demo()).retentionDue();
@@ -524,16 +592,29 @@ export async function getComplaintById(id) {
     .select(`${[COMPLAINT_COLUMNS, ...extra].join(', ')}, attachments(*)`)
     .eq('id', id)
     .single());
-
+  if (data) await withSpam(data); // A3: marca «posible spam» (sin la 026, queda como no spam)
   return { complaint: data, error };
+}
+
+/** A3: devuelve una denuncia al tablero (no era spam). Devuelve { error } */
+export async function clearSpamFlag(complaintId) {
+  if (DEMO_MODE) return (await demo()).clearSpamFlag(complaintId);
+  const { error } = await supabase.rpc('clear_spam_flag', { p_complaint: complaintId });
+  return { error };
 }
 
 /**
  * Identidad de quien informa, en una denuncia identificada. La base de datos comprueba el permiso y
  * anota la consulta en el registro de actividad. Devuelve { identity: { reporter_name, reporter_email, reporter_phone } | null, error }
  */
-export async function getReporterIdentity(complaintId) {
-  if (DEMO_MODE) return (await demo()).getReporterIdentity(complaintId);
+export async function getReporterIdentity(complaintId, reason) {
+  if (DEMO_MODE) return (await demo()).getReporterIdentity(complaintId, reason);
+  // M6: con motivo (≥10) va por la versión nueva; si la base de datos aún no la tiene (hasta la 026), la de antes
+  if (reason) {
+    const withReason = await supabase.rpc('get_reporter_identity', { p_complaint: complaintId, p_reason: reason });
+    if (!withReason.error) return { identity: withReason.data?.[0] ?? null, error: null };
+    if (!isMissingSchema(withReason.error)) return { identity: null, error: withReason.error };
+  }
   const { data, error } = await supabase.rpc('get_reporter_identity', { p_complaint: complaintId });
   return { identity: error ? null : (data?.[0] ?? null), error };
 }
@@ -642,7 +723,8 @@ export async function listComplaints({ categories = null } = {}) {
   // Mensajes de quien denuncia aún no leídos, para marcarlos en el listado
   const { data: unread } = await supabase.from('messages').select('complaint_id').eq('sender', 'reporter').eq('is_read', false);
   const counts = (unread ?? []).reduce((m, r) => m.set(r.complaint_id, (m.get(r.complaint_id) ?? 0) + 1), new Map());
-  return { complaints: rows.map(c => ({ ...c, unread: counts.get(c.id) ?? 0 })), error: null };
+  await withSpam(rows); // A3: marca las «posible spam» (sin la 026, todas quedan como no spam)
+  return { complaints: rows.map(c => ({ ...c, likely_spam: !!c.likely_spam, unread: counts.get(c.id) ?? 0 })), error: null };
 }
 
 /** Registro de actividad de una denuncia. Devuelve { logs, error } */
@@ -656,6 +738,25 @@ export async function getAuditLogs(complaintId) {
   // El autor lo pone la base de datos, no el navegador: el nombre que tenía en aquel momento (actor_name,
   // migración 014) o, sin la 014, el nombre actual del perfil
   return { logs: (data ?? []).map(l => ({ ...l, details: { ...(l.details ?? {}), actor_name: l.actor_name ?? l.actor?.full_name ?? l.details?.actor_name } })), error };
+}
+
+// ── A6: registro de accesos ──────────────────────────────────────────
+// Anota en la base de datos quién abre, exporta o descarga. Mejor esfuerzo: si la base de datos aún no lo
+// tiene (migración 024 sin ejecutar), no pasa nada y el panel sigue igual. kind: case_opened | exported_case | file_downloaded
+export async function logCaseAccess(complaintId, kind, detail = null) {
+  if (DEMO_MODE) { (await demo()).logCaseAccess?.(complaintId, kind, detail); return; }
+  await supabase.rpc('log_case_access', { p_complaint: complaintId, p_kind: kind, p_detail: detail }); // error ignorado a propósito
+}
+/** Anota una exportación de toda la empresa (sin caso): exported_excel | exported_report */
+export async function logOrgExport(kind) {
+  if (DEMO_MODE) { (await demo()).logOrgExport?.(kind); return; }
+  await supabase.rpc('log_org_export', { p_kind: kind });
+}
+/** El registro de accesos de la empresa (solo administradores). Devuelve { rows, error } */
+export async function listAccessLog({ limit = 200, offset = 0 } = {}) {
+  if (DEMO_MODE) return (await demo()).listAccessLog({ limit, offset });
+  const { data, error } = await supabase.rpc('list_access_log', { p_limit: limit, p_offset: offset });
+  return { rows: data ?? [], error };
 }
 
 /** Enlace temporal (60 s) para descargar un adjunto del bucket privado. Devuelve { url, demo, error } */

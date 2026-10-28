@@ -250,26 +250,20 @@ await brand.getByRole('button', { name: 'Guardar' }).click();
 await toast('Marca guardada. El canal ya la muestra.');
 ok('empresa: el nombre nuevo sale en la cabecera', (await page.locator('.pn-brand b').innerText()) === 'Empresa Demo Logística');
 
-// Autoridad autonómica: otra, con nombre y enlace https
+// Autoridad autonómica: M3, solo de la lista cerrada (sin escribir una dirección libre)
 const resp = page.locator('form[aria-labelledby="st-resp-t"]');
-await resp.getByLabel('Autoridad autonómica que se muestra en el canal').selectOption('other');
-await resp.locator('#st-auth-name').fill('Agencia Valenciana Antifraude');
-await resp.locator('#st-auth-url').fill('http://www.antifraucv.es');
-await resp.getByRole('button', { name: 'Guardar' }).click();
-ok('autoridad: el enlace tiene que ser https', await page.getByText('Escribe el nombre y un enlace que empiece por https://.').isVisible());
-await resp.locator('#st-auth-url').fill('https://www.antifraucv.es');
+await resp.getByLabel('Autoridad autonómica que se muestra en el canal').selectOption('antifrau_cat');
 await resp.getByRole('button', { name: 'Guardar' }).click();
 await toast('Guardado.');
 await page.goto(`${BASE}/canal/demo?lang=es`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.entry-links');
 const brandNew = (await page.locator('.entry-brand b').innerText()) === 'Empresa Demo Logística';
 await page.getByRole('button', { name: 'Canales externos' }).click();
-ok('el canal enseña el nombre nuevo y la autoridad elegida', brandNew && await page.getByRole('dialog').getByText('Agencia Valenciana Antifraude').isVisible());
+ok('el canal enseña el nombre nuevo y la autoridad elegida de la lista', brandNew && await page.getByRole('dialog').getByText('Oficina Antifrau de Catalunya').isVisible());
 await page.keyboard.press('Escape');
 await page.goto(`${BASE}/admin/ajustes`, { waitUntil: 'networkidle' });
 await page.waitForSelector('.tm-list li');
-ok('autoridad: al volver sigue «Otra…» con sus datos', (await resp.locator('#st-auth-name').inputValue()) === 'Agencia Valenciana Antifraude');
-await resp.getByLabel('Autoridad autonómica que se muestra en el canal').selectOption('antifrau');
+ok('autoridad: al volver sigue elegida la de la lista', (await resp.getByLabel('Autoridad autonómica que se muestra en el canal').inputValue()) === 'antifrau_cat');
 await resp.getByRole('button', { name: 'Guardar' }).click();
 await toast('Guardado.');
 await brand.locator('#st-brand-name').fill('Empresa Demo');

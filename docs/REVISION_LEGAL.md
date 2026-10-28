@@ -76,6 +76,10 @@ Ninguna ha cambiado ningún texto: son propuestas.
 32. **«Responsable del Sistema» frente a administrador.** Hoy el Responsable se guarda como un dato de texto (nombre y cargo), no como un usuario del panel. En la exclusión por caso, «el Responsable o un administrador puede apartar» se ha implementado como «cualquier administrador». ¿Hace falta que el Responsable sea un usuario concreto con permisos propios?
 33. **Copias de seguridad y supresión (art. 32).** Cuando se suprimen los datos de una denuncia, desaparecen de la base de datos, pero siguen en las **copias de seguridad** del proveedor (Supabase) hasta que estas caducan (7 días en el plan Pro; más si se contrata «Point-in-Time Recovery»). ¿Hay que decirlo en la política de privacidad del canal y fijar que la supresión «se completa» cuando caduca la última copia? Texto propuesto pendiente de redactar para el abogado.
 
+### Dudas nuevas de la ronda 2 de seguridad · adjuntos (A5, 27 de octubre de 2026)
+
+34. **Texto de los adjuntos (paso 2 y «Qué datos se quitan»).** La ronda 2 limpia en el navegador, en las denuncias **anónimas**, los datos ocultos de las fotos, de los documentos de Office (docx/xlsx/pptx: autor, empresa, «modificado por», autores de comentarios y de control de cambios) y de los PDF (Info y XMP). Por eso se corrigió el texto que decía «los demás archivos se envían tal cual» (ya no es cierto para Office/PDF): ahora dice que de las fotos y de los documentos se quitan los datos ocultos, que el vídeo y el audio no se pueden limpiar (pueden llevar la ubicación y el modelo del móvil) y que los correos (.eml, .msg) y los ZIP **no se aceptan** en anónimas (llevan remitente, servidores y nombres de archivo). Textos: `proofMeta`, `proofMetaFull`, `proofAvWarn`, `cleanErr`, `forbiddenErr`. ¿Da el abogado por buenos estos textos? (cierra en parte la duda 28).
+
 ## 4. Lo que no se ha revisado
 
 - La portada comercial, `/crear-compte` y `/privacitat` (fuera de este trabajo).

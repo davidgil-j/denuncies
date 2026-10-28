@@ -249,7 +249,7 @@ const sendBtn = (page) => page.getByRole('button', { name: /Enviar denuncia/ });
 // Sin la 014: la vía de antes (inserción directa) sigue funcionando
 {
   const page = await newPage();
-  S.submit = ['missing'];
+  S.submit = ['missing', 'missing']; // A3: el envío prueba primero el de 18 parámetros (con prueba de trabajo) y luego el de 16; sin la 014, los dos faltan y se cae a la inserción directa
   const ins = calls('/rest/v1/complaints').length;
   await page.goto(`${APP}/canal/acme?lang=es`, { waitUntil: 'networkidle' });
   await fillReport(page, []);

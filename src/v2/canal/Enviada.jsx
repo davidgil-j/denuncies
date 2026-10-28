@@ -33,7 +33,7 @@ export default function Enviada() {
     if (!uploads || started.has(uploads)) return;
     started.add(uploads);
     const update = (patch) => setSent(s => (s ? { ...s, ...patch } : s));
-    uploadAttachments({ complaintId: sent.complaintId, files: uploads, isAnonymous: sent.anonymous, onProgress: n => update({ uploaded: n }) })
+    uploadAttachments({ complaintId: sent.complaintId, submissionId: sent.submissionId, files: uploads, isAnonymous: sent.anonymous, onProgress: n => update({ uploaded: n }) })
       .then(({ failedFiles }) => update({ uploads: null, failed: failedFiles.length }))
       .catch(() => update({ uploads: null, failed: uploads.length }));
     // eslint-disable-next-line react-hooks/exhaustive-deps

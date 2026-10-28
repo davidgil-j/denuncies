@@ -202,7 +202,7 @@ Al tauler: **Noves** (`received`), **En curs** (`reviewing`, `investigating`, `w
 - Honeypot al formulari públic. Turnstile (opcional) només a l'accés, l'alta i «He oblidat la contrasenya», mai al canal: sense la clau tot va com sempre; amb la clau, sense token no es deixa passar (si no carrega, avís i «Reintentar»)
 - L'empremta del codi de seguiment porta un secret (019, a Supabase Vault): ni amb una còpia de la taula es poden endevinar els codis
 - Storage privat per als adjunts
-- El logotip de «La teva marca» es desa a la base de dades ja preparat pel navegador (imatge petita PNG o JPEG en `data:`, mai SVG); la base de dades rebutja qualsevol altra cosa. El canal segueix el mode clar o fosc del sistema sense desar res al navegador
+- El logotip de «La teva marca» es desa a la base de dades ja preparat pel navegador (imatge petita PNG o JPEG en `data:`, mai SVG); la base de dades rebutja qualsevol altra cosa. El canal sempre es veu en clar (també l'accés al panel), encara que el sistema de qui l'obre estigui en fosc; no desa res al navegador. Al panell, el mode per defecte és «Clar», i cada persona pot triar Fosc o Com el sistema a «Aparença»
 - Conforme a RGPD i Llei 2/2023
 
 ---

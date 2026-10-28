@@ -16,4 +16,6 @@ tools/prospect-finder/node_modules/
 
 # Archivos locales de herramientas (no van al repositorio)
 supabase/.temp/
-deno.lock
+# M8: deno.lock SÍ va al repositorio (fija las versiones de las funciones de servidor). Se genera con:
+#   deno cache --lock=supabase/functions/deno.lock --lock-write supabase/functions/*/index.ts
+# (o lo escribe la CLI de Supabase al desplegar). Ver docs/seguridad/QUE_TIENE_QUE_HACER_DAVID.md
