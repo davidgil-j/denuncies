@@ -38,10 +38,10 @@ Cada una lleva: **qué** he elegido, **por qué**, **la alternativa** y **dónde
 - **Provisional:** qué incluye la puesta en marcha («lo configuramos contigo, preparamos la comunicación a la plantilla y formamos a quien lo va a gestionar») y la gestión externa («un equipo externo recibe las denuncias y hace el primer análisis; el Responsable del Sistema sigue siendo de tu empresa», art. 6 de la Ley 2/2023). Los he redactado yo: que el jefe confirme que eso es lo que se vende. Están en `src/translations-site.js` (`lp.packText`, `lp.extText`).
 
 ### n.º 85 · La multa
-- **Qué:** se cita **como un dato más** en «¿Está obligada tu empresa?», con la frase legal ya aprobada («multa de 600.001 a 1.000.000 de euros para las personas jurídicas») y los enlaces al BOE de los arts. **63.1 g)** (no tener el sistema es infracción muy grave) y **65.1 b)** (la multa). No sale en el inicio ni en grande.
-- **Por qué:** el encargo pide citar el artículo y no redondear; el FEEDBACK rechazó la multa como gancho.
-- **Alternativa:** cifra destacada en el inicio.
-- **Se cambia en:** `MULTA` (artículos y cifras; `npm run test:logic` comprueba que las cifras coinciden con el texto legal en los tres idiomas).
+- **Qué (desde el 29 oct):** con el diseño «aviso» de la portada, que eligió David, la multa **sí sale en el inicio**: en la frase («No tenerlo es una infracción muy grave, con multa de **600.001 a 1.000.000 €**») y en la ficha «Lo que dice la ley», con la cifra máxima en rojo y los enlaces al BOE de los arts. **63** (no tener el sistema es infracción muy grave, 63.1 g) y **65** (la multa, 65.1 b). Sin redondear.
+- **Por qué:** David pidió una portada «de más urgencia y no tan larga» (resumen del 21 oct) y eligió el boceto 1, «aviso», de los tres (`Claude outputs/bocetos/`). Antes se citaba como un dato más porque el FEEDBACK rechazó la multa como gancho: su elección de ahora manda.
+- **Alternativa:** la de antes, como un dato más en «¿Está obligada tu empresa?».
+- **Se cambia en:** `MULTA` (artículos y cifras; `npm run test:logic` comprueba que la portada de los tres idiomas lleva la cifra exacta) y los textos de `v2site.portada` en `src/translations-site.js`.
 
 ### n.º 79 · Pie «Con Reportia»
 - **Qué:**
@@ -76,7 +76,8 @@ Cada una lleva: **qué** he elegido, **por qué**, **la alternativa** y **dónde
 ## Marca y aspecto
 
 ### n.º 83 · Reportia sobre fondo blanco
-- **Qué:** **el icono oficial y el nombre en tinta** (panel, acceso, alta, privacidad, pestaña del navegador y PDF). Sobre fondo oscuro, el **logotipo verde oficial** (cabecera de la portada, correos, imagen al compartir).
+- **Qué:** **el icono oficial y el nombre en tinta** (panel, acceso, pestaña del navegador y PDF). Sobre fondo oscuro, el **logotipo verde oficial** (correos).
+- **En la web (desde el 29 oct, diseño «aviso»):** la portada, el alta, la privacidad, la página «no encontrada» y la imagen al compartir llevan el **logotipo oficial en verde oscuro** (`public/marca/reportia-logo-oscuro.svg`, `#16855C`: el mismo dibujo, con 4,6:1 de contraste sobre blanco) y, al lado, «Canal». Es la «versión oscura» que antes faltaba, hecha por mí a partir del oficial: **que la confirme quien lleve la marca**.
 - **Por qué:** el logotipo verde sobre blanco tiene poco contraste para texto pequeño; el icono se lee a cualquier tamaño.
 - **Alternativa:** una versión oscura oficial del logotipo (no existe en `marca-reportia`).
 - **Se cambia en:** `LOGO_SOBRE_BLANCO = 'logotipo'`.
@@ -100,7 +101,14 @@ Cada una lleva: **qué** he elegido, **por qué**, **la alternativa** y **dónde
 - **Se cambia en:** `NOMBRE_PRODUCTO` (el nombre). Los textos, en las traducciones.
 
 ### Portada
-- **Aspecto:** sigue la **dirección «azul noche»** aprobada (memoria de rechazos y `DIRECCION_VISUAL.md`). Es una foto a pantalla completa en el inicio y el cierre, con cabecera fina y poco texto. No lleva iconos de adorno, testimonios ni contadores.
+- **Aspecto (desde el 29 oct): diseño «aviso»**, el boceto 1 de los tres que se le enseñaron a David (`Claude outputs/bocetos/portada-1-aviso.png`; los otros eran «cifra» y «producto»). Lo eligió él para toda la web (portada, alta, privacidad, «no encontrada» e imagen al compartir); el canal y el panel no cambian.
+  - Blanca y siempre en claro. Titulares con serifa (**Source Serif 4**, alojada en la propia web como Manrope); el resto, en Manrope.
+  - Arriba, la cabecera fija con «Qué exige la ley», «Cómo funciona», «Precio», «Acceder», el idioma y «Crear el canal», y debajo la **franja roja de la Autoridad** («funciona desde el 1 de septiembre de 2025», Orden PJC/908/2025).
+  - El inicio: la obligación («Si tu empresa tiene 50 trabajadores o más…») y la ficha «Lo que dice la ley» (50 trabajadores, la multa, 7 días, 3 meses, con sus artículos).
+  - Justo debajo del inicio, **los vídeos**, grandes («Así funciona»): David pidió subirlos (29 oct). Después, cuatro apartados: «Lo que te pueden pedir», «Activo en cuanto creas la cuenta», «Anónimo de verdad» y «Precio». Cierre en azul noche: «Cada día sin canal es un día incumpliendo la ley».
+  - **Repaso del 29 oct (skill de diseño, fase 6):** David la veía «demasiado vibecodeada». Se quitaron los tics de máquina del boceto: el rótulo en mayúsculas sobre el titular y sobre la ficha, los números 01-04, el punto rojo de la franja, una raya por fila y tres apartados con el mismo esquema (los pasos van ahora en fila). Titulares en serifa de peso 500, más grandes y con más aire. Eligió la opción «la ley primero» de tres (las otras: el vídeo a todo el ancho antes que la ficha, o el vídeo al lado del titular).
+  - **Lo que sale respecto a la portada anterior** (más corta, como pidió): las fotos, «Qué se puede comunicar», «Lo que pide la ley, punto por punto», «Lo que corresponde a tu empresa», «Seguridad y privacidad», «Todos los planes incluyen», los servicios opcionales (puesta en marcha y gestión externa) y las preguntas frecuentes. Sus textos se han quitado de `src/translations-site.js`; están en el historial de git si se quiere recuperar alguno.
+- **Alternativa:** la anterior, «azul noche» con foto a pantalla completa (hasta el 29 oct).
 - **Página estática:** una por idioma (`inicio-es.html`, `inicio-ca.html`, `inicio-en.html`), generada al compilar desde `src/v2/landing`. No necesita React. Se lee sin JavaScript, pinta a la primera (Lighthouse móvil 98–99) y nada salta al cargar (CLS 0).
 - **Idioma por defecto:** **castellano**. Si el navegador está en catalán o en inglés, sale en ese idioma; `?lang=` manda siempre. Se cambia en `vercel.json` (reglas de «/») y en `landingLang()` de `scripts/vite-portada.mjs`.
 
@@ -111,16 +119,16 @@ Cada una lleva: **qué** he elegido, **por qué**, **la alternativa** y **dónde
   - **Uno por idioma (es, ca, en):** el producto grabado en ese idioma (el canal, el panel y lo que se escribe en la demo) y los subtítulos también. Cada portada carga solo los de su idioma: `denuncia-ca.mp4`, `gestion-en-movil.mp4`…
   - **Subtítulos:** escritos para cada idioma, no traducidos palabra por palabra. Usan las mismas palabras que el producto en ese idioma («costat», «tauler», «acusament de recepció»; «board», «two-step verification»).
   - **El caso que se abre en «Quien gestiona»:** los datos de ejemplo de la demo están en castellano. En las versiones en catalán y en inglés, ese caso se graba traducido (la descripción, «Dónde», «Cuándo», las personas implicadas y el idioma del acuse). Solo en la grabación: la demo no cambia.
-  - **Formato, en máxima calidad:** H.264 con CRF 18 (preset slow, yuv420p, faststart), 30 fps y sin sonido.
-    - **Ordenador:** 2560×1440. Es la página a 1280×640 con densidad 2, más la banda de subtítulos.
-    - **Móvil:** 1080×1920, en **vertical**: enseña el producto en el móvil, porque una versión de ordenador encogida no se leería.
+  - **Formato, en 4K (desde el 29 oct, lo pidió David):** H.264 con CRF 18 (preset slow, yuv420p, faststart), 30 fps y sin sonido.
+    - **Ordenador:** 3840×2160. Es la página a 1280×640 con densidad 3, más la banda de subtítulos.
+    - **Móvil:** 2160×3840, en **vertical**: enseña el producto en el móvil, porque una versión de ordenador encogida no se leería. Se guarda tumbado (3840×2160) con la marca de girarlo al reproducir, como guardan los móviles sus vídeos en vertical: hay decodificadores de Android que no aceptan 3840 de alto. Comprobado de pie en Chrome y en Safari.
     - **Nitidez:** el texto del producto y los subtítulos se leen nítidos al pausar a pantalla completa en una pantalla retina. Se ha comprobado con fotogramas ampliados.
-    - **Pósters:** la primera imagen de cada vídeo, a la misma resolución, en WebP de calidad 90. Ya llevan el primer subtítulo.
+    - **Pósters:** la primera imagen de cada vídeo, a la mitad de resolución (1920 o 1080 de ancho: en la caja del vídeo se ve igual de nítido), en WebP de calidad 90. Ya llevan el primer subtítulo.
     - **Subtítulos:** en una banda propia debajo de la imagen, para que nunca tapen nada.
     - **Bucle:** el final se funde con el principio, así que no salta.
-  - **Peso:** sin tope. Hoy van de 2,1 a 5,6 MB los de ordenador y de 2,7 a 4,2 MB los de móvil. El guion avisa si un vídeo pasa de 15 MB, y la prueba `portada` falla en ese caso.
+  - **Peso:** sin tope. En 4K van de 3,3 a 9,5 MB los de ordenador y de 5,7 a 9,4 MB los de móvil. El guion avisa si un vídeo pasa de 15 MB, y la prueba `portada` falla en ese caso.
   - **Carga:** con `preload="none"`, ningún vídeo se baja al abrir la página: solo cuando se ve. En pantallas de hasta 760 px se baja la versión del móvil.
-  - **Los pósters, tampoco al abrir:** no van en el HTML. Los pone `landing.js` cuando la página ha terminado de cargar y faltan menos de una pantalla para llegar a los vídeos (en el móvil, el vertical). A esta resolución pesan unos 125 KB; si se pidieran al abrir, competirían con la foto del inicio (Lighthouse móvil bajaba a 92). Sin JavaScript no hay póster: se ve el reproductor con su botón. Así, la portada da Lighthouse móvil ≥ 98 y CLS 0.
+  - **Los pósters, tampoco al abrir:** no van en el HTML. Los pone `landing.js` cuando la página ha terminado de cargar y faltan menos de una pantalla para llegar a los vídeos (en el móvil, el vertical). Pesan hasta unos 125 KB; si se pidieran al abrir, competirían con lo primero que se pinta (Lighthouse móvil bajaba a 92). Sin JavaScript no hay póster: se ve el reproductor con su botón. Así, la portada da Lighthouse móvil ≥ 98 y CLS 0.
   - **Reproducción:** solo cuando se ve. Con «reducir movimiento» no se reproduce solo.
 - **Por qué uno por idioma:** quien lee la portada en catalán o en inglés ve el producto como lo verá su equipo. Antes, las tres portadas llevaban el vídeo en castellano.
 - **Por qué máxima calidad:** lo pidió David (21 oct). Antes eran 1920×1080 y 720×1280, a menos de 2,5 MB cada uno. Además, la captura llegaba a la mitad de resolución y se ampliaba, así que el texto salía algo blando. Ahora Chromium (sin ventana) arranca con la densidad forzada y cada imagen se captura a la resolución final.

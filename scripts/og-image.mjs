@@ -1,37 +1,37 @@
 // Imagen de la vista previa al compartir el enlace (public/og.jpg, 1200 × 630, menos de 300 KB): WhatsApp, LinkedIn, correo.
-// En castellano, con la tipografía del producto (Manrope), la foto del inicio de la portada y el logotipo oficial de Reportia
-// con el nombre del producto (src/v2/config/producto.js), como en la cabecera de la portada.
+// En castellano y con el diseño de la portada («aviso»): blanca, el logotipo de Reportia en verde oscuro con el nombre del
+// producto (src/v2/config/producto.js), la franja de la Autoridad y el titular con la serifa de la portada (Source Serif 4).
 // Uso: PLAYWRIGHT=/ruta/a/playwright/index.mjs node scripts/og-image.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const { chromium } = await import(process.env.PLAYWRIGHT || 'playwright');
 const root = new URL('..', import.meta.url);
-const font = readFileSync(fileURLToPath(new URL('node_modules/@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2', root))).toString('base64');
-const photo = readFileSync(fileURLToPath(new URL('public/landing/inicio-1-d.webp', root))).toString('base64');
-const logo = readFileSync(fileURLToPath(new URL('public/marca/reportia-logo.svg', root))).toString('base64');
+const b64 = (p) => readFileSync(fileURLToPath(new URL(p, root))).toString('base64');
+const sans = b64('node_modules/@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2');
+const serif = b64('node_modules/@fontsource-variable/source-serif-4/files/source-serif-4-latin-wght-normal.woff2');
+const logo = b64('public/marca/reportia-logo-oscuro.svg');
 const { NOMBRE_PRODUCTO, EMPRESA } = await import(new URL('src/v2/config/producto.js', root));
+const { siteTexts } = await import(new URL('src/translations-site.js', root));
+const T = siteTexts.es.v2site.portada;
 const suffix = NOMBRE_PRODUCTO.startsWith(EMPRESA) ? NOMBRE_PRODUCTO.slice(EMPRESA.length).trim() : '';
 
 const html = `<!doctype html><html><head><meta charset="utf-8"><style>
-@font-face { font-family: M; src: url(data:font/woff2;base64,${font}) format('woff2'); font-weight: 200 800; }
+@font-face { font-family: M; src: url(data:font/woff2;base64,${sans}) format('woff2'); font-weight: 200 800; }
+@font-face { font-family: S; src: url(data:font/woff2;base64,${serif}) format('woff2'); font-weight: 200 900; }
 * { margin: 0; box-sizing: border-box; }
-body { width: 1200px; height: 630px; font-family: M, sans-serif; color: #fff; background: #0D1530 url(data:image/webp;base64,${photo}) center 40% / cover; position: relative; overflow: hidden; }
-body::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(13,21,48,.96) 0%, rgba(13,21,48,.86) 46%, rgba(13,21,48,.25) 100%); }
-main { position: absolute; inset: 0; padding: 72px 80px; display: flex; flex-direction: column; justify-content: space-between; }
-.law { font-size: 22px; font-weight: 600; color: #C9D3F5; }
-h1 { display: flex; align-items: center; gap: 22px; }
-h1 img { height: 74px; width: auto; display: block; }
-h1 span { padding-left: 22px; border-left: 2px solid rgba(255,255,255,.4); font-size: 52px; font-weight: 600; letter-spacing: -.02em; line-height: 1; color: #fff; }
-p { margin-top: 34px; font-size: 56px; font-weight: 700; letter-spacing: -.025em; line-height: 1.08; max-width: 13em; }
-.bar { display: flex; align-items: center; gap: 14px; margin-top: 30px; }
-.chip { padding: 10px 22px; border-radius: 10px; background: #2F54EB; font-size: 24px; font-weight: 700; }
-.chip.is-line { background: none; box-shadow: inset 0 0 0 2px rgba(255,255,255,.5); }
-</style></head><body><main>
-<div class="law">Ley 2/2023 · Directiva (UE) 2019/1937</div>
-<div><h1><img src="data:image/svg+xml;base64,${logo}" alt="${EMPRESA}">${suffix ? `<span>${suffix}</span>` : ''}</h1><p>Canal de denuncias para tu empresa</p>
-<div class="bar"><span class="chip">Anónimo o con nombre</span><span class="chip is-line">Plazos legales a la vista</span></div></div>
-</main></body></html>`;
+body { width: 1200px; height: 630px; font-family: M, sans-serif; color: #0D1530; background: #fff; overflow: hidden; }
+header { display: flex; align-items: center; gap: 18px; height: 112px; padding: 0 72px; box-shadow: inset 0 -2px 0 #E3E6ED; }
+header img { height: 40px; width: auto; display: block; }
+header span { padding-left: 18px; border-left: 2px solid #E3E6ED; font-size: 30px; font-weight: 500; line-height: 38px; color: #4D5672; }
+.alert { display: flex; align-items: center; gap: 14px; padding: 16px 72px; background: #FEF3F2; box-shadow: inset 0 -2px 0 #FAD4D0; color: #B42318; font-size: 20px; font-weight: 500; }
+main { padding: 64px 72px 0; }
+h1 { max-width: 16em; font-family: S, serif; font-size: 70px; line-height: 1.06; font-weight: 500; letter-spacing: -.022em; }
+</style></head><body>
+<header><img src="data:image/svg+xml;base64,${logo}" alt="${EMPRESA}">${suffix ? `<span>${suffix}</span>` : ''}</header>
+<div class="alert">${T.alert}</div>
+<main><h1>${T.title}</h1></main>
+</body></html>`;
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1200, height: 630 } });

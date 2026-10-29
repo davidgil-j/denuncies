@@ -10,10 +10,12 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const FONT = 'node_modules/@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2';
+// La serifa de los titulares (diseño «aviso»): la misma que usan el alta, la privacidad y la página «no encontrada»
+const SERIF = 'node_modules/@fontsource-variable/source-serif-4/files/source-serif-4-latin-wght-normal.woff2';
 const LANGS = ['es', 'ca', 'en'];
 /**
  * Los vídeos de la demo (public/landing/video, hechos con scripts/video-demo.mjs), uno por idioma: el del ordenador
- * (2560×1440) y la versión del móvil (1080×1920, el producto en el móvil), cada uno con su primera imagen como póster.
+ * (4K, 3840×2160) y la versión del móvil (2160×3840, el producto en el móvil), cada uno con su primera imagen como póster.
  * Cada portada lleva solo los de su idioma (generar.js elige con VIDEOS[lang])
  */
 const video = (n, l) => ({ src: `/landing/video/${n}-${l}.mp4`, light: `/landing/video/${n}-${l}-movil.mp4`, poster: `/landing/video/${n}-${l}.webp`, posterLight: `/landing/video/${n}-${l}-movil.webp` });
@@ -54,7 +56,7 @@ export default function portada({ origin } = {}) {
           const { generarPortada } = await server.ssrLoadModule('/src/v2/landing/generar.js');
           const html = generarPortada({
             lang, T: withSite(translations, siteTexts, lang), P,
-            assets: { css: fs.readFileSync(path.join(root, 'src/v2/landing/landing.css'), 'utf8'), js: '/src/v2/landing/landing.js', font: `/${FONT}`, video: VIDEOS, origin },
+            assets: { css: fs.readFileSync(path.join(root, 'src/v2/landing/landing.css'), 'utf8'), js: '/src/v2/landing/landing.js', font: `/${FONT}`, serif: `/${SERIF}`, video: VIDEOS, origin },
           });
           res.setHeader('content-type', 'text/html; charset=utf-8');
           res.setHeader('cache-control', 'no-store');
@@ -73,17 +75,21 @@ export default function portada({ origin } = {}) {
       const js = fs.readFileSync(path.join(root, 'src/v2/landing/landing.js'));
       const jsName = `assets/portada-${hash(js)}.js`;
       this.emitFile({ type: 'asset', fileName: jsName, source: js });
-      // La tipografía: el mismo archivo que usa la aplicación (quien pasa de la portada al alta no la baja dos veces);
+      // Las tipografías: el mismo archivo que usa la aplicación (quien pasa de la portada al alta no la baja dos veces);
       // si la aplicación no la tuviera, una copia propia
-      let fontName = Object.keys(bundle).find(f => /manrope-latin-wght-normal-[\w-]+\.woff2$/.test(f));
-      if (!fontName) {
-        const font = fs.readFileSync(path.join(root, FONT));
-        fontName = `assets/manrope-latin-${hash(font)}.woff2`;
-        this.emitFile({ type: 'asset', fileName: fontName, source: font });
-      }
+      const fontFile = (re, file, name) => {
+        const found = Object.keys(bundle).find(f => re.test(f));
+        if (found) return found;
+        const font = fs.readFileSync(path.join(root, file));
+        const fileName = `assets/${name}-${hash(font)}.woff2`;
+        this.emitFile({ type: 'asset', fileName, source: font });
+        return fileName;
+      };
+      const fontName = fontFile(/manrope-latin-wght-normal-[\w-]+\.woff2$/, FONT, 'manrope-latin');
+      const serifName = fontFile(/source-serif-4-latin-wght-normal-[\w-]+\.woff2$/, SERIF, 'source-serif-4-latin');
       const css = minifyCss(fs.readFileSync(path.join(root, 'src/v2/landing/landing.css'), 'utf8'));
       for (const lang of LANGS) {
-        const html = generarPortada({ lang, T: withSite(translations, siteTexts, lang), P, assets: { css, js: `/${jsName}`, font: `/${fontName}`, video: VIDEOS, origin } });
+        const html = generarPortada({ lang, T: withSite(translations, siteTexts, lang), P, assets: { css, js: `/${jsName}`, font: `/${fontName}`, serif: `/${serifName}`, video: VIDEOS, origin } });
         this.emitFile({ type: 'asset', fileName: `inicio-${lang}.html`, source: html });
       }
       // Buscadores: solo con INDEXAR_WEB (src/v2/config/producto.js). El canal y el panel llevan «noindex» siempre

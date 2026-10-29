@@ -1,25 +1,29 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
-import { Lock, Menu, X, ArrowRight } from 'lucide-react';
+import { Menu, X, ArrowRight } from 'lucide-react';
 import { translations } from '../../translations.js';
 import './texts.js'; // los textos de la web (src/translations-site.js)
-import { LANGS, BOE_URL, ICON, detectLang, Stable, useLangAnchor } from '../V2Layout.jsx';
+import { LANGS, ICON, detectLang, Stable, useLangAnchor } from '../V2Layout.jsx';
 import { CONTACT_EMAIL } from './plans.js';
 import './site.css';
-import { EMPRESA } from '../config/producto.js';
+import { EMPRESA, NOMBRE_PRODUCTO } from '../config/producto.js';
+// La serifa de los titulares, como en la portada (diseño «aviso»). Solo la bajan las páginas de la web
+import '@fontsource-variable/source-serif-4/wght.css';
 
 const DEMO_PATH = '/canal/demo';
 // El idioma elegido en la web se recuerda y el panel lo usa (la misma clave)
 const LANG_KEY = 'reportia-panel-lang';
 // Por debajo de este ancho la navegación va al menú (por encima cabe en una línea, con secciones y botón)
-const DESKTOP = 1200;
-// Secciones de la portada accesibles desde la navegación
-const SECTIONS = [['funciona', 'navHow'], ['ley', 'navLaw'], ['precios', 'navPricing'], ['preguntas', 'navFaq']];
+const DESKTOP = 1080;
+// Los apartados de la portada en la navegación, como en la portada (v2site.portada)
+const SECTIONS = [['ley', 'navLaw'], ['funciona', 'navHow'], ['precio', 'navPrice']];
+// «Reportia Canal»: el logotipo y, al lado, el nombre del producto
+const PRODUCTO = NOMBRE_PRODUCTO.startsWith(EMPRESA) ? NOMBRE_PRODUCTO.slice(EMPRESA.length).trim() : NOMBRE_PRODUCTO;
 
 /**
  * Marco común de las páginas de la web de Reportia que son de la aplicación (alta, privacidad y «no encontrada»):
- * cabecera fina con navegación y pie. La portada es una página aparte (src/v2/landing): los enlaces a ella y a sus
- * secciones cargan la página entera.
+ * la misma cabecera y el mismo pie que la portada (diseño «aviso»). La portada es una página aparte (src/v2/landing):
+ * los enlaces a ella y a sus apartados cargan la página entera.
  * El idioma vive aquí y se pasa a las páginas con <Outlet context>. Respeta ?lang= (ca|es|en).
  */
 export default function V2SiteLayout() {
@@ -96,8 +100,10 @@ export default function V2SiteLayout() {
     if (!hash) document.getElementById('v2-main')?.focus({ preventScroll: true });
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Etiquetas de la cabecera con el ancho del idioma más largo: el menú no se desplaza
+  // Etiquetas con el ancho del idioma más largo (el botón y el pie): no se desplazan al cambiar de idioma. Los enlaces de la
+  // cabecera van con su ancho, como en la portada
   const st = (key) => <Stable lang={lang} pick={T => T.v2site[key]} />;
+  const sp = (key) => <Stable lang={lang} pick={T => T.v2site.portada[key]} />;
   const navClass = ({ isActive }) => `v2-site-navlink${isActive ? ' is-current' : ''}`;
   // El selector de idioma sale dos veces: en la cabecera (ordenador) y dentro del menú (móvil)
   const langGroup = (cls) => (
@@ -118,25 +124,26 @@ export default function V2SiteLayout() {
         onBlur={e => { if (menuOpen && !headerRef.current?.contains(e.relatedTarget)) setMenuOpen(false); }}
       >
         <div className="v2-wrap">
-          {/* El icono oficial de Reportia y el nombre en tinta (n.º 83) */}
-          <a className="v2-site-brand" href={home} aria-label={t.homeLabel}><img src="/marca/reportia-icono-64.png" width="28" height="28" alt="" /><span>{EMPRESA}</span></a>
+          {/* El logotipo de Reportia en verde oscuro y el nombre del producto, como en la portada */}
+          <a className="v2-site-brand" href={home} aria-label={t.homeLabel}>
+            <img src="/marca/reportia-logo-oscuro.svg" width="116" height="24" alt={EMPRESA} />
+            {PRODUCTO && <span>{PRODUCTO}</span>}
+          </a>
 
           <nav className="v2-site-nav" aria-label={t.navLabel}>
             {SECTIONS.map(([id, key]) => (
-              <a className="v2-site-navlink is-section" key={id} href={`${home}#${id}`}>{st(key)}</a>
+              <a className="v2-site-navlink is-section" key={id} href={`${home}#${id}`}>{t.portada[key]}</a>
             ))}
-            <NavLink className={navClass} to={`${DEMO_PATH}?lang=${lang}`}>{st('navDemoShort')}</NavLink>
             {/* En el alta, «Acceder» ya es el botón principal */}
-            {pathname !== '/crear-compte' && <><span className="v2-site-sep" aria-hidden="true" />
-            <NavLink className={navClass} to="/admin/login" end>{st('navLogin')}</NavLink></>}
+            {pathname !== '/crear-compte' && <NavLink className={navClass} to="/admin/login" end>{t.navLogin}</NavLink>}
           </nav>
-
-          {/* La acción principal está siempre en la cabecera, también en la portada y en el móvil */}
-          {/* En el alta, el botón lleva al acceso: «Crear cuenta» llevaría a la misma página (G-4) */}
-          {pathname === '/crear-compte'
-            ? <Link className="v2-btn v2-btn-primary v2-site-cta" to="/admin/login">{st('navLogin')}</Link>
-            : <Link className="v2-btn v2-btn-primary v2-site-cta" to="/crear-compte">{st('navSignup')}</Link>}
           {langGroup('v2-site-lang')}
+
+          {/* La acción principal está siempre en la cabecera, también en el móvil */}
+          {/* En el alta, el botón lleva al acceso: «Crear el canal» llevaría a la misma página (G-4) */}
+          {pathname === '/crear-compte'
+            ? <Link className="v2-btn v2-site-cta" to="/admin/login">{st('navLogin')}</Link>
+            : <Link className="v2-btn v2-site-cta" to="/crear-compte"><span className="v2-site-cta-long">{sp('navCta')}</span><span className="v2-site-cta-short">{t.portada.navCtaShort}</span></Link>}
 
           <button
             ref={menuBtnRef}
@@ -156,7 +163,7 @@ export default function V2SiteLayout() {
           {langGroup('v2-site-menu-lang')}
           <nav aria-label={t.navLabel}>
             {SECTIONS.map(([id, key]) => (
-              <a className="v2-site-menu-row" key={id} href={`${home}#${id}`}>{t[key]}<ArrowRight {...ICON} /></a>
+              <a className="v2-site-menu-row" key={id} href={`${home}#${id}`}>{t.portada[key]}<ArrowRight {...ICON} /></a>
             ))}
             <Link className="v2-site-menu-row" to={`${DEMO_PATH}?lang=${lang}`}>{t.navDemo}<ArrowRight {...ICON} /></Link>
             <Link className="v2-site-menu-row" to="/admin/login">{t.navLogin}<ArrowRight {...ICON} /></Link>
@@ -168,21 +175,16 @@ export default function V2SiteLayout() {
         <Outlet context={{ lang, setLang }} />
       </main>
 
+      {/* El pie de la portada: la marca, los enlaces y el idioma */}
       <footer className="v2-site-foot">
         <div className="v2-wrap">
-          <a className="v2-site-foot-brand" href={home} aria-label={t.homeLabel}><img src="/marca/reportia-icono-64.png" width="24" height="24" alt="" /><span>{EMPRESA}</span></a>
+          <a className="v2-site-foot-brand" href={home} aria-label={t.homeLabel}><img src="/marca/reportia-icono-64.png" width="24" height="24" alt="" /><span>{t.footerName}</span></a>
           <nav className="v2-site-foot-nav" aria-label={t.footerNav}>
-            {SECTIONS.map(([id, key]) => (
-              <a key={id} href={`${home}#${id}`}>{st(key)}</a>
-            ))}
-            <a href={BOE_URL} target="_blank" rel="noopener noreferrer"><Stable lang={lang} pick={T => T.v2.footerLaw} /></a>
             <Link to="/privacitat"><Stable lang={lang} pick={T => T.v2.privacy} /></Link>
+            <Link to={`${DEMO_PATH}?lang=${lang}`}>{st('navDemoShort')}</Link>
+            <Link to="/admin/login">{st('navLogin')}</Link>
             <a href={`mailto:${CONTACT_EMAIL}`}>{st('footerContact')}</a>
           </nav>
-          <p className="v2-site-foot-note">
-            <span>{t.footerName}</span>
-            <span className="secure"><Lock {...ICON} />{tv.footerSecure}</span>
-          </p>
         </div>
       </footer>
     </div>

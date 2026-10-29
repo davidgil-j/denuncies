@@ -5,45 +5,55 @@
    Un solo efecto que manda: la ficha de la portada (entra y marca "No se registra").
    ========================================================================== */
 
-/* ---------- marco: cabecera fina y menú móvil ---------- */
-.v2-site { --site-hd: 56px; }
+/* ---------- marco: la cabecera de la portada (diseño «aviso») y el menú móvil ----------
+   Blanca, con el logotipo en verde oscuro y «Canal», los apartados de la portada, el idioma y «Crear el canal» en tinta.
+   Los titulares de estas páginas, con la serifa de la portada (Source Serif 4): solo aquí, el canal no cambia */
+.v2-site {
+  --site-hd: 64px;
+  --font-display: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --fw-display: 500;
+  background: var(--surface);
+}
+body.v2-body:has(.v2-site) { background: var(--surface); }
 .v2-site-header { position: sticky; top: 0; z-index: 3; background: var(--surface); box-shadow: inset 0 -1px 0 var(--line-2); }
 .v2-site-header > .v2-wrap { display: flex; align-items: center; gap: var(--s-3); min-height: var(--site-hd); }
 .v2-site-brand {
-  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; border-radius: var(--r-sm); text-decoration: none;
-  font: var(--fw-display) 20px/1 var(--font-display); letter-spacing: -.02em; color: var(--navy-900);
+  flex: none; display: inline-flex; align-items: center; gap: 9px; min-height: 44px; margin-right: auto; border-radius: var(--r-sm); text-decoration: none;
+  font-size: 15px; font-weight: 500; line-height: 20px; color: var(--ink-2);
 }
-.v2-site-brand img, .v2-site-foot-brand img { flex: none; border-radius: 50%; }
+.v2-site-brand img { flex: none; width: auto; height: 20px; }
+.v2-site-brand span { padding-left: 9px; border-left: 1px solid var(--line-2); }
+.v2-site-foot-brand img { flex: none; border-radius: 50%; }
 .v2-site-brand:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
 
 .v2-site-nav { display: none; }
 .v2-site-navlink {
-  display: inline-flex; align-items: center; min-height: 40px; padding: 0 11px; border-radius: var(--r-sm);
-  font-size: 14px; font-weight: 600; color: var(--ink-2); text-decoration: none; white-space: nowrap;
-  -webkit-tap-highlight-color: transparent; transition: color var(--t-fast) ease, background-color var(--t-fast) ease;
+  display: inline-flex; align-items: center; min-height: 44px; border-radius: var(--r-sm);
+  font-size: 15px; font-weight: 500; color: var(--ink-2); text-decoration: none; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent; transition: color var(--t-fast) ease;
 }
-.v2-site-navlink.is-current { color: var(--navy-900); box-shadow: inset 0 -2px 0 var(--accent); border-radius: 0; }
+.v2-site-navlink.is-current { color: var(--navy-900); }
 .v2-site-navlink:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-.v2-site-sep { flex: none; width: 1px; height: 20px; margin-inline: var(--s-2); background: var(--line); }
-/* «Crear cuenta» siempre a la vista: compacto en móvil, junto al menú */
-.v2-btn.v2-site-cta { flex: none; min-height: 44px; padding: 0 14px; font-size: 14px; }
-/* el idioma, en la cabecera, es un grupo de tres letras sin caja */
-.v2-site-lang { display: none; gap: 0; padding: 0; background: none; box-shadow: none; }
-.v2-site-lang button { width: 36px; height: 40px; border-radius: var(--r-sm); color: var(--ink-3); }
-.v2-site-lang button[aria-pressed="true"] { background: none; box-shadow: none; color: var(--navy-900); }
+/* «Crear el canal» siempre a la vista, en tinta como en la portada; en el móvil, con su texto corto */
+.v2-btn.v2-site-cta { flex: none; min-height: 40px; padding: 0 13px; font-size: 14px; font-weight: 700; background: var(--navy-900); color: #fff; box-shadow: none; }
+.v2-site-cta-long { display: none; }
+/* el idioma, en la cabecera, son tres letras; la elegida, con un borde fino */
+.v2-site-lang { display: none; gap: 2px; padding: 0; background: none; box-shadow: none; }
+.v2-site-lang button { width: 34px; height: 32px; border-radius: var(--r-sm); font-size: 13px; color: var(--ink-3); }
+.v2-site-lang button[aria-pressed="true"] { background: none; box-shadow: inset 0 0 0 1px var(--line-2); color: var(--navy-900); }
 .v2-site-menu-lang { display: flex; width: fit-content; margin: var(--s-3) 0 var(--s-2); }
 
 .v2-site-menu-btn {
   -webkit-appearance: none; appearance: none; border: 0; margin: 0; cursor: pointer; flex: none;
-  width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%;
-  background: var(--bg); box-shadow: inset 0 0 0 1px var(--line-2); color: var(--navy-900);
+  width: 44px; height: 44px; display: grid; place-items: center; border-radius: 10px;
+  background: transparent; color: var(--navy-900);
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   transition: background-color var(--t-fast) ease, transform 160ms var(--ease-out);
 }
 .v2-site-menu-btn svg { width: 22px; height: 22px; }
 .v2-site-menu-btn:active { transform: scale(.96); }
 .v2-site-menu-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-.v2-site-menu-btn[aria-expanded="true"] { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.v2-site-menu-btn[aria-expanded="true"] { background: var(--bg); }
 
 /* el menú se despliega bajo la cabecera, encima del contenido; no es un modal */
 .v2-site-menu {
@@ -65,23 +75,26 @@
 .v2-site-menu-row svg { width: 20px; height: 20px; color: var(--ink-3); }
 .v2-site-menu-row:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--r-sm); }
 
-@media (min-width: 1200px) {
-  .v2-site { --site-hd: 64px; }
-  .v2-site-header > .v2-wrap { gap: var(--s-2); }
-  .v2-site-nav { display: flex; align-items: center; gap: 2px; }
+@media (max-width: 359px) { .v2-site-brand span { display: none; } }
+@media (min-width: 641px) {
+  .v2-site-brand { gap: 12px; font-size: 17px; line-height: 22px; }
+  .v2-site-brand img { height: 24px; }
+  .v2-site-brand span { padding-left: 12px; }
+  .v2-btn.v2-site-cta { min-height: 42px; padding: 0 18px; font-size: 15px; }
+  .v2-site-cta-long { display: inline; }
+  .v2-site-cta-short { display: none; }
+}
+@media (min-width: 1080px) {
+  .v2-site { --site-hd: 72px; }
+  .v2-site-header > .v2-wrap { gap: 28px; }
+  .v2-site-nav { display: flex; align-items: center; gap: 28px; }
   .v2-site-menu-btn, .v2-site-menu { display: none; }
-  .v2-site-lang { display: flex; }
-  .v2-btn.v2-site-cta { min-height: 40px; padding: 0 16px; font-size: 14px; }
+  .v2-site-lang { display: flex; margin-left: -12px; }
 }
 @media (hover: hover) and (pointer: fine) {
-  .v2-site-navlink:hover { color: var(--navy-900); background: var(--bg); }
-  .v2-site-navlink.is-current:hover { background: transparent; }
-  .v2-site-menu-btn:hover { background: var(--surface-2); }
-}
-@media (max-width: 380px) {
-  .v2-site-header > .v2-wrap { gap: var(--s-2); }
-  .v2-site-brand { font-size: 20px; }
-  .v2-btn.v2-site-cta { padding: 0 10px; }
+  .v2-site-navlink:hover { color: var(--navy-900); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .v2-site-menu-btn:hover { background: var(--bg); }
+  .v2-btn.v2-site-cta:hover { background: #1D2747; color: #fff; }
 }
 
 .v2-btn-onnavy:focus-visible, .v2-btn-ghostnavy:focus-visible { outline-color: #FFFFFF; }
@@ -229,17 +242,15 @@
 .v2-auth .v2-otp.v2-input { max-width: none; }
 
 /* ---------- ajustes posteriores: alta, privacidad, 404 ---------- */
-/* alta: «Qué incluye» en una hoja teñida */
-.v2-auth-aside { padding: var(--s-5); border-radius: var(--r-lg); background: var(--accent-tint); box-shadow: inset 0 0 0 1px var(--accent-line); }
-.v2-auth-aside .v2-note { background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent-line); }
-@media (min-width: 600px) { .v2-auth-aside { padding: var(--s-6); } }
-@media (min-width: 960px) { .v2-auth-grid .v2-auth-aside { padding-top: var(--s-6); } }
-/* privacidad: el texto legal como documento */
-.v2-pv-body { padding: var(--s-5) var(--s-4); border-radius: var(--r-lg); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-2), var(--shadow-1); }
+/* alta: «Qué incluye», como un apartado de la portada: una línea arriba y el texto, sin caja teñida ni otra caja dentro */
+.v2-auth-aside { padding: var(--s-5) 0 0; border-top: 1px solid var(--line-2); }
+.v2-auth-aside .v2-note { padding: 0; background: none; box-shadow: none; color: var(--ink-2); }
+@media (min-width: 960px) { .v2-auth-grid .v2-auth-aside { padding-top: var(--s-5); } }
+/* privacidad: el texto legal como un documento sobre blanco, alineado con su título (sin tarjeta alrededor: las tablas de
+   datos ya van en su caja, y una caja dentro de otra se lee como plantilla) */
 .v2-pv-sec:last-child { padding-bottom: 0; }
 .v2-pv-sec dl { background: var(--surface-2); }
-@media (min-width: 600px) { .v2-pv-body { padding: var(--s-6); } }
-@media (min-width: 960px) { .v2-pv-body { grid-column: 4 / span 8; padding: var(--s-7); } }
+@media (min-width: 960px) { .v2-pv-body { grid-column: 4 / span 8; } }
 
 
 /* objetivos táctiles del índice de la política de privacidad */
@@ -258,25 +269,18 @@
 .v2-su-trial { display: flex; align-items: flex-start; gap: 8px; margin-top: var(--s-4); font-size: 14px; line-height: 1.5; color: var(--ink-2); }
 .v2-su-trial svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: var(--accent); }
 
-/* Menú en fila: cada enlace ocupa el ancho del idioma más largo, con el texto centrado */
-@media (min-width: 1200px) { .v2-site-navlink .v2-stable-v { text-align: center; } }
+/* El botón de la cabecera ocupa el ancho del idioma más largo, con el texto centrado */
+.v2-site-cta .v2-stable-v { text-align: center; }
 
 /* Botones con esquinas de 10 px, como el producto y la portada (n.º 87, docs/DECISIONES_TOMADAS.md). Antes, en píldora */
 .v2-site .v2-btn { border-radius: 10px; }
 
-/* ---------- pie de toda la web: azul marino, la marca y los enlaces ---------- */
-.v2-site-foot { padding-block: var(--s-7) var(--s-6); background: var(--navy-950); color: var(--on-navy-2); font-size: 14px; }
-.v2-site-foot > .v2-wrap { display: grid; gap: var(--s-5); }
-.v2-site-foot-brand { width: fit-content; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font: var(--fw-display) 24px/1 var(--font-display); letter-spacing: -.02em; color: #fff; text-decoration: none; }
-.v2-site-foot-nav { display: flex; flex-wrap: wrap; gap: 0 var(--s-5); }
-.v2-site-foot-nav a { display: inline-flex; align-items: center; min-height: 44px; color: #E7ECF5; font-weight: 500; text-decoration: none; }
-.v2-site-foot-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-5); padding-top: var(--s-5); border-top: 1px solid rgba(255,255,255,.12); font-size: 13px; }
-.v2-site-foot-note .secure { display: inline-flex; align-items: center; gap: 6px; }
-.v2-site-foot-note svg { width: 14px; height: 14px; }
-.v2-site-foot a:focus-visible { outline: 3px solid #fff; outline-offset: 3px; border-radius: 2px; }
-@media (hover: hover) and (pointer: fine) { .v2-site-foot-nav a:hover { color: #fff; text-decoration: underline; text-underline-offset: 4px; } }
-@media (min-width: 900px) {
-  .v2-site-foot > .v2-wrap { grid-template-columns: auto minmax(0,1fr); align-items: center; }
-  .v2-site-foot-nav { justify-content: flex-end; }
-  .v2-site-foot-note { grid-column: 1 / -1; }
-}
+/* ---------- pie de toda la web: el de la portada, en claro ---------- */
+.v2-site-foot { padding-block: var(--s-6) var(--s-7); box-shadow: inset 0 1px 0 var(--line-2); font-size: 14px; color: var(--ink-2); }
+.v2-site-foot > .v2-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-6); }
+.v2-site-foot-brand { width: fit-content; display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 600; color: var(--ink); text-decoration: none; }
+.v2-site-foot-nav { display: flex; flex-wrap: wrap; gap: 0 20px; }
+.v2-site-foot-nav a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(77,86,114,.45); }
+.v2-site-foot a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 2px; }
+@media (hover: hover) and (pointer: fine) { .v2-site-foot-nav a:hover { color: var(--ink); text-decoration-color: currentColor; } }
+@media (min-width: 900px) { .v2-site-foot-nav { margin-left: auto; } }

@@ -3,7 +3,7 @@
 //   · la raíz da la página del idioma (?lang= manda; si no, el del navegador; castellano si no es ninguno de los tres) y, en
 //     la dirección propia de una empresa, su canal;
 //   · las etiquetas para buscadores y para compartir, y robots.txt y sitemap.xml según INDEXAR_WEB;
-//   · sin JavaScript se lee entera y las pestañas del vídeo, las preguntas y el menú funcionan;
+//   · sin JavaScript se lee entera y las pestañas del vídeo y el menú funcionan;
 //   · el vídeo: cada pantalla baja su versión y su póster, se reproduce solo al verse y se para al salir; con «reducir
 //     movimiento», nada se mueve;
 //   · CLS 0 (nada salta al cargar ni al bajar por la página);
@@ -66,7 +66,11 @@ const robots = (await get('/robots.txt')).body;
 const sitemap = (await get('/sitemap.xml')).body;
 ok('robots.txt según INDEXAR_WEB', P.INDEXAR_WEB ? /Allow: \/\nSitemap: https:\/\/canal\.reportia\.es\/sitemap\.xml/.test(robots) : /Disallow: \/$/m.test(robots), robots.trim().replace(/\n/g, ' · '));
 ok('sitemap.xml con la portada en los tres idiomas', (sitemap.match(/<loc>/g) ?? []).length === 3 && sitemap.includes(`${ORIGIN}/?lang=ca`));
-ok('el JavaScript y la tipografía de la portada llevan huella en el nombre (caché larga)', /src="\/assets\/portada-[0-9a-f]{8}\.js"/.test(root.body) && /href="\/assets\/manrope-latin-[\w-]+\.woff2"/.test(root.body));
+ok('el JavaScript y las dos tipografías de la portada llevan huella en el nombre (caché larga)', /src="\/assets\/portada-[0-9a-f]{8}\.js"/.test(root.body) && /href="\/assets\/manrope-latin-[\w-]+\.woff2"/.test(root.body) && /href="\/assets\/source-serif-4-latin-[\w-]+\.woff2"/.test(root.body));
+{
+  const alerts = await Promise.all(['es', 'ca', 'en'].map(async l => /<div class="lp-alert">[\s\S]*?<\/div>/.exec((await get(`/?lang=${l}`)).body)?.[0] ?? ''));
+  ok('la franja de la Autoridad, arriba, en los tres idiomas', [/1 de septiembre de 2025/, /1 de setembre de 2025/, /1 September 2025/].every((re, i) => re.test(alerts[i])));
+}
 
 // ── Navegador ──
 const browser = await chromium.launch();
@@ -91,20 +95,27 @@ for (const [w, h] of [[390, 844], [1440, 900]]) {
   await local(ctx);
   const page = await ctx.newPage();
   await page.goto(`${APP}/?lang=es`, { waitUntil: 'networkidle' });
-  ok(`sin JavaScript (${w}): el titular y las siete partes se ven`, await page.locator('.lp-hero h1').isVisible()
-    && (await page.locator('main > section').count()) >= 7 && await page.locator('#precios .lp-plans li').count() === 3);
+  ok(`sin JavaScript (${w}): el titular, lo que dice la ley, el vídeo, los cuatro apartados y el cierre se ven`, await page.locator('.lp-hero h1').isVisible()
+    && await page.locator('.lp-law-card dl > div').count() === 4 && (await page.locator('main > section').count()) === 7
+    && await page.locator('.lp-hero + #funciona .lp-video-stage').count() === 1
+    && await page.locator('#precio .lp-plans li').count() === 3);
   ok(`sin JavaScript (${w}): «Quien denuncia» a la vista y «Quien gestiona» escondido`, await page.locator('.lp-video-report').isVisible() && !(await page.locator('.lp-video-manage').isVisible()));
   await bringIntoView(page, page.locator('label[for="lp-v-manage"]'));
   await page.locator('label[for="lp-v-manage"]').click();
   ok(`sin JavaScript (${w}): la pestaña «Quien gestiona» cambia el vídeo`, await page.locator('.lp-video-manage').isVisible() && !(await page.locator('.lp-video-report').isVisible()));
-  const q = page.locator('#preguntas details').first();
-  await bringIntoView(page, q.locator('summary'));
-  await q.locator('summary').click();
-  ok(`sin JavaScript (${w}): las preguntas se abren`, await q.evaluate(d => d.open));
+  if (w >= 700) {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator('.lp-nav a[href="#precio"]').click();
+    await page.waitForTimeout(400);
+    // Es el último apartado: la página no siempre puede subirlo hasta arriba, pero tiene que quedar a la vista y por
+    // debajo de la cabecera fija (72 px)
+    const top = await page.locator('#precio').evaluate(el => el.getBoundingClientRect().top);
+    ok('sin JavaScript (1440): «Precio» lleva a su apartado, a la vista y sin quedar bajo la cabecera fija', top >= 72 && top < 900 - 200, `${Math.round(top)} px`);
+  }
   if (w < 700) {
     await bringIntoView(page, page.locator('.lp-menu > summary'));
     await page.locator('.lp-menu > summary').click();
-    ok('sin JavaScript (390): el menú del móvil se abre y lleva a las secciones', await page.locator('.lp-menu a[href="#precios"]').isVisible());
+    ok('sin JavaScript (390): el menú del móvil se abre y lleva a los apartados', await page.locator('.lp-menu a[href="#precio"]').isVisible());
   }
   await ctx.close();
 }
@@ -136,7 +147,7 @@ for (const lang of ['es', 'ca', 'en']) for (const [w, h] of [[1440, 900], [390, 
   await page.waitForTimeout(1500);
   s = await state();
   ok(`vídeo (${lang}, ${w}): la otra pestaña reproduce el otro y para el primero`, s.report.paused && !s.manage.paused && s.manage.t > 0.3, JSON.stringify(s));
-  await bringIntoView(page, page.locator('#precios .lp-plans'));
+  await bringIntoView(page, page.locator('#precio .lp-plans'));
   await page.waitForTimeout(800);
   s = await state();
   ok(`vídeo (${lang}, ${w}): al salir de la vista se para`, s.report.paused && s.manage.paused);
@@ -145,8 +156,8 @@ for (const lang of ['es', 'ca', 'en']) for (const [w, h] of [[1440, 900], [390, 
   ok(`vídeo (${lang}, ${w}): sin errores en la página`, errors.length === 0, errors.join(' · '));
   await ctx.close();
 }
-// Los archivos: los ocho de cada idioma (H.264 en MP4 sin sonido y su póster). Van en máxima calidad (CRF 18): el tope es
-// de aviso, 15 MB cada vídeo (solo se bajan al verse y el móvil baja su versión)
+// Los archivos: los ocho de cada idioma (H.264 en MP4 sin sonido y su póster). Van en 4K (CRF 18): el tope es de aviso,
+// 15 MB cada vídeo (solo se bajan al verse y el móvil baja su versión)
 const VID = path.join(ROOT, 'public/landing/video');
 const expected = ['es', 'ca', 'en'].flatMap(l => ['denuncia', 'gestion'].flatMap(n => ['', '-movil'].flatMap(m => [`${n}-${l}${m}.mp4`, `${n}-${l}${m}.webp`])));
 ok('vídeo: los de los tres idiomas, y ninguno más', fs.readdirSync(VID).sort().join() === [...expected].sort().join(), fs.readdirSync(VID).join(' '));
@@ -183,7 +194,7 @@ for (const f of fs.readdirSync(VID).filter(f => f.endsWith('.mp4'))) {
   await ctx.close();
 }
 
-// ── 5b · El texto sobre las fotos (inicio y cierre, y la cabecera encima): contraste medido en los píxeles de verdad ──
+// ── 5b · El texto de la cabecera, la franja, el inicio y el cierre (azul noche): contraste medido en los píxeles de verdad ──
 // Se esconde el texto, se hace una captura y, detrás de cada línea, se toma el 5 % de píxeles más claros (el peor caso)
 for (const [w, h] of [[390, 844], [1440, 900]]) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, locale: 'es-ES', reducedMotion: 'reduce', isMobile: w < 700, hasTouch: w < 700 });
@@ -196,7 +207,7 @@ for (const [w, h] of [[390, 844], [1440, 900]]) {
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
       const el = n.parentElement;
-      if (!n.textContent.trim() || !el.closest('.lp-top, .lp-hero, .lp-end') || el.closest('.lp-btn, .lp-menu-panel, .lp-vh, [aria-current]')) continue;
+      if (!n.textContent.trim() || !el.closest('.lp-top, .lp-alert, .lp-hero, .lp-end') || el.closest('.lp-btn, .lp-menu-panel, .lp-vh, [aria-current]')) continue;
       const range = document.createRange(); range.selectNodeContents(n);
       for (const r of range.getClientRects()) {
         if (r.width < 2 || r.height < 2) continue;
@@ -206,7 +217,7 @@ for (const [w, h] of [[390, 844], [1440, 900]]) {
     }
     return out;
   });
-  await page.addStyleTag({ content: '.lp-top *, .lp-hero *, .lp-end * { color: transparent !important; text-decoration-color: transparent !important; } .lp-btn, .lp-top svg, .lp-hero svg, .lp-end svg { visibility: hidden !important; }' });
+  await page.addStyleTag({ content: '.lp-top *, .lp-alert *, .lp-hero *, .lp-end * { color: transparent !important; text-decoration-color: transparent !important; } .lp-btn, .lp-top svg, .lp-hero svg, .lp-end svg, .lp-dot, .lp-top img { visibility: hidden !important; }' });
   const shot = (await page.screenshot({ fullPage: true })).toString('base64');
   const worst = await page.evaluate(async ({ shot, texts }) => {
     const img = new Image(); img.src = `data:image/png;base64,${shot}`; await img.decode();
@@ -225,7 +236,7 @@ for (const [w, h] of [[390, 844], [1440, 900]]) {
       return { text: t.text, ratio: Number(ratio.toFixed(2)), min: big ? 3 : 4.5 };
     }).filter(r => r.ratio < r.min);
   }, { shot, texts });
-  ok(`texto sobre las fotos (${w}): contraste medido en píxeles (${texts.length} líneas)`, texts.length > 5 && worst.length === 0, worst.map(x => `«${x.text}» ${x.ratio}:1`).join(' · '));
+  ok(`texto del inicio, la franja y el cierre (${w}): contraste medido en píxeles (${texts.length} líneas)`, texts.length > 5 && worst.length === 0, worst.map(x => `«${x.text}» ${x.ratio}:1`).join(' · '));
   await ctx.close();
 }
 

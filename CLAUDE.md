@@ -25,7 +25,7 @@ L'aplicació està **en producció** a Vercel (frontend) + Supabase (base de dad
 | Storage (adjunts) | Supabase Storage (bucket privat) |
 | Funcions de servidor | Supabase Edge Functions (Deno) |
 | Exportació | ExcelJS (Excel) + jsPDF (PDF, amb Manrope); es descarreguen només en exportar |
-| Tipografia | Manrope variable (`@fontsource-variable/manrope`) a tot arreu: producte, portada i PDF |
+| Tipografia | Manrope variable (`@fontsource-variable/manrope`): producte, PDF i el text de la web. Els titulars de la web (portada, alta, privacitat, 404), amb Source Serif 4 (`@fontsource-variable/source-serif-4`; disseny «avís») |
 | Icones | Lucide React |
 | Antispam | Cloudflare Turnstile (opcional) |
 | Monitoratge | Sentry (opcional, mai al canal de denúncies) |
@@ -53,7 +53,8 @@ src/
 │   └── cleanImage.js        # Treu les metadades de les fotos adjuntes
 └── v2/
     ├── config/producto.js   # Les decisions de negoci (nom, adreça, preus, multa, peu «Amb Reportia», indexar…): una línia cada una
-    ├── landing/             # La portada estàtica: generar.js (HTML per idioma), landing.css, landing.js (només el vídeo), iconos.js
+    ├── landing/             # La portada estàtica, disseny «avís» (blanca, franja de l'Autoritat, 4 apartats i els vídeos):
+    │                        #   generar.js (HTML per idioma), landing.css, landing.js (només el vídeo), iconos.js
     ├── ds.css               # Sistema visual: colors a :root (els de la paleta blava en clar), peces i les dues meitats (sota .ds)
     ├── ui/                  # Peces comunes: SplitShell, Button, Card, Chip, Field, Dialog, Menu, Segmented,
     │                        #   StepBar, PillNav, Kanban, CaseCard, DeadlineChip, ChatThread, OtpInput, Offline, BrandLogo,
@@ -107,9 +108,9 @@ scripts/
 ├── textos-sin-uso.mjs       # Llista (o treu amb --write) els textos que no fa servir cap pantalla (els tres fitxers)
 ├── vite-portada.mjs         # Plugin de Vite: la portada a «/» en desenvolupament; en compilar, inicio-{es,ca,en}.html,
 │                            #   robots.txt i sitemap.xml, i l'aplicació passa a app.html (vercel.json tria què dona «/»)
-├── video-demo.mjs           # Grava els vídeos de la portada amb la demo (Playwright + ffmpeg) a public/landing/video
+├── video-demo.mjs           # Grava els vídeos de la portada en 4K amb la demo (Playwright + ffmpeg) a public/landing/video
 ├── correos.mjs              # Genera les quatre plantilles de correu (src/v2/emails), un idioma per correu
-└── landing-fotos.mjs, og-image.mjs  # Fotos de la portada i la imatge en compartir l'enllaç
+└── og-image.mjs             # La imatge en compartir l'enllaç (public/og.jpg), amb el disseny de la portada
 
 e2e/                         # Proves de navegador (npm run e2e). Playwright va fora del repositori: e2e/README.md
                              #   lib/vercel.mjs serveix la web compilada com Vercel; lib/supabase-local.mjs, una base de dades real

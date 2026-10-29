@@ -1,6 +1,6 @@
 // Lo único que hace JavaScript en la portada (todo lo demás funciona sin él):
 //  · el póster de cada vídeo, al acercarse a ellos (el vertical en el móvil): al cargar la página no se pide ninguno y no
-//    compiten con la foto del inicio;
+//    compiten con lo primero que se pinta;
 //  · el vídeo que está a la vista se reproduce solo, sin sonido y en bucle; al salir de la vista o al cambiar de
 //    pestaña, se para. Si la persona ha pedido menos movimiento, no se reproduce nada solo (tiene sus controles);
 //  · el menú del móvil se cierra al elegir una opción;
@@ -16,7 +16,7 @@
     videos.forEach(function (v) { var src = v.getAttribute(small ? 'data-poster-light' : 'data-poster'); if (src) v.poster = src; });
   }
   // Se ponen cuando faltan menos de una pantalla para llegar a los vídeos (ya están al verlos), y nunca antes de que la
-  // página termine de cargar: los vídeos quedan justo debajo del inicio y, si no, se pedirían a la vez que su foto
+  // página termine de cargar: así no compiten con el inicio
   function watchPosters() {
     if (!('IntersectionObserver' in window)) { posters(); return; }
     var near = new IntersectionObserver(function (entries) {
@@ -67,9 +67,7 @@
   // está a la vista al llegar aquí se queda como está: nada desaparece para volver a aparecer
   if (calm || !('IntersectionObserver' in window)) return;
   var REVEAL = [
-    '.lp-sec .lp-head > *', '.lp-videos', '.lp-steps > li', '.lp-cats > li', '.lp-more', '.lp-law-text > *', '.lp-facts > div',
-    '.lp-reqs-wrap .lp-h3', '.lp-reqs > details', '.lp-own', '.lp-secu > li', '.lp-plans > li', '.lp-price-more > div',
-    '.lp-price-cta', '.lp-end-in > *',
+    '.lp-show-title', '.lp-videos', '.lp-sec-title', '.lp-rows > li', '.lp-steps > li', '.lp-plans > li', '.lp-plans-note', '.lp-end-in > *',
   ].join(', ');
   var STEP = 80;
   var MAX_STEPS = 5;

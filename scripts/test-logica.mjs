@@ -184,13 +184,15 @@ ok('una paleta desconocida se pinta con la azul', themeVars('fucsia', 'light')['
   const m009 = fs.readFileSync(new URL('../supabase/migrations/009_organization_account.sql', import.meta.url), 'utf8');
   ok(`los días de prueba (${P.DIAS_PRUEBA}) son los de la base de datos (009)`, m009.includes(`set default (now() + interval '${P.DIAS_PRUEBA} days')`));
   ok('cada plan tiene nombre en los tres idiomas y un precio (o «a medida»)', P.PLANES.every(p => ['ca', 'es', 'en'].every(l => T(l).v2site.landing.plans[p.id]?.name) && (p.precio === null || p.precio > 0)));
-  const nums = { ca: ['600.001', '1.000.000'], es: ['600.001', '1.000.000'], en: ['600,001', '1,000,000'] };
-  ok('la multa de producto.js es la del texto legal aprobado, sin redondear, en los tres idiomas', P.MULTA.minimo === 600001 && P.MULTA.maximo === 1000000
-    && ['ca', 'es', 'en'].every(l => nums[l].every(n => T(l).v2site.landing.oblRefs[3].text.includes(n))));
   const { generarPortada, LANGS } = await import('../src/v2/landing/generar.js');
   const { VIDEOS, landingLang } = await import('./vite-portada.mjs');
+  const portada = (lang) => generarPortada({ lang, T: T(lang), P, assets: { css: '', js: '/x.js', font: '/x.woff2', serif: '/s.woff2', video: VIDEOS, origin: 'https://canal.reportia.es' } });
+  // La multa, en el inicio de la portada (diseño «aviso»): la de producto.js, la del BOE y sin redondear
+  const fine = { ca: '600.001 a 1.000.000 €', es: '600.001 a 1.000.000 €', en: '€600,001 to €1,000,000' };
+  ok('la multa de producto.js es la del BOE (arts. 63.1 g y 65.1 b), sin redondear, en la portada de los tres idiomas', P.MULTA.minimo === 600001 && P.MULTA.maximo === 1000000
+    && ['ca', 'es', 'en'].every(l => portada(l).includes(`<b>${fine[l]}</b>`)));
   for (const lang of LANGS) {
-    const html = generarPortada({ lang, T: T(lang), P, assets: { css: '', js: '/x.js', font: '/x.woff2', video: VIDEOS, origin: 'https://canal.reportia.es' } });
+    const html = portada(lang);
     const gaps = html.match(/undefined|\[object Object\]|\bNaN\b|\{[a-z]+\}/g);
     ok(`portada en ${lang}: entera, sin huecos y con los precios y los artículos de la multa`, !gaps && html.includes(`<html lang="${lang}">`)
       && ['#a6-5', '#a6-7'].every(a => html.includes(a)) && P.PLANES.filter(p => p.precio).every(p => html.includes(String(p.precio))) && html.length < 120000, gaps?.join(' '));

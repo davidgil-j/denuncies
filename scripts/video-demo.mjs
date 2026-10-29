@@ -6,9 +6,11 @@
 //      solo esos idiomas: por defecto, los tres)
 //
 // Una versión por idioma (es, ca, en): el producto grabado en ese idioma y los subtítulos también. Escribe en
-// public/landing/video, para «denuncia» (unos 30 s) y «gestion» (unos 45 s), en máxima calidad (H.264, CRF 18):
-//   <nombre>-<idioma>.mp4        2560×1440, el producto en el ordenador
-//   <nombre>-<idioma>-movil.mp4  1080×1920, el producto en el móvil (la versión que se ve en las pantallas pequeñas)
+// public/landing/video, para «denuncia» (unos 30 s) y «gestion» (unos 45 s), en 4K (H.264, CRF 18):
+//   <nombre>-<idioma>.mp4        3840×2160, el producto en el ordenador
+//   <nombre>-<idioma>-movil.mp4  2160×3840, el producto en el móvil (la versión que se ve en las pantallas pequeñas). Se
+//                                guarda tumbado (3840×2160) con la marca de girarlo al reproducir, como guardan los móviles
+//                                sus vídeos en vertical: hay decodificadores que no aceptan 3840 de alto
 //   <nombre>-<idioma>.webp y <nombre>-<idioma>-movil.webp: la primera imagen de cada uno, a la misma resolución, para
 //   enseñarla antes de reproducir
 // Sin sonido, con los subtítulos grabados en la imagen (en una banda propia debajo de la página: nunca tapan nada), y el
@@ -157,13 +159,13 @@ function labels(lang) {
   };
 }
 
-// El ordenador: la página a 1280×640 con densidad 2 (2560×1280) y la banda de subtítulos de 160 px debajo = 2560×1440.
-// El móvil: la página a 360×580 con densidad 3 (1080×1740) y la banda de 180 px = 1080×1920.
+// 4K. El ordenador: la página a 1280×640 con densidad 3 (3840×1920) y la banda de subtítulos de 240 px debajo = 3840×2160.
+// El móvil: la página a 360×580 con densidad 6 (2160×3480) y la banda de 360 px = 2160×3840.
 // La banda y su letra, a la misma escala en los dos (la de antes, 120 px a densidad 1,5 y 2)
 const BAND = '#0B1230';
 const FORMATS = {
-  escritorio: { w: 1280, h: 640, dsf: 2, band: 160, mobile: false, suffix: '', crf: 18, cap: { font: 51, max: 2260 } },
-  movil: { w: 360, h: 580, dsf: 3, band: 180, mobile: true, suffix: '-movil', crf: 18, cap: { font: 42, max: 990 } },
+  escritorio: { w: 1280, h: 640, dsf: 3, band: 240, mobile: false, suffix: '', crf: 18, cap: { font: 77, max: 3390 } },
+  movil: { w: 360, h: 580, dsf: 6, band: 360, mobile: true, suffix: '-movil', crf: 18, cap: { font: 84, max: 1980 }, tumbado: true },
 };
 
 for (const bin of ['ffmpeg', 'cwebp']) {
@@ -385,6 +387,8 @@ function assemble({ frames, cues, tEnd, dir }, capFiles, format, outName) {
   // las versiones que no respetan su duración), y el final quedaba quieto y sin subtítulo
   const mid = path.join(dir, 'mid.mkv');
   run('ffmpeg', ['-y', '-loglevel', 'error', ...inputs, '-filter_complex', `${graph};[v${cues.length}]format=rgb24[vo]`, '-map', '[vo]', '-t', total.toFixed(3), '-c:v', 'libx264rgb', '-preset', 'ultrafast', '-crf', '0', mid]);
+  // En 4K, los frames ocupan cientos de MB: fuera antes del segundo paso (el disco va justo)
+  frames.forEach(f => fs.rmSync(f.file, { force: true }));
 
   // 2 · La primera imagen (también el póster) y el fundido final hacia ella: el bucle no salta
   const first = path.join(dir, 'first.png');
@@ -392,12 +396,18 @@ function assemble({ frames, cues, tEnd, dir }, capFiles, format, outName) {
   const dur = Number(run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', mid]).stdout.trim());
   const fade = 0.7;
   const out = path.join(OUT, `${outName}${F.suffix}.mp4`);
+  // El vertical se guarda tumbado (girado 90° a la derecha) y después se le pone la marca de girarlo 90° a la izquierda al
+  // reproducir: el decodificador ve un 3840×2160 normal y la persona, el vídeo de pie
+  const encoded = F.tumbado ? path.join(dir, 'tumbado.mp4') : out;
   run('ffmpeg', ['-y', '-loglevel', 'error', '-i', mid, '-loop', '1', '-t', '1.2', '-i', first,
-    '-filter_complex', `[0:v]fps=${FPS},format=gbrp,settb=AVTB,setsar=1[a];[1:v]fps=${FPS},format=gbrp,settb=AVTB,setsar=1[b];[a][b]xfade=transition=fade:duration=${fade}:offset=${(dur - fade).toFixed(3)},scale=out_color_matrix=bt709:out_range=tv,format=yuv420p[v]`,
+    '-filter_complex', `[0:v]fps=${FPS},format=gbrp,settb=AVTB,setsar=1[a];[1:v]fps=${FPS},format=gbrp,settb=AVTB,setsar=1[b];[a][b]xfade=transition=fade:duration=${fade}:offset=${(dur - fade).toFixed(3)}${F.tumbado ? ',transpose=1' : ''},scale=out_color_matrix=bt709:out_range=tv,format=yuv420p[v]`,
     '-map', '[v]', '-an', '-c:v', 'libx264', '-preset', 'slow', '-tune', 'stillimage', '-crf', String(F.crf), '-profile:v', 'high', '-pix_fmt', 'yuv420p',
-    '-color_range', 'tv', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-movflags', '+faststart', out]);
+    '-color_range', 'tv', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-movflags', '+faststart', encoded]);
+  fs.rmSync(mid, { force: true });
+  if (F.tumbado) run('ffmpeg', ['-y', '-loglevel', 'error', '-display_rotation:v:0', '90', '-i', encoded, '-c', 'copy', '-movflags', '+faststart', out]);
+  // El póster, a la mitad (1920 o 1080 de ancho): se ve igual de nítido en la caja del vídeo y pesa la cuarta parte
   const poster = path.join(OUT, `${outName}${F.suffix}.webp`);
-  run('cwebp', ['-quiet', '-q', '90', '-m', '6', first, '-o', poster]);
+  run('cwebp', ['-quiet', '-q', '90', '-m', '6', '-resize', String(W / 2), '0', first, '-o', poster]);
   const size = fs.statSync(out).size;
   const secs = Number(run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', out]).stdout.trim());
   console.log(`  ${path.relative(ROOT, out)}: ${W}×${H}, ${secs.toFixed(1)} s, ${(size / 1048576).toFixed(2)} MB (crf ${F.crf}) · póster ${(fs.statSync(poster).size / 1024).toFixed(0)} KB`);
