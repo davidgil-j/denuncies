@@ -1,6 +1,6 @@
 // La portada de Reportia, como página estática: una por idioma, generada al compilar (y al vuelo con `npm run dev`) por el
 // plugin de vite.config.js. Sin React: se lee sin JavaScript, pinta a la primera y no se mueve nada mientras carga.
-// Diseño «aviso» (boceto Claude outputs/bocetos/portada-1-aviso.png, 29 oct 2026): blanca, titulares con serifa, la franja
+// Diseño «aviso» (boceto Claude outputs/bocetos/portada-1-aviso.png, 29 oct 2026): blanca, en Switzer, la franja
 // de la Autoridad arriba, la obligación legal en el inicio, el vídeo justo debajo y cuatro apartados. Los textos salen de
 // src/translations-site.js (v2site.portada y los nombres de los planes) y las decisiones de negocio (nombre, precios, multa,
 // días de prueba…) de src/v2/config/producto.js. El JavaScript (landing.js) solo añade lo opcional: los vídeos se
@@ -21,7 +21,7 @@ export const LANGS = ['es', 'ca', 'en'];
 /**
  * La página entera de un idioma.
  *   T: los textos de ese idioma (translations[lang] con los de la web) · P: src/v2/config/producto.js
- *   assets: { css (texto), js (ruta), font y serif (rutas de las dos tipografías), video: por idioma, { report, manage }
+ *   assets: { css (texto), js (ruta), font (ruta de la tipografía, Switzer), video: por idioma, { report, manage }
  *   con { src, light, poster, posterLight }, origin }
  *   origin: la dirección pública (VITE_PUBLIC_ORIGIN, la misma que usa la aplicación); si no llega, la de DOMINIO
  */
@@ -59,17 +59,21 @@ export function generarPortada({ lang, T, P, assets }) {
 
   const nav = [['#ley', x.navLaw], ['#funciona', x.navHow], ['#precio', x.navPrice]];
 
-  // ── Cabecera blanca, fija arriba al bajar: la marca, los apartados, el idioma, «Acceder» y «Crear el canal» ──
+  // ── Cabecera blanca, fija arriba al bajar ──
+  // A la izquierda, la marca y los apartados de esta página. A la derecha, lo que no es de la página: el idioma, «Acceder»
+  // (para quien ya tiene cuenta, como botón secundario) y «Crear el canal»
   const cabecera = `
   <header class="lp-top">
     <div class="lp-wrap lp-top-in">
       ${marca('top')}
       <nav class="lp-nav" aria-label="${esc(s.navLabel)}">
-        <ul>${nav.map(([h, l]) => `<li><a href="${h}">${esc(l)}</a></li>`).join('')}
-          <li><a href="${login}">${esc(s.navLogin)}</a></li></ul>
+        <ul>${nav.map(([h, l]) => `<li><a href="${h}">${esc(l)}</a></li>`).join('')}</ul>
       </nav>
-      ${langs('lp-langs lp-top-langs')}
-      <a class="lp-btn is-ink is-sm" href="${signup}"><span class="lp-cta-long">${esc(x.navCta)}</span><span class="lp-cta-short">${esc(x.navCtaShort)}</span></a>
+      <div class="lp-top-tools">
+        ${langs('lp-langs lp-top-langs')}
+        <a class="lp-btn is-line is-sm lp-top-login" href="${login}">${esc(s.navLogin)}</a>
+      </div>
+      <a class="lp-btn is-ink is-sm lp-top-cta" href="${signup}"><span class="lp-cta-long">${esc(x.navCta)}</span><span class="lp-cta-short">${esc(x.navCtaShort)}</span></a>
       <details class="lp-menu">
         <summary aria-label="${esc(s.menuOpen)}">${icono('menu', 22)}</summary>
         <div class="lp-menu-panel">
@@ -89,16 +93,15 @@ export function generarPortada({ lang, T, P, assets }) {
   </div>`;
 
   // ── Inicio: la obligación, en una frase; a la derecha, lo que dice la ley con sus artículos ──
+  // Cada dato: la cifra con su unidad y, debajo, una frase entera que dice qué significa. Los artículos, una sola vez al pie
+  // de la ficha, cada número enlazado al suyo en el BOE (antes iba una etiqueta «Art.» por fila y competía con las cifras)
   const ficha = [
-    ['50', x.lawBox[0], [10]],
-    [euros(P.MULTA.maximo, lang), x.lawBox[1], [63, 65], true],
-    [x.lawBoxV[0], x.lawBox[2], [9]],
-    [x.lawBoxV[1], x.lawBox[3], [9]],
+    [x.lawBoxV[0], x.lawBox[0]],
+    [euros(P.MULTA.maximo, lang), x.lawBox[1], true],
+    [x.lawBoxV[1], x.lawBox[2]],
+    [x.lawBoxV[2], x.lawBox[3]],
   ];
-  // «Art. 10» enlaza al artículo; en «Arts. 63 y 65», cada número enlaza al suyo
-  const artLinks = (arts) => (arts.length > 1
-    ? fmt(esc(x.arts), { a: ext(boeArt(arts[0]), arts[0]), b: ext(boeArt(arts[1]), arts[1]) })
-    : ext(boeArt(arts[0]), fmt(x.art, { n: arts[0] })));
+  const fuente = fmt(esc(x.lawBoxSource), Object.fromEntries([9, 10, 63, 65].map(n => [`a${n}`, ext(boeArt(n), n)])));
   const inicio = `
   <section class="lp-hero" aria-labelledby="lp-h1">
     <div class="lp-wrap lp-hero-in">
@@ -114,17 +117,22 @@ export function generarPortada({ lang, T, P, assets }) {
       <aside class="lp-law-card" aria-labelledby="lp-law-card-t">
         <h2 id="lp-law-card-t">${esc(x.lawBoxTitle)}</h2>
         <dl>
-          ${ficha.map(([v, l, arts, fine]) => `<div${fine ? ' class="is-fine"' : ''}><dt>${esc(v)}</dt><dd>${esc(l)}</dd><dd class="lp-art">${artLinks(arts)}</dd></div>`).join('')}
+          ${ficha.map(([v, l, fine]) => `<div${fine ? ' class="is-fine"' : ''}><dt>${esc(v)}</dt><dd>${esc(l)}</dd></div>`).join('')}
         </dl>
+        <p class="lp-law-source">${fuente}</p>
       </aside>
     </div>
   </section>`;
 
-  // Un apartado: a la izquierda su título; a la derecha, el contenido. Sin número ni rótulo encima: el título carga solo
-  const apartado = (id, titulo, body) => `
+  // Un apartado: a la izquierda su título (y, si lo tiene, una frase que lo explica); a la derecha, el contenido. Sin número
+  // ni rótulo encima: el título carga solo
+  const apartado = (id, titulo, body, lead = '') => `
   <section class="lp-sec" id="${id}" aria-labelledby="lp-${id}-t">
     <div class="lp-wrap lp-sec-in">
-      <h2 class="lp-sec-title" id="lp-${id}-t">${esc(titulo)}</h2>
+      <header class="lp-sec-head">
+        <h2 class="lp-sec-title" id="lp-${id}-t">${esc(titulo)}</h2>
+        ${lead ? `<p class="lp-sec-lead">${esc(lead)}</p>` : ''}
+      </header>
       <div class="lp-sec-body">${body}</div>
     </div>
   </section>`;
@@ -152,7 +160,10 @@ export function generarPortada({ lang, T, P, assets }) {
   const funciona = `
   <section class="lp-show" id="funciona" aria-labelledby="lp-show-t">
     <div class="lp-wrap">
-      <h2 class="lp-show-title" id="lp-show-t">${esc(x.videoTitle)}</h2>
+      <header class="lp-show-head">
+        <h2 class="lp-show-title" id="lp-show-t">${esc(x.videoTitle)}</h2>
+        <p class="lp-show-lead">${esc(x.videoLead)}</p>
+      </header>
       <div class="lp-videos" role="group" aria-label="${esc(lp.videoGroup)}">
         ${tab('report', lp.videoReport, true)}
         ${tab('manage', lp.videoManage, false)}
@@ -164,22 +175,25 @@ export function generarPortada({ lang, T, P, assets }) {
     </div>
   </section>`;
 
-  // ── Lo que te pueden pedir (la Autoridad ya puede pedirlo), con su artículo ──
+  // ── Lo que te puede pedir la Autoridad: una tabla de dos columnas, lo que pide la ley y cómo lo tienes con Reportia ──
   const pedir = apartado('ley', x.askTitle, `
-        <ul class="lp-rows">
-          ${x.ask.map(r => `<li><div><h3>${esc(r.t)}</h3><p>${esc(r.d)}</p></div>${ext(boeArt(r.n), fmt(x.art, { n: r.art }), 'lp-row-art')}</li>`).join('')}
-        </ul>`);
+        <table class="lp-ask">
+          <thead><tr><th scope="col">${esc(x.askColLaw)}</th><th scope="col">${esc(x.askColUs)}</th></tr></thead>
+          <tbody>
+            ${x.ask.map(r => `<tr><th scope="row">${esc(r.t)} <span class="lp-ask-art">${ext(boeArt(r.n), fmt(x.art, { n: r.art }))}</span></th><td>${esc(r.d)}</td></tr>`).join('')}
+          </tbody>
+        </table>`, x.askLead);
 
-  // ── Activo en cuanto creas la cuenta: los tres pasos en fila (el número es el orden de verdad) ──
+  // ── Empieza hoy: los tres pasos en fila, cada uno con su título y una frase (el número es el orden de verdad) ──
   const activo = apartado('empezar', x.howTitle, `
         <ol class="lp-steps">
-          ${x.how.map((h, i) => `<li><span class="lp-step-n" aria-hidden="true">${i + 1}</span><h3>${esc(h)}</h3></li>`).join('')}
+          ${x.how.map((h, i) => `<li><span class="lp-step-n" aria-hidden="true">${i + 1}</span><h3>${esc(h.t)}</h3><p>${esc(h.d)}</p></li>`).join('')}
         </ol>`);
 
-  // ── Anónimo de verdad ──
+  // ── Anónimo de verdad: cuatro garantías, en dos columnas ──
   const anonimo = apartado('anonimo', x.anonTitle, `
-        <ul class="lp-rows">
-          ${x.anon.map(r => `<li><div><h3>${esc(r.t)}</h3>${r.d ? `<p>${esc(r.d)}</p>` : ''}</div></li>`).join('')}
+        <ul class="lp-anon">
+          ${x.anon.map(r => `<li><h3>${esc(r.t)}</h3><p>${esc(r.d)}</p></li>`).join('')}
         </ul>`);
 
   // ── Precio: los tres planes en una ficha ──
@@ -248,10 +262,8 @@ export function generarPortada({ lang, T, P, assets }) {
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" type="image/png" sizes="32x32" href="/marca/reportia-icono-32.png">
   <link rel="apple-touch-icon" href="/marca/reportia-icono-180.png">
-  <link rel="preload" href="${assets.serif}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="${assets.font}" as="font" type="font/woff2" crossorigin>
-  <style>@font-face { font-family: 'Manrope'; font-style: normal; font-weight: 200 800; font-display: swap; src: url(${assets.font}) format('woff2'); }
-@font-face { font-family: 'Source Serif 4'; font-style: normal; font-weight: 200 900; font-display: swap; src: url(${assets.serif}) format('woff2'); }
+  <style>@font-face { font-family: 'Switzer'; font-style: normal; font-weight: 100 900; font-display: swap; src: url(${assets.font}) format('woff2'); }
 ${assets.css}</style>
   <script src="${assets.js}" defer></script>
 </head>

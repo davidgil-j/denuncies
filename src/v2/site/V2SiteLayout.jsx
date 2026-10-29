@@ -7,8 +7,6 @@ import { LANGS, ICON, detectLang, Stable, useLangAnchor } from '../V2Layout.jsx'
 import { CONTACT_EMAIL } from './plans.js';
 import './site.css';
 import { EMPRESA, NOMBRE_PRODUCTO } from '../config/producto.js';
-// La serifa de los titulares, como en la portada (diseño «aviso»). Solo la bajan las páginas de la web
-import '@fontsource-variable/source-serif-4/wght.css';
 
 const DEMO_PATH = '/canal/demo';
 // El idioma elegido en la web se recuerda y el panel lo usa (la misma clave)
@@ -104,7 +102,6 @@ export default function V2SiteLayout() {
   // cabecera van con su ancho, como en la portada
   const st = (key) => <Stable lang={lang} pick={T => T.v2site[key]} />;
   const sp = (key) => <Stable lang={lang} pick={T => T.v2site.portada[key]} />;
-  const navClass = ({ isActive }) => `v2-site-navlink${isActive ? ' is-current' : ''}`;
   // El selector de idioma sale dos veces: en la cabecera (ordenador) y dentro del menú (móvil)
   const langGroup = (cls) => (
     <div className={`v2-lang ${cls}`} role="group" aria-label={tv.langGroup}>
@@ -130,14 +127,17 @@ export default function V2SiteLayout() {
             {PRODUCTO && <span>{PRODUCTO}</span>}
           </a>
 
+          {/* A la izquierda, los apartados de la portada; a la derecha, el idioma, «Acceder» y «Crear el canal» */}
           <nav className="v2-site-nav" aria-label={t.navLabel}>
             {SECTIONS.map(([id, key]) => (
               <a className="v2-site-navlink is-section" key={id} href={`${home}#${id}`}>{t.portada[key]}</a>
             ))}
-            {/* En el alta, «Acceder» ya es el botón principal */}
-            {pathname !== '/crear-compte' && <NavLink className={navClass} to="/admin/login" end>{t.navLogin}</NavLink>}
           </nav>
-          {langGroup('v2-site-lang')}
+          <div className="v2-site-tools">
+            {langGroup('v2-site-lang')}
+            {/* En el alta, «Acceder» ya es el botón principal */}
+            {pathname !== '/crear-compte' && <NavLink className="v2-btn v2-site-login" to="/admin/login" end>{t.navLogin}</NavLink>}
+          </div>
 
           {/* La acción principal está siempre en la cabecera, también en el móvil */}
           {/* En el alta, el botón lleva al acceso: «Crear el canal» llevaría a la misma página (G-4) */}

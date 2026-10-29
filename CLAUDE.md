@@ -25,7 +25,7 @@ L'aplicació està **en producció** a Vercel (frontend) + Supabase (base de dad
 | Storage (adjunts) | Supabase Storage (bucket privat) |
 | Funcions de servidor | Supabase Edge Functions (Deno) |
 | Exportació | ExcelJS (Excel) + jsPDF (PDF, amb Manrope); es descarreguen només en exportar |
-| Tipografia | Manrope variable (`@fontsource-variable/manrope`): producte, PDF i el text de la web. Els titulars de la web (portada, alta, privacitat, 404), amb Source Serif 4 (`@fontsource-variable/source-serif-4`; disseny «avís») |
+| Tipografia | Manrope variable (`@fontsource-variable/manrope`): canal, panell i PDF. La web (portada, alta, privacitat, 404) va tota en **Switzer** (Fontshare): la seva llicència no deixa publicar l'arxiu en un repositori públic, així que **no és a git**: `scripts/vite-portada.mjs` la descarrega en compilar a `src/v2/fonts/` (ignorat) i, si no hi ha xarxa, hi posa Manrope |
 | Icones | Lucide React |
 | Antispam | Cloudflare Turnstile (opcional) |
 | Monitoratge | Sentry (opcional, mai al canal de denúncies) |

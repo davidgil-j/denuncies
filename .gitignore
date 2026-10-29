@@ -19,3 +19,7 @@ supabase/.temp/
 # M8: deno.lock SÍ va al repositorio (fija las versiones de las funciones de servidor). Se genera con:
 #   deno cache --lock=supabase/functions/deno.lock --lock-write supabase/functions/*/index.ts
 # (o lo escribe la CLI de Supabase al desplegar). Ver docs/seguridad/QUE_TIENE_QUE_HACER_DAVID.md
+
+# La letra de la web (Switzer, licencia ITF Free Font License): se descarga al compilar y no va al repositorio, que es
+# público (la licencia permite alojarla en la web propia, no publicar el archivo). Ver scripts/vite-portada.mjs
+/src/v2/fonts/

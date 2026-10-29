@@ -4,7 +4,7 @@
 //  · el vídeo que está a la vista se reproduce solo, sin sonido y en bucle; al salir de la vista o al cambiar de
 //    pestaña, se para. Si la persona ha pedido menos movimiento, no se reproduce nada solo (tiene sus controles);
 //  · el menú del móvil se cierra al elegir una opción;
-//  · al bajar, cada apartado entra con un fundido suave (salvo con menos movimiento).
+//  · al llegar al vídeo, entra con un fundido suave (salvo con menos movimiento).
 (function () {
   var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var videos = Array.prototype.slice.call(document.querySelectorAll('video[data-video]'));
@@ -66,9 +66,8 @@
   // escalonados dentro de cada apartado y solo la primera vez. El inicio no se toca (es lo primero que se pinta). Lo que ya
   // está a la vista al llegar aquí se queda como está: nada desaparece para volver a aparecer
   if (calm || !('IntersectionObserver' in window)) return;
-  var REVEAL = [
-    '.lp-show-title', '.lp-videos', '.lp-sec-title', '.lp-rows > li', '.lp-steps > li', '.lp-plans > li', '.lp-plans-note', '.lp-end-in > *',
-  ].join(', ');
+  // Un solo momento: el vídeo. Repetir la misma entrada en cada apartado es un tic de plantilla
+  var REVEAL = '.lp-video-stage';
   var STEP = 80;
   var MAX_STEPS = 5;
   // El primer aviso del observador dice dónde está cada pieza sin obligar al navegador a medir la página mientras carga:

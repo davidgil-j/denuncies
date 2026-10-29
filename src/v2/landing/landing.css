@@ -1,7 +1,8 @@
 /* La portada estática (src/v2/landing/generar.js). Va dentro del HTML: la página pinta sin esperar a ningún archivo.
-   Diseño «aviso» (Claude outputs/bocetos/portada-1-aviso.png): blanca y en claro siempre, titulares con serifa (Source
-   Serif 4, siempre en peso 500) y el resto en Manrope, como el producto. Titular 52 px (38 en el móvil), títulos de
-   apartado 36 (28), texto 16-18, secundario 14 y nunca menos de 12. Botones de 52 y 42 px con esquinas de 10.
+   Diseño «aviso» (Claude outputs/bocetos/portada-1-aviso.png): blanca y en claro siempre, toda en Switzer (una grotesca
+   suiza; elegida por David el 29 oct entre tres, en lugar de la serifa del boceto). Titulares en 600 con el espaciado
+   cerrado. Titular 52 px (38 en el móvil), títulos de apartado 36 (28), texto 16-18, secundario 14 y nunca menos de 12.
+   Botones de 52 y 42 px con esquinas de 10.
    Sin rótulos en mayúsculas, sin números de apartado y sin una raya por fila: el aire y una línea entre apartados.
    Colores: tinta y azul noche, el azul del producto en los botones y los artículos, y el rojo solo para el aviso y la multa.
    El verde de Reportia, solo en el logotipo. */
@@ -10,8 +11,8 @@
   --accent: #2F54EB; --accent-hover: #2546CF; --link: #1F3FC4; --on-accent: #FFFFFF;
   --red: #B42318; --red-soft: #FEF3F2; --red-line: #FAD4D0;
   --night: #0D1530; --on-night: #FFFFFF;
-  --serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
-  --sans: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --sans: 'Switzer', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --display: var(--sans);
   --gutter: 24px; --max: 1136px;
   color-scheme: light;
 }
@@ -24,6 +25,9 @@ h1, h2, h3, p, ul, ol, dl, dd, figure { margin: 0; padding: 0; }
 ul, ol { list-style: none; }
 img, video, svg { display: block; max-width: 100%; }
 a { color: var(--link); text-underline-offset: 3px; }
+/* Lo que el navegador pinta por su cuenta, también con los colores de la página */
+::selection { background: rgba(47, 84, 235, .16); color: var(--ink); }
+input, textarea { caret-color: var(--accent); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .lp-vh { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .lp-skip { position: absolute; left: 16px; top: -80px; z-index: 50; padding: 10px 14px; border-radius: 10px; background: var(--ink); color: var(--bg); font-weight: 700; text-decoration: none; }
@@ -46,11 +50,11 @@ main:focus { outline: none; }
 
 /* ── Cabecera blanca, fija arriba al bajar ── */
 .lp-top { position: sticky; top: 0; z-index: 10; background: var(--bg); box-shadow: inset 0 -1px 0 var(--line); }
-.lp-top-in { display: flex; align-items: center; gap: 28px; min-height: 72px; }
+.lp-top-in { display: flex; align-items: center; gap: 12px; min-height: 72px; }
 .lp-brand { flex: none; display: inline-flex; align-items: center; gap: 12px; min-height: 44px; color: var(--muted); text-decoration: none; }
 .lp-brand img { height: 24px; width: auto; }
 .lp-brand-name { padding-left: 12px; border-left: 1px solid var(--line); font-size: 17px; font-weight: 500; line-height: 22px; }
-.lp-nav { margin-left: auto; }
+.lp-nav { margin-left: 36px; }
 .lp-nav ul { display: flex; gap: 28px; }
 /* Zona para pulsar de 44 px de alto (WCAG 2.5.8 pide 24 como mínimo), sin cambiar cómo se ve */
 .lp-nav a { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); font-size: 15px; font-weight: 500; text-decoration: none; }
@@ -59,7 +63,10 @@ main:focus { outline: none; }
 .lp-langs a { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; min-height: 32px; padding: 0 6px; border-radius: 8px; color: var(--muted); font-size: 13px; font-weight: 600; text-decoration: none; }
 .lp-langs a[aria-current="true"] { color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
 .lp-langs a:hover { color: var(--ink); }
-.lp-top-langs { margin-left: -12px; }
+.lp-top-tools { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.lp-top-tools .lp-langs { margin-right: 4px; }
+.lp-top-login.is-line { border-width: 1px; border-color: var(--line); }
+.lp-top-login.is-line:hover { border-color: var(--ink); background: var(--bg); }
 .lp-top-in > .lp-btn { flex: none; }
 /* En el móvil, el botón de la cabecera con su texto corto (en inglés, el largo no cabe junto a la marca) */
 .lp-cta-short { display: none; }
@@ -75,7 +82,7 @@ main:focus { outline: none; }
 /* En el móvil, los idiomas del pie también con 44 px para el dedo */
 @media (max-width: 640px) { .lp-langs a { min-height: 44px; min-width: 44px; } }
 @media (max-width: 1080px) {
-  .lp-nav, .lp-top-langs { display: none; }
+  .lp-nav, .lp-top-tools { display: none; }
   .lp-top-in > .lp-btn { margin-left: auto; }
   .lp-menu { display: block; margin-left: -16px; }
 }
@@ -98,8 +105,8 @@ main:focus { outline: none; }
 
 /* ── Inicio: la obligación a la izquierda y lo que dice la ley a la derecha ──
    El titular en serifa de peso normal (500): la fuerza la da el tamaño, no la negrita. Sin rótulo encima */
-.lp-hero-in { display: grid; grid-template-columns: minmax(0, 1fr) 456px; gap: 52px; align-items: start; padding-top: 96px; padding-bottom: 104px; }
-.lp-hero h1 { font-family: var(--serif); font-size: 52px; line-height: 1.08; font-weight: 500; letter-spacing: -0.02em; color: var(--ink); text-wrap: balance; }
+.lp-hero-in { display: grid; grid-template-columns: minmax(0, 1fr) 456px; gap: 52px; align-items: start; padding-top: 88px; padding-bottom: 88px; }
+.lp-hero h1 { font-family: var(--display); font-size: 52px; line-height: 1.06; font-weight: 600; letter-spacing: -0.03em; color: var(--ink); text-wrap: balance; }
 .lp-hero-sub { max-width: 540px; margin-top: 28px; font-size: 18px; line-height: 1.6; color: var(--muted); }
 .lp-hero-sub b { color: var(--ink); font-weight: 700; white-space: nowrap; }
 .lp-cta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 36px; }
@@ -107,14 +114,16 @@ main:focus { outline: none; }
 
 .lp-law-card { border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); }
 .lp-law-card h2 { padding: 16px 22px; border-bottom: 1px solid var(--line); font-size: 15px; font-weight: 600; line-height: 1.4; color: var(--ink); }
-.lp-law-card dl > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; padding: 22px 22px 24px; }
+.lp-law-card dl > div { padding: 20px 22px; }
 .lp-law-card dl > div + div { border-top: 1px solid var(--line); }
-.lp-law-card dt { font-family: var(--serif); font-size: 30px; line-height: 1.15; font-weight: 500; letter-spacing: -0.01em; color: var(--ink); }
-.lp-law-card dd { grid-column: 1; margin-top: 6px; font-size: 14px; line-height: 1.5; color: var(--muted); }
-.lp-law-card .lp-art { grid-column: 2; grid-row: 1; margin-top: 4px; font-size: 12.5px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+.lp-law-card dt { font-family: var(--display); font-size: 26px; line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); }
+.lp-law-card dd { margin-top: 6px; font-size: 15px; line-height: 1.5; color: var(--ink); }
 .lp-law-card .is-fine dt { color: var(--red); }
-.lp-art a { display: inline-flex; align-items: center; min-height: 24px; font-size: 12.5px; font-weight: 700; color: var(--accent); text-decoration: none; white-space: nowrap; }
-.lp-art a:hover { text-decoration: underline; }
+.lp-law-card dt, .lp-plan-price b, .lp-step-n, .lp-hero-sub b { font-variant-numeric: tabular-nums; }
+/* Los artículos, una vez, al pie de la ficha: pequeño y en gris, cada número enlazado */
+.lp-law-source { padding: 14px 22px 16px; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.5; color: var(--muted); }
+.lp-law-source a { color: var(--muted); text-decoration: underline; text-decoration-color: rgba(77, 86, 114, .45); text-underline-offset: 2px; }
+.lp-law-source a:hover { color: var(--ink); text-decoration-color: currentColor; }
 
 @media (max-width: 1080px) {
   .lp-hero-in { grid-template-columns: minmax(0, 1fr); gap: 48px; padding-top: 72px; padding-bottom: 72px; }
@@ -131,9 +140,10 @@ main:focus { outline: none; }
 }
 
 /* ── Cómo funciona: el vídeo, grande, justo debajo del inicio ── */
-.lp-show { padding-bottom: 104px; }
-.lp-show-title, .lp-sec-title { font-family: var(--serif); font-size: 36px; line-height: 1.12; font-weight: 500; letter-spacing: -0.018em; color: var(--ink); text-wrap: balance; }
-.lp-show-title { margin-bottom: 24px; }
+.lp-show { padding-bottom: 88px; }
+.lp-show-title, .lp-sec-title { font-family: var(--display); font-size: 34px; line-height: 1.12; font-weight: 600; letter-spacing: -0.028em; color: var(--ink); text-wrap: balance; }
+.lp-show-head { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 8fr); gap: 8px 40px; align-items: end; margin-bottom: 28px; }
+.lp-show-lead, .lp-sec-lead { max-width: 56ch; font-size: 16px; line-height: 1.6; color: var(--muted); }
 .lp-videos { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 8px; }
 .lp-vtab-in { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
 .lp-vtab { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-size: 15px; font-weight: 600; cursor: pointer; transition: border-color 150ms, box-shadow 150ms; }
@@ -155,39 +165,50 @@ main:focus { outline: none; }
 @media (max-width: 640px) {
   .lp-show { padding-bottom: 72px; }
   .lp-show-title, .lp-sec-title { font-size: 28px; }
-  .lp-show-title { margin-bottom: 20px; }
+  .lp-show-head { grid-template-columns: minmax(0, 1fr); margin-bottom: 20px; }
+  .lp-show-lead, .lp-sec-lead { font-size: 15px; }
   .lp-videos { grid-template-columns: 1fr 1fr; }
   .lp-vtab { justify-content: center; padding: 0 10px; font-size: 14px; }
 }
 
 /* ── Apartados: el título a la izquierda y el contenido a la derecha, separados por una sola línea arriba ── */
 /* La línea va del borde izquierdo al derecho del contenido, no del margen: dibujada como fondo, sin el relleno lateral */
-.lp-sec-in { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 8fr); gap: 40px; padding-top: 104px; padding-bottom: 104px; background: linear-gradient(var(--line), var(--line)) center top / calc(100% - 2 * var(--gutter)) 1px no-repeat; }
+.lp-sec-in { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 8fr); gap: 40px; padding-top: 88px; padding-bottom: 88px; background: linear-gradient(var(--line), var(--line)) center top / calc(100% - 2 * var(--gutter)) 1px no-repeat; }
 .lp-sec-title { max-width: 11ch; }
-/* Listas sin una raya por fila: el aire separa */
-.lp-rows { display: grid; gap: 28px; }
-.lp-rows li { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 24px; }
-.lp-rows h3 { font-size: 18px; line-height: 1.45; font-weight: 600; color: var(--ink); }
-.lp-rows p { margin-top: 4px; font-size: 15px; line-height: 1.55; color: var(--muted); }
-.lp-row-art { display: inline-flex; align-items: center; align-self: start; min-height: 26px; font-size: 13px; font-weight: 600; color: var(--muted); text-decoration: none; white-space: nowrap; }
-.lp-row-art:hover { color: var(--ink); text-decoration: underline; }
-/* Los tres pasos, en fila: el número, en la serifa del titular, es el orden de verdad */
+.lp-sec-head { display: grid; align-content: start; gap: 16px; }
+/* «Lo que te puede pedir la Autoridad»: una tabla de verdad, dos columnas con su encabezado y una línea entre filas */
+.lp-ask { width: 100%; border-collapse: collapse; text-align: left; }
+.lp-ask thead th { padding: 0 24px 12px 0; font-size: 13px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--ink); }
+.lp-ask tbody th, .lp-ask td { padding: 20px 24px 20px 0; vertical-align: top; border-bottom: 1px solid var(--line); }
+.lp-ask tbody th { width: 52%; font-size: 17px; line-height: 1.45; font-weight: 600; color: var(--ink); }
+.lp-ask td { font-size: 15px; line-height: 1.55; color: var(--ink); }
+.lp-ask-art { display: block; margin-top: 4px; font-size: 13px; font-weight: 500; }
+.lp-ask-art a { color: var(--muted); text-decoration: underline; text-decoration-color: rgba(77, 86, 114, .45); text-underline-offset: 2px; }
+.lp-ask-art a:hover { color: var(--ink); }
+/* Los tres pasos, en fila: el número en un círculo, el título y una frase */
 .lp-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
-.lp-steps li { display: grid; align-content: start; gap: 12px; }
-.lp-step-n { font-family: var(--serif); font-size: 30px; line-height: 1; font-weight: 500; color: var(--ink); font-variant-numeric: lining-nums; }
-.lp-steps h3 { font-size: 17px; line-height: 1.45; font-weight: 500; color: var(--ink); }
+.lp-steps li { display: grid; align-content: start; gap: 8px; }
+.lp-step-n { display: inline-grid; place-items: center; width: 36px; height: 36px; margin-bottom: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink); font-size: 15px; font-weight: 700; color: var(--ink); }
+.lp-steps h3 { font-size: 17px; line-height: 1.4; font-weight: 600; color: var(--ink); }
+.lp-steps p { font-size: 15px; line-height: 1.55; color: var(--muted); }
+/* Anónimo de verdad: cuatro garantías en dos columnas */
+.lp-anon { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 36px 40px; }
+.lp-anon h3 { font-size: 17px; line-height: 1.4; font-weight: 600; color: var(--ink); }
+.lp-anon p { margin-top: 6px; font-size: 15px; line-height: 1.55; color: var(--muted); }
 @media (max-width: 900px) {
   .lp-sec-in { grid-template-columns: minmax(0, 1fr); gap: 28px; padding-top: 72px; padding-bottom: 72px; }
   .lp-sec-title { max-width: none; }
 }
 @media (max-width: 640px) {
   .lp-sec-in { gap: 24px; padding-top: 56px; padding-bottom: 56px; }
-  .lp-rows { gap: 22px; }
-  .lp-rows h3 { font-size: 17px; }
-  .lp-rows li { column-gap: 16px; }
-  .lp-steps { grid-template-columns: minmax(0, 1fr); gap: 22px; }
-  .lp-steps li { grid-template-columns: 32px minmax(0, 1fr); align-items: baseline; gap: 0 8px; }
-  .lp-step-n { font-size: 24px; }
+  .lp-ask thead { display: none; }
+  .lp-ask tr { display: block; padding: 18px 0; border-bottom: 1px solid var(--line); }
+  .lp-ask tbody th, .lp-ask td { display: block; width: auto; padding: 0; border: 0; }
+  .lp-ask td { margin-top: 6px; color: var(--muted); }
+  .lp-steps { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .lp-steps li { grid-template-columns: 36px minmax(0, 1fr); column-gap: 14px; row-gap: 4px; }
+  .lp-step-n { grid-row: span 2; margin-bottom: 0; }
+  .lp-anon { grid-template-columns: minmax(0, 1fr); gap: 24px; }
 }
 
 /* ── Precio: los tres planes en una ficha ── */
@@ -198,7 +219,7 @@ main:focus { outline: none; }
 .lp-plans h3 { font-size: 15px; line-height: 1.4; font-weight: 700; color: var(--ink); }
 .lp-plan-size { margin-top: 2px; font-size: 13px; line-height: 1.45; color: var(--muted); }
 .lp-plan-price { margin-top: 22px; }
-.lp-plan-price b { display: block; font-family: var(--serif); font-size: 34px; line-height: 1.1; font-weight: 500; letter-spacing: -0.015em; color: var(--ink); }
+.lp-plan-price b { display: block; font-family: var(--display); font-size: 32px; line-height: 1.1; font-weight: 600; letter-spacing: -0.025em; color: var(--ink); }
 .lp-plan-price span { display: block; margin-top: 6px; font-size: 13px; line-height: 1.45; color: var(--muted); }
 .lp-plans-note { margin-top: 20px; max-width: 62ch; font-size: 14px; color: var(--muted); }
 @media (max-width: 640px) {
@@ -211,7 +232,7 @@ main:focus { outline: none; }
 /* ── Cierre, sobre azul noche ── */
 .lp-end { background: var(--night); color: var(--on-night); }
 .lp-end-in { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px 48px; padding-top: 72px; padding-bottom: 72px; }
-.lp-end h2 { max-width: 22ch; font-family: var(--serif); font-size: 36px; line-height: 1.15; font-weight: 500; letter-spacing: -0.018em; text-wrap: balance; }
+.lp-end h2 { max-width: 22ch; font-family: var(--display); font-size: 34px; line-height: 1.15; font-weight: 600; letter-spacing: -0.028em; text-wrap: balance; }
 .lp-end :focus-visible { outline-color: #FFFFFF; }
 @media (max-width: 640px) {
   .lp-end-in { flex-direction: column; align-items: stretch; padding-top: 56px; padding-bottom: 56px; }
@@ -228,7 +249,7 @@ main:focus { outline: none; }
 .lp-foot nav a { display: inline-block; padding: 6px 0; color: var(--muted); }
 @media (max-width: 760px) { .lp-foot nav { margin-left: 0; width: 100%; } }
 
-/* ── Entrada al bajar: fundido y subida corta, escalonados dentro de cada apartado, solo la primera vez ──
+/* ── Un solo momento de movimiento: el vídeo sube y se aclara al llegar a él, solo la primera vez ──
    La clase lp-rv la pone landing.js (sin JavaScript, todo se ve como siempre) y solo a lo que aún no está a la vista;
    is-in llega al entrar en pantalla, con su retraso (--lp-d). Solo opacidad y transform: no mueve nada de sitio (CLS 0) */
 .lp-rv { opacity: 0; transform: translateY(16px); }

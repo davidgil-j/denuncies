@@ -9,9 +9,39 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const FONT = 'node_modules/@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2';
-// La serifa de los titulares (diseño «aviso»): la misma que usan el alta, la privacidad y la página «no encontrada»
-const SERIF = 'node_modules/@fontsource-variable/source-serif-4/files/source-serif-4-latin-wght-normal.woff2';
+// La letra de la web (portada, alta, privacidad y «no encontrada»): Switzer, de Fontshare, en un solo archivo variable.
+// Su licencia (ITF Free Font License) permite alojarla en la web propia pero no publicar el archivo en un repositorio
+// público, así que no va en git: se descarga al compilar (o al arrancar `npm run dev`) a src/v2/fonts, que está en
+// .gitignore, y la web la sirve con huella en el nombre como cualquier otro archivo. Si no se puede descargar (sin red),
+// se usa una copia de Manrope con ese nombre y se avisa: la web sale igual, con la letra del producto
+export const SWITZER = 'src/v2/fonts/Switzer-Variable.woff2';
+const MANROPE = 'node_modules/@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2';
+const SWITZER_CSS = 'https://api.fontshare.com/v2/css?f[]=switzer@1&display=swap';
+
+/** Deja Switzer en src/v2/fonts (una vez: si ya está, no la vuelve a pedir). Devuelve true si es Switzer de verdad */
+export async function ensureSwitzer(root = process.cwd()) {
+  const file = path.join(root, SWITZER);
+  const marca = `${file}.ok`;
+  if (fs.existsSync(file) && fs.existsSync(marca)) return true;
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  try {
+    const css = await (await fetch(SWITZER_CSS)).text();
+    const url = /url\('([^']+\.woff2)'\)/.exec(css)?.[1];
+    if (!url) throw new Error('no encuentro el archivo en la hoja de Fontshare');
+    const res = await fetch(url.startsWith('//') ? `https:${url}` : url);
+    if (!res.ok) throw new Error(`Fontshare respondió ${res.status}`);
+    const font = Buffer.from(await res.arrayBuffer());
+    // Un woff2 empieza por «wOF2»: si llega otra cosa (una página de error), no se guarda
+    if (font.subarray(0, 4).toString('latin1') !== 'wOF2') throw new Error('lo descargado no es una tipografía');
+    fs.writeFileSync(file, font);
+    fs.writeFileSync(marca, '');
+    return true;
+  } catch (e) {
+    console.warn(`AVISO: no se ha podido descargar Switzer (${e.message}). La web usará Manrope hasta la próxima compilación con red.`);
+    if (!fs.existsSync(file)) fs.copyFileSync(path.join(root, MANROPE), file);
+    return false;
+  }
+}
 const LANGS = ['es', 'ca', 'en'];
 /**
  * Los vídeos de la demo (public/landing/video, hechos con scripts/video-demo.mjs), uno por idioma: el del ordenador
@@ -44,6 +74,8 @@ export default function portada({ origin } = {}) {
     name: 'reportia-portada',
     enforce: 'post',
     configResolved(c) { root = c.root; },
+    // Antes de compilar o de servir nada, la letra en su sitio (la piden la portada y el CSS de la web)
+    async buildStart() { await ensureSwitzer(root); },
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = new URL(req.url, 'http://x');
@@ -56,7 +88,7 @@ export default function portada({ origin } = {}) {
           const { generarPortada } = await server.ssrLoadModule('/src/v2/landing/generar.js');
           const html = generarPortada({
             lang, T: withSite(translations, siteTexts, lang), P,
-            assets: { css: fs.readFileSync(path.join(root, 'src/v2/landing/landing.css'), 'utf8'), js: '/src/v2/landing/landing.js', font: `/${FONT}`, serif: `/${SERIF}`, video: VIDEOS, origin },
+            assets: { css: fs.readFileSync(path.join(root, 'src/v2/landing/landing.css'), 'utf8'), js: '/src/v2/landing/landing.js', font: `/${SWITZER}`, video: VIDEOS, origin },
           });
           res.setHeader('content-type', 'text/html; charset=utf-8');
           res.setHeader('cache-control', 'no-store');
@@ -75,21 +107,17 @@ export default function portada({ origin } = {}) {
       const js = fs.readFileSync(path.join(root, 'src/v2/landing/landing.js'));
       const jsName = `assets/portada-${hash(js)}.js`;
       this.emitFile({ type: 'asset', fileName: jsName, source: js });
-      // Las tipografías: el mismo archivo que usa la aplicación (quien pasa de la portada al alta no la baja dos veces);
-      // si la aplicación no la tuviera, una copia propia
-      const fontFile = (re, file, name) => {
-        const found = Object.keys(bundle).find(f => re.test(f));
-        if (found) return found;
-        const font = fs.readFileSync(path.join(root, file));
-        const fileName = `assets/${name}-${hash(font)}.woff2`;
-        this.emitFile({ type: 'asset', fileName, source: font });
-        return fileName;
-      };
-      const fontName = fontFile(/manrope-latin-wght-normal-[\w-]+\.woff2$/, FONT, 'manrope-latin');
-      const serifName = fontFile(/source-serif-4-latin-wght-normal-[\w-]+\.woff2$/, SERIF, 'source-serif-4-latin');
+      // La tipografía: el mismo archivo que usa la web dentro de la aplicación (quien pasa de la portada al alta no la baja
+      // dos veces); si la aplicación no la tuviera, una copia propia
+      let fontName = Object.keys(bundle).find(f => /Switzer-Variable-[\w-]+\.woff2$/.test(f));
+      if (!fontName) {
+        const font = fs.readFileSync(path.join(root, SWITZER));
+        fontName = `assets/Switzer-Variable-${hash(font)}.woff2`;
+        this.emitFile({ type: 'asset', fileName: fontName, source: font });
+      }
       const css = minifyCss(fs.readFileSync(path.join(root, 'src/v2/landing/landing.css'), 'utf8'));
       for (const lang of LANGS) {
-        const html = generarPortada({ lang, T: withSite(translations, siteTexts, lang), P, assets: { css, js: `/${jsName}`, font: `/${fontName}`, serif: `/${serifName}`, video: VIDEOS, origin } });
+        const html = generarPortada({ lang, T: withSite(translations, siteTexts, lang), P, assets: { css, js: `/${jsName}`, font: `/${fontName}`, video: VIDEOS, origin } });
         this.emitFile({ type: 'asset', fileName: `inicio-${lang}.html`, source: html });
       }
       // Buscadores: solo con INDEXAR_WEB (src/v2/config/producto.js). El canal y el panel llevan «noindex» siempre

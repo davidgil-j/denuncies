@@ -6,14 +6,19 @@
    ========================================================================== */
 
 /* ---------- marco: la cabecera de la portada (diseño «aviso») y el menú móvil ----------
-   Blanca, con el logotipo en verde oscuro y «Canal», los apartados de la portada, el idioma y «Crear el canal» en tinta.
-   Los titulares de estas páginas, con la serifa de la portada (Source Serif 4): solo aquí, el canal no cambia */
+   Blanca, con el logotipo en verde oscuro y «Canal», los apartados de la portada a la izquierda y, a la derecha, el idioma,
+   «Acceder» y «Crear el canal». Toda la web en Switzer, como la portada (se descarga al compilar: scripts/vite-portada.mjs);
+   solo aquí, el canal y el panel siguen en Manrope */
+@font-face { font-family: 'Switzer'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('../fonts/Switzer-Variable.woff2') format('woff2'); }
 .v2-site {
   --site-hd: 64px;
-  --font-display: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, 'Times New Roman', serif;
-  --fw-display: 500;
+  --font-display: 'Switzer', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-text: 'Switzer', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --fw-display: 600;
+  font-family: var(--font-text);
   background: var(--surface);
 }
+.v2-site .v2-h1 { letter-spacing: -0.03em; }
 body.v2-body:has(.v2-site) { background: var(--surface); }
 .v2-site-header { position: sticky; top: 0; z-index: 3; background: var(--surface); box-shadow: inset 0 -1px 0 var(--line-2); }
 .v2-site-header > .v2-wrap { display: flex; align-items: center; gap: var(--s-3); min-height: var(--site-hd); }
@@ -38,6 +43,8 @@ body.v2-body:has(.v2-site) { background: var(--surface); }
 .v2-btn.v2-site-cta { flex: none; min-height: 40px; padding: 0 13px; font-size: 14px; font-weight: 700; background: var(--navy-900); color: #fff; box-shadow: none; }
 .v2-site-cta-long { display: none; }
 /* el idioma, en la cabecera, son tres letras; la elegida, con un borde fino */
+.v2-site-tools { display: none; align-items: center; gap: 12px; margin-left: auto; }
+.v2-btn.v2-site-login { min-height: 42px; padding: 0 18px; font-size: 15px; font-weight: 700; background: var(--surface); color: var(--navy-900); box-shadow: inset 0 0 0 1px var(--line-2); }
 .v2-site-lang { display: none; gap: 2px; padding: 0; background: none; box-shadow: none; }
 .v2-site-lang button { width: 34px; height: 32px; border-radius: var(--r-sm); font-size: 13px; color: var(--ink-3); }
 .v2-site-lang button[aria-pressed="true"] { background: none; box-shadow: inset 0 0 0 1px var(--line-2); color: var(--navy-900); }
@@ -86,15 +93,18 @@ body.v2-body:has(.v2-site) { background: var(--surface); }
 }
 @media (min-width: 1080px) {
   .v2-site { --site-hd: 72px; }
-  .v2-site-header > .v2-wrap { gap: 28px; }
-  .v2-site-nav { display: flex; align-items: center; gap: 28px; }
+  .v2-site-header > .v2-wrap { gap: 12px; }
+  .v2-site-brand { margin-right: 0; }
+  .v2-site-nav { display: flex; align-items: center; gap: 28px; margin-left: 36px; }
   .v2-site-menu-btn, .v2-site-menu { display: none; }
-  .v2-site-lang { display: flex; margin-left: -12px; }
+  .v2-site-tools { display: flex; }
+  .v2-site-lang { display: flex; margin-right: 4px; }
 }
 @media (hover: hover) and (pointer: fine) {
   .v2-site-navlink:hover { color: var(--navy-900); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
   .v2-site-menu-btn:hover { background: var(--bg); }
   .v2-btn.v2-site-cta:hover { background: #1D2747; color: #fff; }
+  .v2-btn.v2-site-login:hover { box-shadow: inset 0 0 0 1px var(--navy-900); }
 }
 
 .v2-btn-onnavy:focus-visible, .v2-btn-ghostnavy:focus-visible { outline-color: #FFFFFF; }

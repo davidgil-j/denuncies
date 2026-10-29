@@ -66,7 +66,7 @@ const robots = (await get('/robots.txt')).body;
 const sitemap = (await get('/sitemap.xml')).body;
 ok('robots.txt según INDEXAR_WEB', P.INDEXAR_WEB ? /Allow: \/\nSitemap: https:\/\/canal\.reportia\.es\/sitemap\.xml/.test(robots) : /Disallow: \/$/m.test(robots), robots.trim().replace(/\n/g, ' · '));
 ok('sitemap.xml con la portada en los tres idiomas', (sitemap.match(/<loc>/g) ?? []).length === 3 && sitemap.includes(`${ORIGIN}/?lang=ca`));
-ok('el JavaScript y las dos tipografías de la portada llevan huella en el nombre (caché larga)', /src="\/assets\/portada-[0-9a-f]{8}\.js"/.test(root.body) && /href="\/assets\/manrope-latin-[\w-]+\.woff2"/.test(root.body) && /href="\/assets\/source-serif-4-latin-[\w-]+\.woff2"/.test(root.body));
+ok('el JavaScript y la tipografía de la portada llevan huella en el nombre (caché larga)', /src="\/assets\/portada-[0-9a-f]{8}\.js"/.test(root.body) && /href="\/assets\/Switzer-Variable-[\w-]+\.woff2"/.test(root.body));
 {
   const alerts = await Promise.all(['es', 'ca', 'en'].map(async l => /<div class="lp-alert">[\s\S]*?<\/div>/.exec((await get(`/?lang=${l}`)).body)?.[0] ?? ''));
   ok('la franja de la Autoridad, arriba, en los tres idiomas', [/1 de septiembre de 2025/, /1 de setembre de 2025/, /1 September 2025/].every((re, i) => re.test(alerts[i])));
@@ -106,7 +106,8 @@ for (const [w, h] of [[390, 844], [1440, 900]]) {
   if (w >= 700) {
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.locator('.lp-nav a[href="#precio"]').click();
-    await page.waitForTimeout(400);
+    // El desplazamiento es suave: se espera a que la página deje de moverse antes de medir
+    for (let i = 0, last = -1; i < 40; i++) { const y = await page.evaluate(() => scrollY); if (y === last) break; last = y; await page.waitForTimeout(150); }
     // Es el último apartado: la página no siempre puede subirlo hasta arriba, pero tiene que quedar a la vista y por
     // debajo de la cabecera fija (72 px)
     const top = await page.locator('#precio').evaluate(el => el.getBoundingClientRect().top);
