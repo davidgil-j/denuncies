@@ -32,6 +32,8 @@ export const siteTexts = {
         fineRange: '{min} a {max} €',
         cta: 'Tenir-lo avui',
         trial: '{days} dies de prova. No et demanem dades de pagament.',
+        shotPanel: 'El panell de Reportia: el tauler amb les denúncies i el termini legal de cadascuna.',
+        shotPhone: 'El canal al mòbil: el codi secret de 16 caràcters que rep qui denuncia.',
         lawBoxTitle: 'El que diu la llei',
         lawBoxV: ['50 treballadors', '7 dies', '3 mesos'],
         lawBox: [
@@ -242,6 +244,8 @@ export const siteTexts = {
         fineRange: '{min} a {max} €',
         cta: 'Tenerlo hoy',
         trial: '{days} días de prueba. No pedimos datos de pago.',
+        shotPanel: 'El panel de Reportia: el tablero con las denuncias y el plazo legal de cada una.',
+        shotPhone: 'El canal en el móvil: el código secreto de 16 caracteres que recibe quien denuncia.',
         lawBoxTitle: 'Lo que dice la ley',
         lawBoxV: ['50 trabajadores', '7 días', '3 meses'],
         lawBox: [
@@ -451,6 +455,8 @@ export const siteTexts = {
         fineRange: '€{min} to €{max}',
         cta: 'Get it today',
         trial: '{days}-day trial. No payment details needed.',
+        shotPanel: 'The Reportia panel: the board with every report and its legal deadline.',
+        shotPhone: 'The channel on a phone: the secret 16-character code the reporter receives.',
         lawBoxTitle: 'What the law says',
         lawBoxV: ['50 employees', '7 days', '3 months'],
         lawBox: [

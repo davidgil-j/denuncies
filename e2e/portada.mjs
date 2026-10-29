@@ -96,7 +96,7 @@ for (const [w, h] of [[390, 844], [1440, 900]]) {
   const page = await ctx.newPage();
   await page.goto(`${APP}/?lang=es`, { waitUntil: 'networkidle' });
   ok(`sin JavaScript (${w}): el titular, lo que dice la ley, el vídeo, los cuatro apartados y el cierre se ven`, await page.locator('.lp-hero h1').isVisible()
-    && await page.locator('.lp-law-card dl > div').count() === 4 && (await page.locator('main > section').count()) === 7
+    && await page.locator('.lp-facts dl > div').count() === 4 && (await page.locator('main > section').count()) === 7
     && await page.locator('.lp-hero + #funciona .lp-video-stage').count() === 1
     && await page.locator('#precio .lp-plans li').count() === 3);
   ok(`sin JavaScript (${w}): «Quien denuncia» a la vista y «Quien gestiona» escondido`, await page.locator('.lp-video-report').isVisible() && !(await page.locator('.lp-video-manage').isVisible()));

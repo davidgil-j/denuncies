@@ -1,16 +1,14 @@
 /* La portada estática (src/v2/landing/generar.js). Va dentro del HTML: la página pinta sin esperar a ningún archivo.
-   Diseño «aviso» (Claude outputs/bocetos/portada-1-aviso.png): blanca y en claro siempre, toda en Switzer (una grotesca
-   suiza; elegida por David el 29 oct entre tres, en lugar de la serifa del boceto). Titulares en 600 con el espaciado
-   cerrado. Titular 52 px (38 en el móvil), títulos de apartado 36 (28), texto 16-18, secundario 14 y nunca menos de 12.
-   Botones de 52 y 42 px con esquinas de 10.
-   Sin rótulos en mayúsculas, sin números de apartado y sin una raya por fila: el aire y una línea entre apartados.
-   Colores: tinta y azul noche, el azul del producto en los botones y los artículos, y el rojo solo para el aviso y la multa.
-   El verde de Reportia, solo en el logotipo. */
+   Azul noche en el inicio y en el cierre, con lo urgente delante (la franja de la Autoridad, la obligación, la multa y los
+   plazos de la ley) y el producto de verdad como imagen; los apartados, en blanco; los botones, en el azul del producto.
+   Toda en Switzer (elegida por David el 29 oct). Titular 56 px (36 en el móvil), títulos de apartado 34 (28), texto 16-19,
+   secundario 14 y nunca menos de 12. Botones de 52 y 42 px con esquinas de 10. El rojo, solo en la franja y la multa; el
+   verde de Reportia, solo en el logotipo. Sin rótulos en mayúsculas ni números de apartado. */
 :root {
   --bg: #FFFFFF; --soft: #F5F6F8; --ink: #0D1530; --muted: #4D5672; --line: #E3E6ED;
   --accent: #2F54EB; --accent-hover: #2546CF; --link: #1F3FC4; --on-accent: #FFFFFF;
   --red: #B42318; --red-soft: #FEF3F2; --red-line: #FAD4D0;
-  --night: #0D1530; --on-night: #FFFFFF;
+  --night: #0B1230; --on-night: #FFFFFF; --on-night-muted: #D5DCF2; --fine: #FF9C94;
   --sans: 'Switzer', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --display: var(--sans);
   --gutter: 24px; --max: 1136px;
@@ -44,103 +42,114 @@ main:focus { outline: none; }
 .lp-btn.is-line { background: var(--bg); color: var(--ink); border-color: var(--ink); }
 .lp-btn.is-line:hover { background: var(--soft); color: var(--ink); }
 /* Sobre el azul noche del cierre */
-.lp-btn.is-light { background: #FFFFFF; color: var(--ink); }
-.lp-btn.is-light:hover { background: #E8ECF7; color: var(--ink); }
+.lp-btn.is-ghost-light { background: transparent; color: #FFFFFF; border-color: rgba(255, 255, 255, .75); }
+.lp-btn.is-ghost-light:hover { background: rgba(255, 255, 255, .12); color: #FFFFFF; }
 .lp-btn svg { flex: none; }
 
-/* ── Cabecera blanca, fija arriba al bajar ── */
-.lp-top { position: sticky; top: 0; z-index: 10; background: var(--bg); box-shadow: inset 0 -1px 0 var(--line); }
+/* ── Arriba del todo: la franja roja de la Autoridad y la cabecera fina, sobre azul noche ── */
+.lp-masthead { position: relative; z-index: 10; background: var(--night); }
+.lp-alert { background: var(--red-soft); box-shadow: inset 0 -1px 0 var(--red-line); color: var(--red); }
+.lp-alert p { padding-block: 9px; font-size: 14px; font-weight: 600; line-height: 1.45; }
+.lp-top { color: #FFFFFF; }
 .lp-top-in { display: flex; align-items: center; gap: 12px; min-height: 72px; }
-.lp-brand { flex: none; display: inline-flex; align-items: center; gap: 12px; min-height: 44px; color: var(--muted); text-decoration: none; }
+.lp-brand { flex: none; display: inline-flex; align-items: center; gap: 12px; min-height: 44px; color: #FFFFFF; text-decoration: none; }
 .lp-brand img { height: 24px; width: auto; }
-.lp-brand-name { padding-left: 12px; border-left: 1px solid var(--line); font-size: 17px; font-weight: 500; line-height: 22px; }
+.lp-brand-name { padding-left: 12px; border-left: 1px solid rgba(255, 255, 255, .45); font-size: 17px; font-weight: 500; line-height: 22px; }
 .lp-nav { margin-left: 36px; }
 .lp-nav ul { display: flex; gap: 28px; }
 /* Zona para pulsar de 44 px de alto (WCAG 2.5.8 pide 24 como mínimo), sin cambiar cómo se ve */
-.lp-nav a { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); font-size: 15px; font-weight: 500; text-decoration: none; }
-.lp-nav a:hover { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; }
+.lp-nav a { display: inline-flex; align-items: center; min-height: 44px; color: #FFFFFF; font-size: 15px; font-weight: 500; text-decoration: none; }
+.lp-nav a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
 .lp-langs { display: flex; gap: 2px; }
-.lp-langs a { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; min-height: 32px; padding: 0 6px; border-radius: 8px; color: var(--muted); font-size: 13px; font-weight: 600; text-decoration: none; }
-.lp-langs a[aria-current="true"] { color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
-.lp-langs a:hover { color: var(--ink); }
+.lp-langs a { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; min-height: 32px; padding: 0 6px; border-radius: 8px; color: inherit; font-size: 13px; font-weight: 600; text-decoration: none; }
+.lp-langs a[aria-current="true"] { box-shadow: inset 0 0 0 1px currentColor; }
 .lp-top-tools { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 .lp-top-tools .lp-langs { margin-right: 4px; }
-.lp-top-login.is-line { border-width: 1px; border-color: var(--line); }
-.lp-top-login.is-line:hover { border-color: var(--ink); background: var(--bg); }
+.lp-top :focus-visible { outline-color: #FFFFFF; }
 .lp-top-in > .lp-btn { flex: none; }
 /* En el móvil, el botón de la cabecera con su texto corto (en inglés, el largo no cabe junto a la marca) */
 .lp-cta-short { display: none; }
 .lp-menu { display: none; position: relative; }
-.lp-menu summary { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 10px; color: var(--ink); cursor: pointer; list-style: none; }
+.lp-menu summary { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 10px; color: #FFFFFF; cursor: pointer; list-style: none; }
 .lp-menu summary::-webkit-details-marker { display: none; }
-.lp-menu[open] summary { background: var(--soft); }
-.lp-menu-panel { position: absolute; right: 0; top: calc(100% + 8px); min-width: 240px; padding: 8px; border-radius: 12px; background: var(--bg); color: var(--ink); box-shadow: 0 8px 24px rgba(13, 21, 48, .16), 0 0 0 1px var(--line); }
+.lp-menu[open] summary { background: rgba(255, 255, 255, .14); }
+.lp-menu-panel { position: absolute; right: 0; top: calc(100% + 8px); min-width: 240px; padding: 8px; border-radius: 12px; background: var(--bg); color: var(--ink); box-shadow: 0 12px 32px rgba(7, 11, 28, .28), 0 0 0 1px var(--line); }
 .lp-menu-panel ul:first-child a { display: block; padding: 11px 12px; border-radius: 8px; color: var(--ink); font-weight: 600; text-decoration: none; }
 .lp-menu-panel ul:first-child a:hover { background: var(--soft); }
-.lp-menu-panel .lp-langs { padding: 8px 4px 2px; border-top: 1px solid var(--line); margin-top: 6px; }
+.lp-menu-panel .lp-langs { padding: 8px 4px 2px; border-top: 1px solid var(--line); margin-top: 6px; color: var(--muted); }
+.lp-menu-panel .lp-langs a[aria-current="true"] { color: var(--ink); }
 .lp-menu-panel .lp-langs a { min-height: 44px; min-width: 44px; }
+.lp-menu-panel :focus-visible { outline-color: var(--accent); }
 /* En el móvil, los idiomas del pie también con 44 px para el dedo */
 @media (max-width: 640px) { .lp-langs a { min-height: 44px; min-width: 44px; } }
 @media (max-width: 1080px) {
   .lp-nav, .lp-top-tools { display: none; }
   .lp-top-in > .lp-btn { margin-left: auto; }
-  .lp-menu { display: block; margin-left: -16px; }
+  .lp-menu { display: block; margin-left: -4px; }
 }
 @media (max-width: 640px) {
-  .lp-top-in { gap: 10px; min-height: 64px; }
+  .lp-alert p { font-size: 13px; padding-block: 8px; }
+  .lp-top-in { gap: 10px; min-height: 60px; }
   .lp-brand { gap: 9px; }
   .lp-brand img { height: 20px; }
   .lp-brand-name { padding-left: 9px; font-size: 15px; }
   .lp-top-in > .lp-btn { min-height: 40px; padding: 0 13px; font-size: 14px; }
   .lp-cta-long { display: none; }
   .lp-cta-short { display: inline; }
-  .lp-menu { margin-left: -4px; }
 }
 /* Móviles muy estrechos (320): sin «Canal» junto al logotipo, para que quepan el botón y el menú */
 @media (max-width: 359px) { .lp-brand-name { display: none; } }
 
-/* ── La franja de aviso: la Autoridad ya funciona ── */
-.lp-alert { background: var(--red-soft); box-shadow: inset 0 -1px 0 var(--red-line); color: var(--red); }
-.lp-alert p { padding-block: 10px; font-size: 14px; font-weight: 500; line-height: 1.45; }
-
-/* ── Inicio: la obligación a la izquierda y lo que dice la ley a la derecha ──
-   El titular en serifa de peso normal (500): la fuerza la da el tamaño, no la negrita. Sin rótulo encima */
-.lp-hero-in { display: grid; grid-template-columns: minmax(0, 1fr) 456px; gap: 52px; align-items: start; padding-top: 88px; padding-bottom: 88px; }
-.lp-hero h1 { font-family: var(--display); font-size: 52px; line-height: 1.06; font-weight: 600; letter-spacing: -0.03em; color: var(--ink); text-wrap: balance; }
-.lp-hero-sub { max-width: 540px; margin-top: 28px; font-size: 18px; line-height: 1.6; color: var(--muted); }
-.lp-hero-sub b { color: var(--ink); font-weight: 700; white-space: nowrap; }
-.lp-cta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 36px; }
-.lp-hero-note { margin-top: 18px; font-size: 14px; color: var(--muted); }
-
-.lp-law-card { border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); }
-.lp-law-card h2 { padding: 16px 22px; border-bottom: 1px solid var(--line); font-size: 15px; font-weight: 600; line-height: 1.4; color: var(--ink); }
-.lp-law-card dl > div { padding: 20px 22px; }
-.lp-law-card dl > div + div { border-top: 1px solid var(--line); }
-.lp-law-card dt { font-family: var(--display); font-size: 26px; line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); }
-.lp-law-card dd { margin-top: 6px; font-size: 15px; line-height: 1.5; color: var(--ink); }
-.lp-law-card .is-fine dt { color: var(--red); }
-.lp-law-card dt, .lp-plan-price b, .lp-step-n, .lp-hero-sub b { font-variant-numeric: tabular-nums; }
-/* Los artículos, una vez, al pie de la ficha: pequeño y en gris, cada número enlazado */
-.lp-law-source { padding: 14px 22px 16px; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.5; color: var(--muted); }
-.lp-law-source a { color: var(--muted); text-decoration: underline; text-decoration-color: rgba(77, 86, 114, .45); text-underline-offset: 2px; }
-.lp-law-source a:hover { color: var(--ink); text-decoration-color: currentColor; }
-
+/* ── Inicio: azul noche, la obligación y la multa a la izquierda y el producto de verdad a la derecha; debajo, los datos de
+   la ley. La luz azul detrás de las capturas les da fondo, sin brillos ni rejillas ── */
+.lp-hero, .lp-end { position: relative; isolation: isolate; overflow: hidden; color: var(--on-night); background: var(--night); }
+.lp-hero::before { content: ''; position: absolute; z-index: -1; inset: 12% -12% auto 40%; height: 100%; background: radial-gradient(closest-side, rgba(47, 84, 235, .38), rgba(47, 84, 235, 0)); pointer-events: none; }
+.lp-hero-in { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); grid-template-areas: 'text shots' 'facts facts'; gap: 0 56px; align-items: center; padding-top: 64px; padding-bottom: 48px; }
+.lp-hero-text { grid-area: text; }
+.lp-hero h1 { font-family: var(--display); font-size: 52px; line-height: 1.05; font-weight: 700; letter-spacing: -0.03em; text-wrap: balance; }
+.lp-hero-sub { max-width: 52ch; margin-top: 22px; font-size: 18px; line-height: 1.6; color: var(--on-night-muted); }
+.lp-hero-sub b { color: #FFFFFF; font-weight: 700; white-space: nowrap; }
+.lp-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.lp-hero-note { margin-top: 14px; font-size: 14px; color: var(--on-night-muted); }
+.lp-hero a:not(.lp-btn), .lp-end a:not(.lp-btn) { color: #FFFFFF; }
+.lp-hero :focus-visible, .lp-end :focus-visible { outline-color: #FFFFFF; }
+/* Las capturas: el panel, grande y saliendo por la derecha; el móvil, delante, abajo a la izquierda */
+.lp-shots { grid-area: shots; position: relative; padding: 24px 0 56px 48px; }
+.lp-shot-panel { display: block; width: 125%; max-width: none; height: auto; aspect-ratio: 2 / 1; border-radius: 12px; background: #FFFFFF; box-shadow: 0 0 0 1px rgba(255, 255, 255, .14), 0 40px 80px -24px rgba(0, 0, 0, .65); }
+.lp-shot-phone { position: absolute; left: 0; bottom: 0; width: 34%; height: auto; aspect-ratio: 450 / 525; border-radius: 18px; background: #FFFFFF; box-shadow: 0 0 0 6px #1A2140, 0 0 0 7px rgba(255, 255, 255, .16), 0 32px 64px -16px rgba(0, 0, 0, .7); }
+/* Los datos de la ley, en fila: la cifra grande y una frase entera; la multa, en rojo claro */
+.lp-facts { grid-area: facts; margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, .2); }
+.lp-facts dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 32px; }
+.lp-facts dt { font-family: var(--display); font-size: 30px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; color: #FFFFFF; font-variant-numeric: tabular-nums; }
+.lp-facts .is-fine dt { color: var(--fine); }
+.lp-facts dd { margin-top: 8px; font-size: 15px; line-height: 1.45; color: var(--on-night-muted); }
+.lp-facts-source { margin-top: 20px; font-size: 13px; color: var(--on-night-muted); }
+.lp-facts-source a { text-decoration-color: rgba(255, 255, 255, .5); }
 @media (max-width: 1080px) {
-  .lp-hero-in { grid-template-columns: minmax(0, 1fr); gap: 48px; padding-top: 72px; padding-bottom: 72px; }
-  .lp-law-card { max-width: 620px; }
+  .lp-hero-in { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'text' 'shots' 'facts'; padding-top: 48px; }
+  .lp-shots { margin-top: 40px; padding: 0 0 40px 32px; }
+  .lp-shot-panel { width: 112%; }
+  .lp-hero::before { inset: 30% -30% auto -10%; height: 70%; }
 }
+@media (max-width: 900px) { .lp-facts dl { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; } }
+/* Móviles muy estrechos: «50 trabajadores» no cabe en media columna */
+@media (max-width: 379px) { .lp-facts dl { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) {
-  .lp-hero-in { gap: 40px; padding-top: 44px; padding-bottom: 56px; }
-  .lp-hero h1 { font-size: 38px; line-height: 1.1; }
-  .lp-hero-sub { margin-top: 20px; font-size: 17px; }
-  .lp-cta { flex-direction: column; align-items: stretch; gap: 12px; margin-top: 28px; }
-  .lp-law-card h2 { padding: 14px 18px; }
-  .lp-law-card dl > div { padding: 18px; }
-  .lp-law-card dt { font-size: 27px; }
+  .lp-hero-in { padding-top: 36px; padding-bottom: 32px; }
+  .lp-hero h1 { font-size: 36px; line-height: 1.08; }
+  .lp-hero-sub { margin-top: 16px; font-size: 17px; }
+  .lp-cta { flex-direction: column; align-items: stretch; gap: 10px; margin-top: 24px; }
+  .lp-shots { margin-top: 32px; padding: 0 0 28px 20px; }
+  .lp-shot-panel { width: 150%; border-radius: 10px; }
+  .lp-shot-phone { width: 42%; border-radius: 14px; box-shadow: 0 0 0 4px #1A2140, 0 0 0 5px rgba(255, 255, 255, .16), 0 24px 48px -12px rgba(0, 0, 0, .7); }
+  .lp-facts { margin-top: 36px; padding-top: 20px; }
+  .lp-facts dl { gap: 20px 16px; }
+  .lp-facts dt { font-size: 24px; }
+  .lp-facts dd { font-size: 14px; }
 }
 
 /* ── Cómo funciona: el vídeo, grande, justo debajo del inicio ── */
-.lp-show { padding-bottom: 88px; }
+.lp-show { padding-top: 96px; padding-bottom: 88px; }
 .lp-show-title, .lp-sec-title { font-family: var(--display); font-size: 34px; line-height: 1.12; font-weight: 600; letter-spacing: -0.028em; color: var(--ink); text-wrap: balance; }
 .lp-show-head { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 8fr); gap: 8px 40px; align-items: end; margin-bottom: 28px; }
 .lp-show-lead, .lp-sec-lead { max-width: 56ch; font-size: 16px; line-height: 1.6; color: var(--muted); }
@@ -163,7 +172,7 @@ main:focus { outline: none; }
   .lp-video-box { aspect-ratio: 9 / 16; width: min(100%, calc(76svh * 9 / 16)); margin-inline: auto; }
 }
 @media (max-width: 640px) {
-  .lp-show { padding-bottom: 72px; }
+  .lp-show { padding-top: 64px; padding-bottom: 64px; }
   .lp-show-title, .lp-sec-title { font-size: 28px; }
   .lp-show-head { grid-template-columns: minmax(0, 1fr); margin-bottom: 20px; }
   .lp-show-lead, .lp-sec-lead { font-size: 15px; }
@@ -229,15 +238,13 @@ main:focus { outline: none; }
   .lp-plan-price { margin-top: 12px; }
 }
 
-/* ── Cierre, sobre azul noche ── */
-.lp-end { background: var(--night); color: var(--on-night); }
-.lp-end-in { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px 48px; padding-top: 72px; padding-bottom: 72px; }
-.lp-end h2 { max-width: 22ch; font-family: var(--display); font-size: 34px; line-height: 1.15; font-weight: 600; letter-spacing: -0.028em; text-wrap: balance; }
-.lp-end :focus-visible { outline-color: #FFFFFF; }
+/* ── Cierre: sobre azul noche, la frase de la urgencia y los dos botones ── */
+.lp-end::before { content: ''; position: absolute; z-index: -1; inset: -40% auto -40% -10%; width: 70%; background: radial-gradient(closest-side, rgba(47, 84, 235, .3), rgba(47, 84, 235, 0)); pointer-events: none; }
+.lp-end-in { padding-top: 96px; padding-bottom: 96px; }
+.lp-end h2 { max-width: 20ch; font-family: var(--display); font-size: 44px; line-height: 1.08; font-weight: 700; letter-spacing: -0.03em; text-wrap: balance; }
 @media (max-width: 640px) {
-  .lp-end-in { flex-direction: column; align-items: stretch; padding-top: 56px; padding-bottom: 56px; }
-  .lp-end h2 { font-size: 28px; }
-  .lp-end .lp-btn { width: 100%; }
+  .lp-end-in { padding-top: 64px; padding-bottom: 64px; }
+  .lp-end h2 { font-size: 30px; }
 }
 
 /* ── Pie ── */

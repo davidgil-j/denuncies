@@ -1,6 +1,6 @@
 // La portada de Reportia, como página estática: una por idioma, generada al compilar (y al vuelo con `npm run dev`) por el
 // plugin de vite.config.js. Sin React: se lee sin JavaScript, pinta a la primera y no se mueve nada mientras carga.
-// Diseño «aviso» (boceto Claude outputs/bocetos/portada-1-aviso.png, 29 oct 2026): blanca, en Switzer, la franja
+// En azul noche, con lo urgente delante y el producto de verdad como imagen (29 oct 2026), en Switzer: la franja
 // de la Autoridad arriba, la obligación legal en el inicio, el vídeo justo debajo y cuatro apartados. Los textos salen de
 // src/translations-site.js (v2site.portada y los nombres de los planes) y las decisiones de negocio (nombre, precios, multa,
 // días de prueba…) de src/v2/config/producto.js. El JavaScript (landing.js) solo añade lo opcional: los vídeos se
@@ -17,6 +17,9 @@ const BOE = 'https://www.boe.es/buscar/act.php?id=BOE-A-2023-4513';
 // a6-5 (art. 63), a6-7 (art. 65)…
 const boeArt = (n) => `${BOE}#a${n < 10 ? n : `${Math.floor(n / 10)}-${(n % 10) + 2}`}`;
 export const LANGS = ['es', 'ca', 'en'];
+
+/** Las capturas del producto en el inicio (public/landing/producto, sacadas de los vídeos 4K), en el idioma de la página */
+const shot = (name, lang) => ({ src: `/landing/producto/${name}-${lang}-s.webp`, srcset: `/landing/producto/${name}-${lang}-s.webp 1x, /landing/producto/${name}-${lang}.webp 2x` });
 
 /**
  * La página entera de un idioma.
@@ -45,10 +48,10 @@ export function generarPortada({ lang, T, P, assets }) {
   // La multa, como el BOE y sin redondear: «600.001 a 1.000.000 €»
   const multa = fmt(x.fineRange, { min: num(P.MULTA.minimo, lang), max: num(P.MULTA.maximo, lang) });
 
-  // La marca: el logotipo oficial en verde oscuro (sobre blanco) y el nombre del producto
-  const marca = (where) => `
+  // La marca: el logotipo oficial (verde, sobre la foto oscura) y el nombre del producto
+  const marca = () => `
       <a class="lp-brand" href="${here(lang)}" aria-label="${esc(s.homeLabel)}">
-        <img src="/marca/reportia-logo-oscuro.svg" width="116" height="24" alt="${esc(P.EMPRESA)}"${where === 'top' ? ' fetchpriority="high"' : ''}>
+        <img src="/marca/reportia-logo.svg" width="116" height="24" alt="${esc(P.EMPRESA)}" fetchpriority="high">
         ${nombre ? `<span class="lp-brand-name">${esc(nombre)}</span>` : ''}
       </a>`;
 
@@ -59,42 +62,41 @@ export function generarPortada({ lang, T, P, assets }) {
 
   const nav = [['#ley', x.navLaw], ['#funciona', x.navHow], ['#precio', x.navPrice]];
 
-  // ── Cabecera blanca, fija arriba al bajar ──
+  // ── Arriba del todo, sobre la foto: la franja roja de la Autoridad y la cabecera fina ──
   // A la izquierda, la marca y los apartados de esta página. A la derecha, lo que no es de la página: el idioma, «Acceder»
-  // (para quien ya tiene cuenta, como botón secundario) y «Crear el canal»
+  // (para quien ya tiene cuenta, como botón secundario) y «Crear el canal», en el azul del producto
   const cabecera = `
-  <header class="lp-top">
-    <div class="lp-wrap lp-top-in">
-      ${marca('top')}
-      <nav class="lp-nav" aria-label="${esc(s.navLabel)}">
-        <ul>${nav.map(([h, l]) => `<li><a href="${h}">${esc(l)}</a></li>`).join('')}</ul>
-      </nav>
-      <div class="lp-top-tools">
-        ${langs('lp-langs lp-top-langs')}
-        <a class="lp-btn is-line is-sm lp-top-login" href="${login}">${esc(s.navLogin)}</a>
-      </div>
-      <a class="lp-btn is-ink is-sm lp-top-cta" href="${signup}"><span class="lp-cta-long">${esc(x.navCta)}</span><span class="lp-cta-short">${esc(x.navCtaShort)}</span></a>
-      <details class="lp-menu">
-        <summary aria-label="${esc(s.menuOpen)}">${icono('menu', 22)}</summary>
-        <div class="lp-menu-panel">
-          <ul>${nav.map(([h, l]) => `<li><a href="${h}">${esc(l)}</a></li>`).join('')}
-            <li><a href="${login}">${esc(s.navLogin)}</a></li>
-            <li><a href="${demo}">${esc(s.navDemoShort)}</a></li></ul>
-          ${langs('lp-langs')}
-        </div>
-      </details>
+  <div class="lp-masthead">
+    <div class="lp-alert">
+      <p class="lp-wrap">${esc(x.alert)}</p>
     </div>
-  </header>`;
-
-  // ── La franja de aviso: la Autoridad ya funciona (Orden PJC/908/2025) ──
-  const aviso = `
-  <div class="lp-alert">
-    <p class="lp-wrap">${esc(x.alert)}</p>
+    <header class="lp-top">
+      <div class="lp-wrap lp-top-in">
+        ${marca()}
+        <nav class="lp-nav" aria-label="${esc(s.navLabel)}">
+          <ul>${nav.map(([h, l]) => `<li><a href="${h}">${esc(l)}</a></li>`).join('')}</ul>
+        </nav>
+        <div class="lp-top-tools">
+          ${langs('lp-langs lp-top-langs')}
+          <a class="lp-btn is-ghost-light is-sm lp-top-login" href="${login}">${esc(s.navLogin)}</a>
+        </div>
+        <a class="lp-btn is-sm lp-top-cta" href="${signup}"><span class="lp-cta-long">${esc(x.navCta)}</span><span class="lp-cta-short">${esc(x.navCtaShort)}</span></a>
+        <details class="lp-menu">
+          <summary aria-label="${esc(s.menuOpen)}">${icono('menu', 22)}</summary>
+          <div class="lp-menu-panel">
+            <ul>${nav.map(([h, l]) => `<li><a href="${h}">${esc(l)}</a></li>`).join('')}
+              <li><a href="${login}">${esc(s.navLogin)}</a></li>
+              <li><a href="${demo}">${esc(s.navDemoShort)}</a></li></ul>
+            ${langs('lp-langs')}
+          </div>
+        </details>
+      </div>
+    </header>
   </div>`;
 
-  // ── Inicio: la obligación, en una frase; a la derecha, lo que dice la ley con sus artículos ──
-  // Cada dato: la cifra con su unidad y, debajo, una frase entera que dice qué significa. Los artículos, una sola vez al pie
-  // de la ficha, cada número enlazado al suyo en el BOE (antes iba una etiqueta «Art.» por fila y competía con las cifras)
+  // ── Inicio: sobre azul noche, la obligación y la multa a la izquierda y, como imagen, el producto de verdad a la derecha
+  // (el panel con los plazos de cada denuncia y, delante, el móvil con el código secreto). Debajo, en una fila, los cuatro
+  // datos de la ley (la cifra y una frase entera) con sus artículos al pie ──
   const ficha = [
     [x.lawBoxV[0], x.lawBox[0]],
     [euros(P.MULTA.maximo, lang), x.lawBox[1], true],
@@ -102,6 +104,8 @@ export function generarPortada({ lang, T, P, assets }) {
     [x.lawBoxV[2], x.lawBox[3]],
   ];
   const fuente = fmt(esc(x.lawBoxSource), Object.fromEntries([9, 10, 63, 65].map(n => [`a${n}`, ext(boeArt(n), n)])));
+  const panel = shot('panel', lang);
+  const movil = shot('movil', lang);
   const inicio = `
   <section class="lp-hero" aria-labelledby="lp-h1">
     <div class="lp-wrap lp-hero-in">
@@ -110,17 +114,21 @@ export function generarPortada({ lang, T, P, assets }) {
         <p class="lp-hero-sub">${esc(x.leadA)} ${fmt(esc(x.leadFine), { fine: `<b>${esc(multa)}</b>` })} ${esc(x.leadB)}</p>
         <p class="lp-cta">
           <a class="lp-btn" href="${signup}">${esc(x.cta)}${icono('arrow-right')}</a>
-          <a class="lp-btn is-line" href="${demo}">${esc(s.navDemo)}</a>
+          <a class="lp-btn is-ghost-light" href="${demo}">${esc(s.navDemo)}</a>
         </p>
         <p class="lp-hero-note">${esc(trial)}</p>
       </div>
-      <aside class="lp-law-card" aria-labelledby="lp-law-card-t">
-        <h2 id="lp-law-card-t">${esc(x.lawBoxTitle)}</h2>
+      <div class="lp-shots">
+        <img class="lp-shot-panel" src="${panel.src}" srcset="${panel.srcset}" width="1200" height="600" alt="${esc(x.shotPanel)}" fetchpriority="high" decoding="async">
+        <img class="lp-shot-phone" src="${movil.src}" srcset="${movil.srcset}" width="450" height="525" alt="${esc(x.shotPhone)}" decoding="async">
+      </div>
+      <div class="lp-facts" role="group" aria-labelledby="lp-facts-t">
+        <h2 class="lp-vh" id="lp-facts-t">${esc(x.lawBoxTitle)}</h2>
         <dl>
           ${ficha.map(([v, l, fine]) => `<div${fine ? ' class="is-fine"' : ''}><dt>${esc(v)}</dt><dd>${esc(l)}</dd></div>`).join('')}
         </dl>
-        <p class="lp-law-source">${fuente}</p>
-      </aside>
+        <p class="lp-facts-source">${fuente}</p>
+      </div>
     </div>
   </section>`;
 
@@ -210,12 +218,15 @@ export function generarPortada({ lang, T, P, assets }) {
         </ul>
         <p class="lp-plans-note">${esc(t.priceLead)} ${esc(trial)}</p>`);
 
-  // ── Cierre: una frase y el botón, sobre azul noche ──
+  // ── Cierre: sobre azul noche, la frase de la urgencia y los dos botones ──
   const cierre = `
   <section class="lp-end" aria-labelledby="lp-end-t">
     <div class="lp-wrap lp-end-in">
       <h2 id="lp-end-t">${esc(x.endTitle)}</h2>
-      <p><a class="lp-btn is-light" href="${signup}">${esc(x.cta)}${icono('arrow-right')}</a></p>
+      <p class="lp-cta">
+        <a class="lp-btn" href="${signup}">${esc(x.cta)}${icono('arrow-right')}</a>
+        <a class="lp-btn is-ghost-light" href="${demo}">${esc(s.navDemo)}</a>
+      </p>
     </div>
   </section>`;
 
@@ -243,7 +254,7 @@ export function generarPortada({ lang, T, P, assets }) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="color-scheme" content="light">
-  <meta name="theme-color" content="#FFFFFF">
+  <meta name="theme-color" content="#0B1230">
   <title>${esc(title)}</title>
   <meta name="description" content="${esc(s.metaDesc)}">
   <meta name="robots" content="${robots}">
@@ -263,6 +274,7 @@ export function generarPortada({ lang, T, P, assets }) {
   <link rel="icon" type="image/png" sizes="32x32" href="/marca/reportia-icono-32.png">
   <link rel="apple-touch-icon" href="/marca/reportia-icono-180.png">
   <link rel="preload" href="${assets.font}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" as="image" href="${panel.src}" imagesrcset="${panel.srcset}" media="(min-width: 1081px)" fetchpriority="high">
   <style>@font-face { font-family: 'Switzer'; font-style: normal; font-weight: 100 900; font-display: swap; src: url(${assets.font}) format('woff2'); }
 ${assets.css}</style>
   <script src="${assets.js}" defer></script>
@@ -270,7 +282,6 @@ ${assets.css}</style>
 <body>
   <a class="lp-skip" href="#main">${esc(T.v2.skip)}</a>
 ${cabecera}
-${aviso}
   <main id="main" tabindex="-1">
 ${inicio}
 ${funciona}
